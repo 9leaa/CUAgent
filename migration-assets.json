@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "migrated_on": "2026-09-23",
+  "source_branch": "a0-controlled-workspace",
+  "source_head": "5901c817c5ca8e86b7be29badea34ee4f12e4158",
+  "source_head_note": "HEAD is a provenance reference only. Files marked untracked_working_tree do not originate from this commit.",
+  "copy_policy": "Explicit allowlist, byte-for-byte copy. Pi adapters, launchers, runtime, credentials, sessions, and Git history are excluded.",
+  "files": [
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/workspace-path.mjs",
+      "target_path": "agent/workspace-path.mjs",
+      "sha256": "bca759809a181a7612ddba9aa0463193d32bd531386ce1f9565b86362bcce23f",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/workspace-list.mjs",
+      "target_path": "agent/workspace-list.mjs",
+      "sha256": "21f7c5531426c7793190643b971909bfcb8b5f8473f1533dceff7736076c7137",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/workspace-read.mjs",
+      "target_path": "agent/workspace-read.mjs",
+      "sha256": "352fe09a61f2a6807afaee12499c7935e9048006a9700f60b62c2bd38ad8a586",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/workspace-write.mjs",
+      "target_path": "agent/workspace-write.mjs",
+      "sha256": "a8069e9d734eda0d472a239d381212668e1e9050266dab5470242a2a9ee9e803",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/workspace-csv-stats.mjs",
+      "target_path": "agent/workspace-csv-stats.mjs",
+      "sha256": "4cd9224fc01d32d81772c92b3bea6cc39f8d13252b5f5e9640c5b160640d8fc1",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/image-probe.mjs",
+      "target_path": "agent/image-probe.mjs",
+      "sha256": "bb683cab9cbc4f8a24923f0cac09b26d5e27cbaa018551fe7c81e0aadfae6b16",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/prepare-a0-validation.mjs",
+      "target_path": "agent/prepare-a0-validation.mjs",
+      "sha256": "5a51fd51122fbe1f404af0893100796d82706125f6a68fa7957ea683991ef8ea",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/verify-a0-csv-result.mjs",
+      "target_path": "agent/verify-a0-csv-result.mjs",
+      "sha256": "7b1be7fa4e97bc464bc536745519cfc1edb52fc40cc40d4b72494d55255d59f2",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/tests/image-probe.test.mjs",
+      "target_path": "agent/tests/image-probe.test.mjs",
+      "sha256": "341488e1daa5676aefce86b520147db062f088205362c76c702a83eaf9ea4aa9",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/tests/workspace-csv-stats.test.mjs",
+      "target_path": "agent/tests/workspace-csv-stats.test.mjs",
+      "sha256": "06bd4eb453073a6e0a6ecd8e8fd5f4c4ff7eff69c5f1e1e3ab46ffcc11cc5ab6",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/tests/workspace-list.test.mjs",
+      "target_path": "agent/tests/workspace-list.test.mjs",
+      "sha256": "fedc382c5e71244dbfe2f0af5daffcf640d91b33009220b0cb97371e6c4e231f",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/tests/workspace-read.test.mjs",
+      "target_path": "agent/tests/workspace-read.test.mjs",
+      "sha256": "12a382c4882a72ac4b4300c31b632f1928ff11d0485dcd5ebf69145c15c95ce7",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/tests/workspace-write.test.mjs",
+      "target_path": "agent/tests/workspace-write.test.mjs",
+      "sha256": "9e8f97e6d3e22ef26e073f7c03d9f17c5c6a4cabee0e509e6d8e18a7e1be7bce",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/fixtures/a0/sales.csv",
+      "target_path": "agent/fixtures/a0/sales.csv",
+      "sha256": "ff77cc7ce9aaeb8ba6d442c79abfb3e120c1344f6059e0b90165aab6d82f2731",
+      "source_category": "untracked_working_tree"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "tools/mac_vm/preflight.py",
+      "target_path": "tools/mac_vm/preflight.py",
+      "sha256": "878cdb70a5275abeb0fa1ea6e6d8b3927d5a0837949ec248252219df2f6260f4",
+      "source_category": "tracked_unchanged_from_head"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "tools/mac_vm/driver_smoke.py",
+      "target_path": "tools/mac_vm/driver_smoke.py",
+      "sha256": "4ec0af1d229a2ac28218d63e29b822b68bd751315350fe462dcbea8c81a59da5",
+      "source_category": "tracked_unchanged_from_head"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "tools/mac_vm/tests/test_driver_smoke.py",
+      "target_path": "tools/mac_vm/tests/test_driver_smoke.py",
+      "sha256": "af36ce1cbd75ec585273aa5e8fd5d653ce3fdd8fe0baf5d86a588c5f606fc3a8",
+      "source_category": "tracked_unchanged_from_head"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "patches/cua/LICENSE.md",
+      "target_path": "patches/cua/LICENSE.md",
+      "sha256": "c0779290c1d4783169aa3dbfb55feb505e563ef8a004bbf55298ceffcfbda8d9",
+      "source_category": "tracked_unchanged_from_head"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "patches/cua/lume-host-isolation.patch",
+      "target_path": "patches/cua/lume-host-isolation.patch",
+      "sha256": "b451514131be07c2942c016b33ea974e0f33d34a86f00e038d105b9b06c4eaee",
+      "source_category": "tracked_unchanged_from_head"
+    },
+    {
+      "source_repository": "https://github.com/9leaa/os_agent",
+      "source_path": "agent/evidence/A0_CSV_IMAGE_VALIDATION_2026-09-22.md",
+      "target_path": "docs/history/pi-a0-csv-image-2026-09-22.md",
+      "sha256": "45cc7e8f9495dcdba1e9344be208a6915f6eb2d526fb8e9c105c4f66b8867c71",
+      "source_category": "untracked_working_tree"
+    }
+  ]
+}

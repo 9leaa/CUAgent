@@ -1,0 +1,219 @@
+diff --git a/libs/lume/src/Commands/Run.swift b/libs/lume/src/Commands/Run.swift
+index 1b727d967..6767a5b31 100644
+--- a/libs/lume/src/Commands/Run.swift
++++ b/libs/lume/src/Commands/Run.swift
+@@ -176,6 +176,13 @@ struct Run: AsyncParsableCommand {
+     }
+ 
+     func validate() throws {
++        try MVPHostIsolation.validate(
++            displayMode: DisplayMode.resolve(requested: display, noDisplay: noDisplay),
++            clipboard: clipboard,
++            hasHostAttachments: !sharedDirectories.isEmpty || mount != nil
++                || !usbStorageDevices.isEmpty || !additionalDisks.isEmpty
++                || diskPath != nil || nvramPath != nil
++        )
+         if let option = VNCPolicy.conflictingOption(
+             policy: vnc,
+             displayMode: DisplayMode.resolve(requested: display, noDisplay: noDisplay),
+diff --git a/libs/lume/src/VM/MVPHostIsolation.swift b/libs/lume/src/VM/MVPHostIsolation.swift
+new file mode 100644
+index 000000000..22f103b35
+--- /dev/null
++++ b/libs/lume/src/VM/MVPHostIsolation.swift
+@@ -0,0 +1,18 @@
++import Foundation
++
++/// Project-local M0 guard. Set only on the developer-owned VM manager process.
++/// This is not the tool policy for the agent running inside the guest.
++enum MVPHostIsolation {
++    static let enabled = ProcessInfo.processInfo.environment["LUME_MVP_HOST_ISOLATION"] == "1"
++
++    static func validate(
++        displayMode: DisplayMode, clipboard: Bool, hasHostAttachments: Bool,
++        isolationEnabled: Bool = enabled
++    ) throws {
++        guard isolationEnabled else { return }
++        guard displayMode == .none, !clipboard, !hasHostAttachments else {
++            throw VMError.internalError(
++                "MVP host isolation requires --display none, no clipboard, and no host attachments")
++        }
++    }
++}
+diff --git a/libs/lume/src/VM/VM.swift b/libs/lume/src/VM/VM.swift
+index 899709321..154688168 100644
+--- a/libs/lume/src/VM/VM.swift
++++ b/libs/lume/src/VM/VM.swift
+@@ -167,7 +167,8 @@ class VM {
+         osType: String,
+         explicitlyRequested: Bool
+     ) -> Bool {
+-        explicitlyRequested
++        if MVPHostIsolation.enabled { return false }
++        return explicitlyRequested
+             || (displayMode == .native && osType.caseInsensitiveCompare("macOS") == .orderedSame)
+     }
+ 
+@@ -178,6 +179,11 @@ class VM {
+         networkMode: NetworkMode? = nil, clipboard: Bool = false,
+         vncPolicy: VNCPolicy = .enabled
+     ) async throws {
++        try MVPHostIsolation.validate(
++            displayMode: displayMode, clipboard: clipboard,
++            hasHostAttachments: !sharedDirectories.isEmpty || mount != nil
++                || !(usbMassStoragePaths ?? []).isEmpty || !(additionalDiskPaths ?? []).isEmpty
++        )
+         // Defense in depth: the CLI and the controller reject these combinations
+         // first, but no caller may reach a VNC-dependent path with VNC disabled.
+         if let option = VNCPolicy.conflictingOption(
+@@ -303,7 +309,7 @@ class VM {
+             try? FileManager.default.removeItem(
+                 at: lumeConfigDir.appendingPathComponent("vnc.env"))
+             var allSharedDirectories = sharedDirectories
+-            if vncPolicy.isEnabled {
++            if vncPolicy.isEnabled && !MVPHostIsolation.enabled {
+                 try? FileManager.default.createDirectory(
+                     at: lumeConfigDir, withIntermediateDirectories: true)
+                 allSharedDirectories.append(
+@@ -364,7 +370,7 @@ class VM {
+                 vncInfo = url
+ 
+                 // URL format: vnc://:password@host:port — URLComponents needs http:// to parse correctly.
+-                if let components = URLComponents(
++                if !MVPHostIsolation.enabled, let components = URLComponents(
+                     string: url.replacingOccurrences(of: "vnc://", with: "http://")),
+                    let port = components.port {
+                     vncPortValue = port
+@@ -471,7 +477,7 @@ class VM {
+             // Write VNC config into VM via SSH (background task).
+             // VirtioFS mounts are blocked by macOS TCC for LaunchAgent processes,
+             // so we also write vnc.env directly to the guest's home directory.
+-            if let port = vncPortValue, let password = vncPasswordValue {
++            if !MVPHostIsolation.enabled, let port = vncPortValue, let password = vncPasswordValue {
+                 let vmName = vmDirContext.name
+                 let storage = vmDirContext.storage
+                 Task.detached {
+@@ -504,6 +510,10 @@ class VM {
+     }
+ 
+     private func showNativeDisplay() async {
++        guard !MVPHostIsolation.enabled else {
++            Logger.error("MVP host isolation blocks native display attachment")
++            return
++        }
+         guard let context = displayContext else {
+             Logger.error(
+                 "Cannot attach native display without an active VM context",
+@@ -538,6 +548,7 @@ class VM {
+     }
+ 
+     private func startClipboardWatcherIfNeeded() async {
++        guard !MVPHostIsolation.enabled else { return }
+         guard clipboardWatcher == nil else { return }
+         let watcher = ClipboardWatcher(
+             vmName: vmDirContext.name,
+@@ -1277,6 +1288,10 @@ class VM {
+         additionalDiskPaths: [Path]? = nil,
+         networkMode: NetworkMode? = nil
+     ) throws -> VMVirtualizationServiceContext {
++        if MVPHostIsolation.enabled && (!sharedDirectories.isEmpty || mount != nil
++            || !(usbMassStoragePaths ?? []).isEmpty || !(additionalDiskPaths ?? []).isEmpty) {
++            throw VMError.internalError("MVP host isolation blocks host attachments")
++        }
+         // This is a diagnostic log to track actual file paths on disk for debugging
+         try validateDiskState()
+ 
+@@ -1425,7 +1440,8 @@ class VM {
+             // Write VNC config to shared directory for guest discovery
+             var vncPortValue: Int?
+             var vncPasswordValue: String?
+-            if let components = URLComponents(string: vncInfo.replacingOccurrences(of: "vnc://", with: "http://")),
++            if !MVPHostIsolation.enabled,
++               let components = URLComponents(string: vncInfo.replacingOccurrences(of: "vnc://", with: "http://")),
+                let port = components.port {
+                 vncPortValue = port
+                 vncPasswordValue = components.password ?? ""
+diff --git a/libs/lume/src/Virtualization/VMVirtualizationService.swift b/libs/lume/src/Virtualization/VMVirtualizationService.swift
+index 17ee07c33..249036181 100644
+--- a/libs/lume/src/Virtualization/VMVirtualizationService.swift
++++ b/libs/lume/src/Virtualization/VMVirtualizationService.swift
+@@ -162,6 +162,9 @@ class BaseVirtualizationService: VMVirtualizationService {
+     }
+ 
+     func updateSharedDirectories(_ sharedDirectories: [SharedDirectory]) async throws {
++        guard !MVPHostIsolation.enabled else {
++            throw VMError.internalError("MVP host isolation blocks live shared folders")
++        }
+         let handle = virtualMachineHandle
+         try await withCheckedThrowingContinuation {
+             (continuation: CheckedContinuation<Void, Error>) in
+@@ -282,6 +285,7 @@ class BaseVirtualizationService: VMVirtualizationService {
+     )
+         -> [VZDirectorySharingDeviceConfiguration]
+     {
++        if MVPHostIsolation.enabled { return [] }
+         let grouped = Dictionary(grouping: sharedDirectories ?? [], by: \.tag)
+         let automountTag = VZVirtioFileSystemDeviceConfiguration.macOSGuestAutomountTag
+         return grouped.map { tag, directories in
+@@ -471,7 +475,7 @@ final class DarwinVirtualizationService: BaseVirtualizationService {
+             withLiveUpdatePlaceholder: true
+         )
+         let automountTag = VZVirtioFileSystemDeviceConfiguration.macOSGuestAutomountTag
+-        if !directorySharingDevices.contains(where: {
++        if !MVPHostIsolation.enabled && !directorySharingDevices.contains(where: {
+             ($0 as? VZVirtioFileSystemDeviceConfiguration)?.tag == automountTag
+         }) {
+             let device = VZVirtioFileSystemDeviceConfiguration(tag: automountTag)
+@@ -479,6 +483,15 @@ final class DarwinVirtualizationService: BaseVirtualizationService {
+             directorySharingDevices.append(device)
+         }
+         vzConfig.directorySharingDevices = directorySharingDevices
++        if MVPHostIsolation.enabled {
++            guard config.sharedDirectories?.isEmpty ?? true else {
++                throw VMError.internalError("MVP host isolation blocks configured shared folders")
++            }
++            guard vzConfig.directorySharingDevices.isEmpty else {
++                throw VMError.internalError("MVP host isolation requires zero directory sharing devices")
++            }
++            Logger.info("MVP host isolation verified: directorySharingDevices=0; clipboard bridge disabled")
++        }
+ 
+         // USB Controller configuration
+         if #available(macOS 15.0, *) {
+diff --git a/libs/lume/tests/MVPHostIsolationTests.swift b/libs/lume/tests/MVPHostIsolationTests.swift
+new file mode 100644
+index 000000000..6422b2967
+--- /dev/null
++++ b/libs/lume/tests/MVPHostIsolationTests.swift
+@@ -0,0 +1,31 @@
++import Testing
++import Virtualization
++@testable import lume
++
++@Test("MVP isolation rejects desktop bridges and host attachments")
++func mvpIsolationRejectsHostAccess() throws {
++    try MVPHostIsolation.validate(
++        displayMode: .none, clipboard: false, hasHostAttachments: false, isolationEnabled: true)
++    for (display, clipboard, attachments) in [
++        (DisplayMode.native, false, false), (.vnc, false, false),
++        (.none, true, false), (.none, false, true)
++    ] {
++        #expect(throws: (any Error).self) {
++            try MVPHostIsolation.validate(
++                displayMode: display, clipboard: clipboard,
++                hasHostAttachments: attachments, isolationEnabled: true)
++        }
++    }
++}
++
++@MainActor
++@Test("MVP isolation removes implicit and requested filesystem devices", .enabled(if: MVPHostIsolation.enabled))
++func mvpIsolationHasNoShareDevices() throws {
++    #expect(MVPHostIsolation.enabled)
++    let devices = BaseVirtualizationService.createDirectorySharingDevices(
++        sharedDirectories: [SharedDirectory(hostPath: "/var/empty", tag: "test", readOnly: true)],
++        withLiveUpdatePlaceholder: true)
++    #expect(devices.isEmpty)
++    #expect(!VM.shouldStartClipboardWatcher(
++        displayMode: .native, osType: "macOS", explicitlyRequested: true))
++}

@@ -1,0 +1,14 @@
+{
+  "name": "cuagent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Controlled tools and Computer Use development assets for DeepSeek Harness",
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "test": "node --test agent/tests/*.test.mjs",
+    "test:vm-mock": "python3 -m unittest discover -s tools/mac_vm/tests -v",
+    "fixtures:a0": "node agent/prepare-a0-validation.mjs",
+    "verify:csv": "node agent/verify-a0-csv-result.mjs"
+  }
+}

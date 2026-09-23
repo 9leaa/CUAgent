@@ -1,0 +1,15 @@
+/.runtime/
+/node_modules/
+/agent/node_modules/
+/downloads/
+/.vm/
+/.vm-tools/
+/runs/
+/evidence/
+/.env
+/.env.*
+!/.env.example
+**/__pycache__/
+*.py[cod]
+.DS_Store
+*.log

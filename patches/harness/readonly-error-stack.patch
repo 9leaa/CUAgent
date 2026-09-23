@@ -1,0 +1,110 @@
+diff --git a/packages/boot/app-boot/src/profile-resolution/resolver.ts b/packages/boot/app-boot/src/profile-resolution/resolver.ts
+index ea931a5..7a20147 100644
+--- a/packages/boot/app-boot/src/profile-resolution/resolver.ts
++++ b/packages/boot/app-boot/src/profile-resolution/resolver.ts
+@@ -652,6 +652,25 @@ function internalModules(): InternalModules {
+   }
+ }
+ 
++/** Rewrite diagnostic stack text without replacing the resolver error or its code. */
++function rewriteErrorStack(error: Error, originalMessage: string, message: string): void {
++  const stack = error.stack
++  if (stack === undefined) return
++  const rewritten = stack.replace(originalMessage, message)
++  if (rewritten === stack) return
++  try {
++    error.stack = rewritten
++  } catch (assignmentError) {
++    try {
++      Object.defineProperty(error, 'stack', { value: rewritten, writable: true, configurable: true })
++    } catch (definitionError) {
++      // A non-configurable stack is only a diagnostic loss; keep the original resolver error.
++      void assignmentError
++      void definitionError
++    }
++  }
++}
++
+ function throwWithImporter(error: unknown, routedParent: string, parent: string): never {
+   const code = (error as NodeJS.ErrnoException).code
+   if (error instanceof Error && (code === 'ERR_MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED')) {
+@@ -659,10 +678,8 @@ function throwWithImporter(error: unknown, routedParent: string, parent: string)
+     const parentPath = fileURLToPath(parent)
+     const originalMessage = error.message
+     const message = originalMessage.replaceAll(routedParent, parent).replaceAll(routedPath, parentPath)
+-    const stack = error.stack
+     error.message = message
+-    /* v8 ignore next -- Node's resolver errors always carry a stack */
+-    if (stack !== undefined) error.stack = stack.replace(originalMessage, message)
++    rewriteErrorStack(error, originalMessage, message)
+   }
+   throw error
+ }
+@@ -683,9 +700,7 @@ function throwWithoutCjsAnchor(error: unknown, anchor: string): never {
+       : `\nRequire stack:\n${remaining.map(path => `- ${path}`).join('\n')}`
+     error.message = originalMessage.replace(originalBlock, replacement)
+     resolved.requireStack = remaining
+-    const stack = error.stack
+-    /* v8 ignore next -- Node's resolver errors always carry a stack */
+-    if (stack !== undefined) error.stack = stack.replace(originalMessage, error.message)
++    rewriteErrorStack(error, originalMessage, error.message)
+   }
+   throw error
+ }
+diff --git a/packages/boot/app-boot/tests/profile-resolution.spec.ts b/packages/boot/app-boot/tests/profile-resolution.spec.ts
+index 493202f..f162e2d 100644
+--- a/packages/boot/app-boot/tests/profile-resolution.spec.ts
++++ b/packages/boot/app-boot/tests/profile-resolution.spec.ts
+@@ -15,7 +15,9 @@ import { tmpdir } from 'node:os'
+ import { dirname, join } from 'node:path'
+ import { fileURLToPath, pathToFileURL } from 'node:url'
+ import { getEnvironmentData } from 'node:worker_threads'
++import { ModuleLoader } from '@deepseek-ai/cordis-plugin-loader'
+ import { afterEach, describe, expect, it } from 'vitest'
++import { readPluginMeta } from '../src/package-meta.ts'
+ import {
+   installRuntimeInterception,
+   registerWorkerResolution,
+@@ -651,6 +653,42 @@ describe('runtime resolution', { concurrent: false }, () => {
+     })
+   })
+ 
++  it('uses package metadata when a routed missing locale has a read-only stack', async () => {
++    const f = fixture()
++    file(join(f.installed, 'package.json'), JSON.stringify({
++      name: '@deepseek-ai/dsh-core', description: 'Core plugin', type: 'module',
++      exports: { '.': { import: './index.js', require: './index.cjs' }, './package.json': './package.json' },
++    }))
++    const loader = ModuleLoader.fromInternal()
++    if (loader === undefined) throw new Error('Node module loader is required for this test')
++    const nativeResolve = Reflect.get(loader, 'resolveSync')
++    Reflect.set(loader, 'resolveSync', (...args: unknown[]) => {
++      try {
++        return Reflect.apply(nativeResolve, loader, args)
++      } catch (error) {
++        if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
++          Object.defineProperty(error, 'stack', { value: error.stack, writable: false, configurable: true })
++        }
++        throw error
++      }
++    })
++    try {
++      const registration = installRuntimeInterception(await resolutionOf(f))
++      try {
++        const parent = pathToFileURL(join(f.profile.dir, 'entry.mjs')).href
++        expect(thrownError(() => resolveFrom('@deepseek-ai/dsh-core/locale/en.json', parent)))
++          .toMatchObject({ code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
++        expect(readPluginMeta('@deepseek-ai/dsh-core', parent)).toEqual({
++          title: '@deepseek-ai/dsh-core', description: 'Core plugin',
++        })
++      } finally {
++        registration.dispose()
++      }
++    } finally {
++      Reflect.set(loader, 'resolveSync', nativeResolve)
++    }
++  })
++
+   it('leaves relative package imports targets and their diagnostics to Node', async () => {
+     const f = fixture()
+     file(join(f.profile.dir, 'package.json'), JSON.stringify({

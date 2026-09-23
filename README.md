@@ -1,0 +1,62 @@
+# CUAgent
+
+基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发通用 Agent，再增强 Computer Use，最后按需要扩展 OS 原生能力。复用官方 Web UI、模型接入、会话与 Agent 循环，项目负责受控工具、电脑执行和独立结果验证。
+
+**当前交付包含设计与开发计划、可复用工具核心和测试；固定版 Harness 已在本地安装并完成源码构建、CLI 检查，项目插件和真实模型链路尚未接通或验收。** Pi 的历史通过记录不会算作 Harness 通过。
+
+## 当前进度
+
+- [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
+- [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
+- [x] 重写整体设计、A0–C3/O0 阶段计划和协作规则。
+- [ ] A0：官方 Web UI 中可对话，受控文件任务、模型与图片链路通过。
+- [ ] A1：插件开发、审批、停止、预算、审计与会话续接通过。
+- [ ] C0：真实观察驱动计算器九例和三个基础界面任务。
+- [ ] C1：长流程、弹窗、窗口变化与跨应用任务。
+- [ ] C2：人工接管、异常恢复和固定任务集评测。
+- [ ] C3：第二位开发者能部署、扩展和复现。
+- [ ] O0：按真实用例另行增加系统原生接口。
+
+详细结果见 [PROGRESS](PROGRESS.md)。旧仓库 `9leaa/os_agent` 已归档；旧本地源码和Pi安装已按用户要求移至废纸篓。VM、镜像和原始证据仍保留在旧环境目录，不迁移到Git。
+
+## 阅读与开发入口
+
+| 文档 | 用途 |
+|---|---|
+| [整体设计](DESIGN.md) | 组件、边界、插件接入、状态与验证 |
+| [开发计划书](Harness_Development_Plan.md) | 各阶段任务、依赖和验收条件 |
+| [协作说明](COLLABORATION.md) | 两人分工、阶段分支与 VM 调试 |
+| [迁移清单](MIGRATION.md) | 所有旧方案如何承接、哪些实现复用 |
+| [开发规则](AGENTS.md) | 后续代理必须遵循的范围 |
+| [Harness 接入说明](agent/harness/README.md) | 固定上游、待实现适配点和启动门槛 |
+
+本地项目目录：`/Users/zhangchengjie/CUAgent`。首次发布分支：`harness-migration`；本次经用户单独授权直接提交、推送，不开 PR。后续仍由维护者决定提交、推送和 PR。
+
+现有测试无需安装 Harness、配置 API Key 或启动 VM：
+
+```bash
+cd /Users/zhangchengjie/CUAgent
+node --test agent/tests/*.test.mjs
+python3 -m unittest discover -s tools/mac_vm/tests -v
+```
+
+这两条命令仅验证工具核心与历史 mock，不证明 Web UI 或真实模型已可用。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；安装与验证命令见 [接入说明](agent/harness/README.md)。已修复Rosetta环境导致的原生模块架构错误，ARM64加载与4项文件锁测试通过；插件元数据异常已有[可重放补丁](patches/harness/readonly-error-stack.patch)且相关测试304通过，重启后的Web显示仍待复验。后续重编译须使用接入说明中的原生ARM64命令。当前没有项目级 Harness 启动脚本；下一步按 **A0-02** 实现和核验专用 profile。不要将上游默认启动命令当作本项目的受控入口。
+
+## 目录
+
+```text
+agent/
+  workspace-*.mjs         # 已迁移的框架无关文件/CSV核心
+  image-probe.mjs         # 确定性图片测试数据
+  tests/                 # 核心边界测试
+  fixtures/              # 无凭证测试输入
+  harness/               # 接入设计与上游版本记录，插件待实现
+tools/mac_vm/            # 历史计算器固定流程、环境诊断与mock
+patches/cua/             # 固定上游的Lume隔离补丁和MIT许可证
+patches/harness/         # 固定Harness版本的插件元数据异常补丁
+docs/history/            # 明确标记为历史的验收摘要
+migration-assets.json    # 原字节迁移文件及SHA-256
+vm-manifest.json         # 历史VM声明，不是当前运行状态
+```
+
+Harness 的“插件”“审批”“沙箱”分别是扩展机制、用户决定和执行限制；它们不自动满足本项目的目录、桌面和调用预算边界。开发者预览版可能破坏兼容性，版本与有效配置必须固定。

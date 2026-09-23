@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-23",
+  "purpose": "Source-document fingerprints for the semantic migration recorded in MIGRATION.md; not copies of historical instructions.",
+  "documents": [
+    {
+      "source_root": "/Users/zhangchengjie/Documents/ChatGPT/osagentmvp",
+      "relative_path": "CODEX_HANDOFF.md",
+      "sha256": "5981bd98771f27fa8d575ab2152fbd19b85c0a27fad4dd46b53ebea12e8a5aad"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/Documents/ChatGPT/osagentmvp",
+      "relative_path": "Mac_OS_Agent_MVP_Plan_v0.1.md",
+      "sha256": "e236fbd8f10a713a6665727d0a70b6ac8d5f5592c37297093d1a126a7712be31"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/Documents/ChatGPT/osagentmvp",
+      "relative_path": "Mac_OS_Agent_Design_v0.2.md",
+      "sha256": "f6da89c921069b28353458f4f26c68492d8ed32d7e6ec138fe0d475e0fba1e80"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/Documents/ChatGPT/osagentmvp",
+      "relative_path": "Mac_OS_Agent_Collaboration_Plan_v0.2.md",
+      "sha256": "6261725f758e213b02f9e154deeb3cf0e2f5afeea9e2e9dc74a794aff99fb22f"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/osagent",
+      "relative_path": "README.md",
+      "sha256": "afb2d47685d48499a1317b4f01dc906bcb50ad7f8466dc166832c32bd1688581"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/osagent",
+      "relative_path": "Pi_Agent_Development_Plan.md",
+      "sha256": "06fc67f35a63b5c5cbc3ed5c078947e9e000693ec1100a59fa6fe554187d5328"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/osagent",
+      "relative_path": "PROGRESS.md",
+      "sha256": "57ce8c9422d5f3c4c5ef3ecbaa31119076756c4a663605b1cdef267978760194"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/osagent",
+      "relative_path": "COLLABORATION.md",
+      "sha256": "f09df0e6f7563bfd42b5a609b3e6a744197cac19221eeb8df025cb597c07c1b1"
+    },
+    {
+      "source_root": "/Users/zhangchengjie/osagent",
+      "relative_path": "AGENTS.md",
+      "sha256": "07f89838dffa5ebb4b3b260efdc60106cf5190d4d2db3979cfcb4fef427e8f90"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "status": "historical-vm-baseline-harness-not-integrated",
+  "current_runtime_checked": false,
+  "architecture": "Apple Silicon arm64",
+  "guest": {
+    "product": "macOS",
+    "version": "15.6.1",
+    "build": "24G90",
+    "cpu_count": 4,
+    "memory_gib": 8,
+    "disk_gib": 40,
+    "network": "nat",
+    "historical_host_directory_shares": 0,
+    "historical_clipboard_bridge": false
+  },
+  "components": {
+    "cua_base_commit": "9bbfa7dd3e27ca7f1861ede70aaca390174493f9",
+    "historical_lume_version": "0.5.3",
+    "historical_driver_version": "0.28.2",
+    "historical_guest_python_version": "3.12.14",
+    "harness_installed_version": null,
+    "guest_node_version": null,
+    "lume_isolation_patch": "patches/cua/lume-host-isolation.patch"
+  },
+  "historical_baseline_contains_model_credentials": false,
+  "historical_development_clone_contains_model_credentials": true,
+  "notes": "Historical local environment declaration only. No VM or credentials were copied into CUAgent. Recheck current isolation, credentials, permissions and provider compatibility before C0. Never share the development clone as a clean baseline."
+}

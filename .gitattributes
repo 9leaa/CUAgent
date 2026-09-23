@@ -1,0 +1,3 @@
+# Unified-diff context requires a leading space, including blank lines.
+patches/cua/*.patch whitespace=-blank-at-eol
+patches/harness/*.patch whitespace=-blank-at-eol
