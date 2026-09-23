@@ -1,6 +1,6 @@
 # CUAgent 实际进度
 
-更新：2026-09-23。主路线：[DeepSeek Harness → Computer Use → O0](Harness_Development_Plan.md)。设计、实际实现、本轮测试和历史结果分别记录。
+更新：2026-09-23。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。设计、实际实现、本轮测试和历史结果分别记录。
 
 ## 当前交付
 
@@ -8,13 +8,14 @@
 |---|---|
 | 新仓库 | 公开 `9leaa/CUAgent`；首次发布使用 `harness-migration` 分支，不创建PR；以Git远端实际状态为准 |
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
-| 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness改写 |
+| 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
 | 本轮工具测试 | Node 24.9.0：31/31通过；属于无模型单元测试 |
 | 本轮VM工具测试 | Python 3.9.6：7/7通过；属于mock，不操作桌面 |
 | Harness版本 | 固定源码00102833dfaee1da9f48a3a8eae9d34005a75218 / 0.1.7-alpha.2；本地安装、完整构建及CLI版本/help检查通过；本地源码已打插件元数据补丁 |
-| Harness A0 | 未验收：profile、Cordis插件、Web、模型、会话和图片链路待接入 |
-| A1、C0–C3 | 待实施；无Harness桌面任务通过记录 |
+| Harness A0最小底座 | 未验收：profile、Cordis插件、Web、模型、会话、受控工具和图片链路待接入 |
+| C0-01及C0–C3 | 待实施；无Harness真实模型桌面任务通过记录 |
+| A1通用增强 | 三份文本、CSV和完整插件/会话体验待实施；不阻塞C0–C3 |
 | O0 | 后置，未开始 |
 
 ## 2026-09-23：仓库与方案迁移
@@ -88,9 +89,15 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 - 用户单独授权助手检查、提交并直接推送本仓库到公开`9leaa/CUAgent`的`harness-migration`分支，不创建PR；后续仍沿用用户自行提交推送的约定。
 - 发布范围仅含设计、迁移工具与测试、历史脱敏摘要和可重放Harness补丁；忽略`.runtime`、开发凭证、会话、VM磁盘和原始桌面证据。具体提交与远端结果以Git记录为准。
 
+## 2026-09-23：调整开发顺序，Computer Use优先
+
+- 用户指出旧清单把完整A0/A1放在C0之前，与当前Computer Use主目标不符。计划改为A0最小底座→C0-01真实12×34闭环→C0-02九例及三个基础GUI→C1–C3；A1通用增强可并行或后补。
+- A0只保留真实模型/会话、一个受控文件任务、两种图片链路与最低执行边界；三份文本/CSV业务验收移至A1，不删除原有用例。审批、停止、预算、目标授权和基本审计在首次桌面动作前必须落实，不因A1后移而放松。
+- 本次仅修改计划与说明，未新增Harness插件、调用模型、启动VM或完成任何C阶段验收。
+
 ## 下一步
 
-固定Harness构建已完成；用户重启dsh后先在Web插件页复验红色元数据错误。下一步A0-02实现项目Web profile/preset，先离线核对实际工具清单、停止/预算与额外上报配置，再让用户配置新运行时开发凭证，固定模型/策略并验证模型与会话。随后移植五个工具注册层并重跑A0全部业务用例。
+固定Harness构建已完成；用户重启dsh后先在Web插件页复验红色元数据错误。下一步A0-02实现项目Web profile/preset，离线核对工具清单、停止/预算与额外上报配置，再配置开发模型并验证会话、最小受控文件任务和图片链路。A0最小门槛通过后立即进入C0-01真实12×34闭环；不等待三份文本、CSV或完整A1。
 
 ## 后续更新规则
 

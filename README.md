@@ -1,6 +1,6 @@
 # CUAgent
 
-基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发通用 Agent，再增强 Computer Use，最后按需要扩展 OS 原生能力。复用官方 Web UI、模型接入、会话与 Agent 循环，项目负责受控工具、电脑执行和独立结果验证。
+CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。复用官方 Web UI、模型接入、会话与 Agent 循环。
 
 **当前交付包含设计与开发计划、可复用工具核心和测试；固定版 Harness 已在本地安装并完成源码构建、CLI 检查，项目插件和真实模型链路尚未接通或验收。** Pi 的历史通过记录不会算作 Harness 通过。
 
@@ -8,13 +8,14 @@
 
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
-- [x] 重写整体设计、A0–C3/O0 阶段计划和协作规则。
-- [ ] A0：官方 Web UI 中可对话，受控文件任务、模型与图片链路通过。
-- [ ] A1：插件开发、审批、停止、预算、审计与会话续接通过。
-- [ ] C0：真实观察驱动计算器九例和三个基础界面任务。
+- [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
+- [ ] A0：官方 Web UI 中真实模型、会话、简单受控工具、图片和最低执行边界通过。
+- [ ] C0-01：真实模型在测试 VM 中完成计算器12×34，轨迹、新显示、文件读回和独立期望值闭环通过。
+- [ ] C0-02：真实观察驱动计算器九例和三个基础界面任务。
 - [ ] C1：长流程、弹窗、窗口变化与跨应用任务。
 - [ ] C2：人工接管、异常恢复和固定任务集评测。
-- [ ] C3：第二位开发者能部署、扩展和复现。
+- [ ] C3：第二位开发者能部署、扩展和复现 Computer Use 任务。
+- [ ] A1：三份文本、CSV和通用插件/会话能力补强；不阻塞C0–C3。
 - [ ] O0：按真实用例另行增加系统原生接口。
 
 详细结果见 [PROGRESS](PROGRESS.md)。旧仓库 `9leaa/os_agent` 已归档；旧本地源码和Pi安装已按用户要求移至废纸篓。VM、镜像和原始证据仍保留在旧环境目录，不迁移到Git。
@@ -40,7 +41,7 @@ node --test agent/tests/*.test.mjs
 python3 -m unittest discover -s tools/mac_vm/tests -v
 ```
 
-这两条命令仅验证工具核心与历史 mock，不证明 Web UI 或真实模型已可用。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；安装与验证命令见 [接入说明](agent/harness/README.md)。已修复Rosetta环境导致的原生模块架构错误，ARM64加载与4项文件锁测试通过；插件元数据异常已有[可重放补丁](patches/harness/readonly-error-stack.patch)且相关测试304通过，重启后的Web显示仍待复验。后续重编译须使用接入说明中的原生ARM64命令。当前没有项目级 Harness 启动脚本；下一步按 **A0-02** 实现和核验专用 profile。不要将上游默认启动命令当作本项目的受控入口。
+这两条命令仅验证工具核心与历史 mock，不证明 Web UI 或真实模型已可用。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；安装与验证命令见 [接入说明](agent/harness/README.md)。已修复Rosetta环境导致的原生模块架构错误，ARM64加载与4项文件锁测试通过；插件元数据异常已有[可重放补丁](patches/harness/readonly-error-stack.patch)且相关测试304通过，重启后的Web显示仍待复验。后续重编译须使用接入说明中的原生ARM64命令。当前没有项目级 Harness 启动脚本；下一步按 **A0-02** 实现和核验专用 profile，A0最小验收后立即做**C0-01真实Computer Use闭环**。不要将上游默认启动命令当作本项目的受控入口。
 
 ## 目录
 

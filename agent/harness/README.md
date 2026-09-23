@@ -12,9 +12,9 @@
 
 1. 已完成固定源码构建和launcher help/版本检查；独立设置 `DSH_HOME`，不用默认个人配置。模型、凭证与策略固定仍待后续接入。
 2. 根据官方Web模板创建项目profile，在启动模型前展开有效配置。第一次创建与已存在profile的启动参数分开处理。
-3. 禁用Web默认standard/PTC/Cordis/minimal presets及不需要的执行插件，注册项目专用preset。只允许五个workspace工具，先以无模型加载与调用测试证明生效。
+3. 禁用Web默认standard/PTC/Cordis/minimal presets及不需要的执行插件，注册项目专用preset。A0只允许list/read/write和图片探针；CSV工具等通用增强排在A1，先以无模型加载与调用测试证明生效。
 4. 关闭独立的DeepSeek session-log contributor和OTel会话上报，复核插件管理、终端、网络与配置覆盖入口。
-5. 在Cordis插件中注册工具，最终执行guard做fail-closed检查；再验证官方Web中的模型、会话、文件和图片路径。
+5. 在Cordis插件中注册最小工具，最终执行guard做fail-closed检查；再验证官方Web中的模型、会话、一个受控文件任务和两种图片路径。达到最小门槛后优先接C0真实桌面，不等待CSV完整业务流程。
 
 官方CLI有 `--profile`、`--from-default-profile`、`--patch`、`--dump-config` 等入口。创建自定义profile时可从web模板初始化；同一profile已经存在后不能重复传初始化参数。它们是固定源码文档提供的机制，不是本项目已验证的启动命令。
 
@@ -77,7 +77,7 @@ Pi工具层的导入、注册、写入队列和 `details/content`结构需要重
 - `session-log-deepseek` 的 `enabled: false` 与 `session-telemetry-otel` 的 `mode: DISABLED` 是两条独立配置；只设OTel环境变量不等于关闭DeepSeek日志贡献。记录网络实测，不能只看配置文本。
 - 原生Computer Use provider操作它所在的机器；执行进程放测试VM，另加项目桌面控制权协调。上游服务的单provider注册不是跨进程锁。
 
-以上是开发检查点，尚未生成可执行profile或宣称完成限制。全部验收见 [A0/A1计划](../../Harness_Development_Plan.md)。
+以上是开发检查点，尚未生成可执行profile或宣称完成限制。最小底座与Computer Use验收见 [阶段计划](../../Harness_Development_Plan.md)。
 
 ## 固定源码参考
 

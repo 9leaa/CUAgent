@@ -4,7 +4,7 @@
 
 ## Git 工作方式
 
-- 当前迁移分支 `harness-migration`；后续按阶段创建本地分支，例如 `a0-harness-bootstrap`。不使用codex前缀。
+- 当前迁移分支 `harness-migration`；后续优先按`a0-harness-bootstrap`、`c0-computer-use`等阶段创建本地分支，通用增强另用A1分支。不使用codex前缀。
 - 通常由助手修改与测试后保留未提交状态，汇报文件、差异、结果和阻塞；由用户自己commit、push，是否开PR由用户决定。
 - 本次用户单独授权助手在`harness-migration`完成首次提交并直接推送至公开`9leaa/CUAgent`，不创建PR；此授权不改变后续默认协作约定。
 - 新Git历史独立于旧仓库；首次发布在`harness-migration`阶段分支，不假定已有main历史。
