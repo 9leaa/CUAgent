@@ -2,14 +2,14 @@
 
 CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。复用官方 Web UI、模型接入、会话与 Agent 循环。
 
-**当前交付包含设计与开发计划、可复用工具核心和测试；固定版 Harness 已在本地安装并完成源码构建、CLI 检查，项目插件和真实模型链路尚未接通或验收。** Pi 的历史通过记录不会算作 Harness 通过。
+**当前本地 A0 已有独立 Web profile、真实模型/会话/工具/两种图片链路及最低安全控制的验收记录；尚未开始 C0 真实桌面操作。** 具体证据与限制见 [PROGRESS](PROGRESS.md)。Pi 的历史通过记录不计入 Harness 验收。
 
 ## 当前进度
 
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
-- [ ] A0：官方 Web UI 中真实模型、会话、简单受控工具、图片和最低执行边界通过。
+- [x] A0：独立 Web profile 中真实模型、会话、简单受控工具、图片和最低执行边界通过（Web 停止按钮在先前同策略隔离实例人工验收；正式 profile 未重复点击）。
 - [ ] C0-01：真实模型在测试 VM 中完成计算器12×34，轨迹、新显示、文件读回和独立期望值闭环通过。
 - [ ] C0-02：真实观察驱动计算器九例和三个基础界面任务。
 - [ ] C1：长流程、弹窗、窗口变化与跨应用任务。
@@ -41,17 +41,17 @@ node --test agent/tests/*.test.mjs
 python3 -m unittest discover -s tools/mac_vm/tests -v
 ```
 
-这两条命令仅验证工具核心与历史 mock，不证明 Web UI 或真实模型已可用。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；安装与验证命令见 [接入说明](agent/harness/README.md)。已修复Rosetta环境导致的原生模块架构错误，ARM64加载与4项文件锁测试通过；插件元数据异常已有[可重放补丁](patches/harness/readonly-error-stack.patch)且相关测试304通过，重启后的Web显示仍待复验。后续重编译须使用接入说明中的原生ARM64命令。当前没有项目级 Harness 启动脚本；下一步按 **A0-02** 实现和核验专用 profile，A0最小验收后立即做**C0-01真实Computer Use闭环**。不要将上游默认启动命令当作本项目的受控入口。
+这两条命令仅验证工具核心与历史 mock。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；A0 的正式启动入口是 `agent/harness/start-a0-web.sh <run-id> [port]`，实际验证见 [接入说明](agent/harness/README.md)。后续重编译须使用接入说明中的原生 ARM64 命令。下一步是 **C0-01 真实 Computer Use 闭环**；VM 桌面动作的窗口白名单、逐项授权与独立观察仍须先实现，不能用 A0 文件工具边界代替。
 
 ## 目录
 
 ```text
 agent/
   workspace-*.mjs         # 已迁移的框架无关文件/CSV核心
-  image-probe.mjs         # 确定性图片测试数据
+  image-probe.mjs         # 图片探针编码与随机四色测试数据
   tests/                 # 核心边界测试
   fixtures/              # 无凭证测试输入
-  harness/               # 接入设计与上游版本记录，插件待实现
+  harness/               # A0 profile、受控插件、启动脚本和接入说明
 tools/mac_vm/            # 历史计算器固定流程、环境诊断与mock
 patches/cua/             # 固定上游的Lume隔离补丁和MIT许可证
 patches/harness/         # 固定Harness版本的插件元数据异常补丁

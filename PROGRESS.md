@@ -1,6 +1,6 @@
 # CUAgent 实际进度
 
-更新：2026-09-23。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。设计、实际实现、本轮测试和历史结果分别记录。
+更新：2026-09-29。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。设计、实际实现、本轮测试和历史结果分别记录。
 
 ## 当前交付
 
@@ -10,10 +10,10 @@
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
-| 本轮工具测试 | Node 24.9.0：31/31通过；属于无模型单元测试 |
+| 工具核心测试 | Node 24.9.0：最新本地回归 36/36 通过；属于无模型单元测试 |
 | 本轮VM工具测试 | Python 3.9.6：7/7通过；属于mock，不操作桌面 |
 | Harness版本 | 固定源码00102833dfaee1da9f48a3a8eae9d34005a75218 / 0.1.7-alpha.2；本地安装、完整构建及CLI版本/help检查通过；本地源码已打插件元数据补丁 |
-| Harness A0最小底座 | 未验收：profile、Cordis插件、Web、模型、会话、受控工具和图片链路待接入 |
+| Harness A0最小底座 | 本地最小门槛通过：专用 Web profile、真实模型/会话、受控文件、两种图片、停止/预算/审计；正式 profile 未重复人工点击停止按钮，见 2026-09-29 记录 |
 | C0-01及C0–C3 | 待实施；无Harness真实模型桌面任务通过记录 |
 | A1通用增强 | 三份文本、CSV和完整插件/会话体验待实施；不阻塞C0–C3 |
 | O0 | 后置，未开始 |
@@ -95,9 +95,17 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 - A0只保留真实模型/会话、一个受控文件任务、两种图片链路与最低执行边界；三份文本/CSV业务验收移至A1，不删除原有用例。审批、停止、预算、目标授权和基本审计在首次桌面动作前必须落实，不因A1后移而放松。
 - 本次仅修改计划与说明，未新增Harness插件、调用模型、启动VM或完成任何C阶段验收。
 
+## 2026-09-29：A0 本地最小门槛收口
+
+- 固定 `cuagent-a0` profile：仅 base+Web bundle；正式补丁 `agent/harness/cordis.a0.profile.patch.yml`，启动脚本 `agent/harness/start-a0-web.sh`。四个上游 Web preset 已禁用，`agentPresets/list` 仅返回默认 `a0-verify`，请求 `standard` 被拒绝。真实模型请求头只列五个 A0 工具，没有 shell、团队协作或通用文件工具。`session-log-deepseek`、OTel 在有效配置中关闭；未抓包，不推断无其他网络流量。
+- 隔离 3100 实例、`a0_closure_20260929`：`deepseek-official/deepseek-flash` 三轮真实对话从“青杉”改成“海星”，重启后同会话仍回答“海星”；真实 `workspace_list` 有派发/结果审计。`workspace_write`→`workspace_read` 生成 `result.txt`，独立程序核对 29 字节、SHA-256 `d90eaf55cc26ed44d4fc99e54357363d13acc3ff8c4f6723411250170a3eb347`。
+- `workspace_image_probe` 返回的 96×64 图片有真实 image block；独立验证器解码对象像素、核对答案库与模型回复，四象限 blue/red/green/yellow 全匹配。再将同一图片作为新会话的用户输入，真实模型直接回答蓝/红/绿/黄。此前用户在 Web 中直接发图也有成功记录；本轮新会话走 Web 的 `session/prompt` API，不等于重新人工检查上传按钮。
+- 最终执行层 7/7 集成/单元测试通过：第 31 次拒绝、重启继承预算、禁用工具/停止信号无派发、审计损坏或不可写即拒绝；受控文件适配器还实测绝对路径、`..`、越界符号链接及覆盖拒绝，原内容不变。TypeScript 检查通过。此前同策略隔离实例的 Web 停止按钮经用户人工点击，日志证明停止后无新派发；正式 profile 未重复点击该按钮。
+- A0 仅说明模型在当前专用 profile 下的最小能力与进程内安全边界，不是 OS 级沙箱、网络零流量证明，也不授权 VM 桌面动作。会话、附件、审计位于被 Git 忽略的 `.runtime`。验收时未修改 3099 用户实例或操作 VM；Git 发布另行记录。
+
 ## 下一步
 
-固定Harness构建已完成；用户重启dsh后先在Web插件页复验红色元数据错误。下一步A0-02实现项目Web profile/preset，离线核对工具清单、停止/预算与额外上报配置，再配置开发模型并验证会话、最小受控文件任务和图片链路。A0最小门槛通过后立即进入C0-01真实12×34闭环；不等待三份文本、CSV或完整A1。
+进入 C0-01 前先为测试 VM 桌面动作实现并验收应用/窗口白名单、逐项授权、停止后的最终派发拒绝、30 次预算和观察后独立核对；之后才让真实模型执行计算器 `12×34`。不等待三份文本、CSV或完整 A1。需要在正式 profile 中复测 Web 停止按钮和检查插件卡片显示时，可用独立端口重启，不混用 3099 旧配置。
 
 ## 后续更新规则
 

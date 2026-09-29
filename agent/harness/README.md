@@ -1,6 +1,19 @@
-# Harness 接入边界与下一步
+# Harness A0 接入与边界
 
-当前目录提供接入设计和 [上游参考版本](upstream-reference.json)，没有已运行的项目profile、插件或启动脚本。核心工具在父目录，其测试不依赖Harness。
+2026-09-29 已建立独立 `cuagent-a0` profile 和启动脚本，固定版源码见 [上游参考版本](upstream-reference.json)。下文保留安装过程与早期设计记录；当前有效状态以本节和 [PROGRESS](../../PROGRESS.md) 为准。
+
+## 当前受控启动
+
+```bash
+cd /Users/zhangchengjie/CUAgent
+/bin/zsh agent/harness/start-a0-web.sh a0_manual_001 3099
+```
+
+一个任务固定一个 `run-id`；重启复用相同 ID 才会继承 30 次调用预算和审计。启动脚本只接受专用 profile，并检查补丁来源和全局覆盖；不要直接启动上游 `web` 默认 profile，也不要把旧 `cordis.a0.patch.yml` 测试叠层当作正式入口。专用 profile 仅带 base+Web bundle，默认仅 `a0-verify` 预置；模型实际请求列出 `calculate`、`workspace_image_probe`、`workspace_list/read/write` 五个工具。`calculate` 是此前停止/预算测试使用的无副作用诊断工具，不是桌面权限。配置层关闭独立 DeepSeek 会话日志贡献和 OTel；没有做网络抓包，因此只证明有效配置与本地会话日志，不声称无任何网络流量。
+
+本地 profile 位于 `.runtime/harness-home/profiles/cuagent-a0/`，其 `cordis.patch.yml` 指向本目录的 [正式补丁](cordis.a0.profile.patch.yml)。这个初始化产物在 Git 忽略的 `.runtime` 中，重建环境时应从固定 Web 模板创建 profile、核对只含 base+Web 两个 bundle，再链接正式补丁；启动脚本会拒绝缺失或不同补丁。模型工具调用受根级最终 guard、30 次实际派发预算和追加审计约束；它是进程内边界，不是 OS 沙箱。Web 配置编辑器和用户手动管理界面属于操作者权限，不能把其可改配置能力算成模型权限；无人为更改配置时的模型工具清单已由真实请求核对。
+
+正式 profile 的真实模型三轮会话、重启恢复、工具调用、`result.txt` 写读及独立校验、工具返回图片和用户直接输入图片均通过。Web 停止按钮在此前同一策略的隔离 3100 实例人工点击验收，正式 profile 未重复点击。测试证据只保存在 `.runtime/runs/` 与 `.runtime/harness-home/`，不上传；A0 测试不涉及 VM 桌面。C0 首次动作还需另加应用/窗口白名单、逐项授权和观察后验证。
 
 ## 固定基点
 
@@ -10,9 +23,9 @@
 
 ## A0 实施顺序
 
-1. 已完成固定源码构建和launcher help/版本检查；独立设置 `DSH_HOME`，不用默认个人配置。模型、凭证与策略固定仍待后续接入。
-2. 根据官方Web模板创建项目profile，在启动模型前展开有效配置。第一次创建与已存在profile的启动参数分开处理。
-3. 禁用Web默认standard/PTC/Cordis/minimal presets及不需要的执行插件，注册项目专用preset。A0只允许list/read/write和图片探针；CSV工具等通用增强排在A1，先以无模型加载与调用测试证明生效。
+1. 已完成固定源码构建和launcher help/版本检查；独立设置 `DSH_HOME`，不用默认个人配置。当前 A0 profile 已固定模型和策略；开发凭证只保存在本地，不入库。
+2. 根据官方Web模板创建项目profile，在启动模型前展开有效配置。第一次创建与已存在profile的启动参数分开处理。已完成。
+3. 禁用Web默认standard/PTC/Cordis/minimal presets及不需要的执行插件，注册项目专用preset。A0只允许list/read/write、图片探针和无副作用算术诊断工具；CSV工具等通用增强排在A1。已由真实请求核对五工具清单。
 4. 关闭独立的DeepSeek session-log contributor和OTel会话上报，复核插件管理、终端、网络与配置覆盖入口。
 5. 在Cordis插件中注册最小工具，最终执行guard做fail-closed检查；再验证官方Web中的模型、会话、一个受控文件任务和两种图片路径。达到最小门槛后优先接C0真实桌面，不等待CSV完整业务流程。
 
@@ -77,7 +90,7 @@ Pi工具层的导入、注册、写入队列和 `details/content`结构需要重
 - `session-log-deepseek` 的 `enabled: false` 与 `session-telemetry-otel` 的 `mode: DISABLED` 是两条独立配置；只设OTel环境变量不等于关闭DeepSeek日志贡献。记录网络实测，不能只看配置文本。
 - 原生Computer Use provider操作它所在的机器；执行进程放测试VM，另加项目桌面控制权协调。上游服务的单provider注册不是跨进程锁。
 
-以上是开发检查点，尚未生成可执行profile或宣称完成限制。最小底座与Computer Use验收见 [阶段计划](../../Harness_Development_Plan.md)。
+以上为当时的开发检查点；当前可执行 profile 与实测限制见本文件开头。最小底座与 Computer Use 验收见 [阶段计划](../../Harness_Development_Plan.md)。
 
 ## 固定源码参考
 

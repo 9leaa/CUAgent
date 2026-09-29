@@ -6,9 +6,9 @@
 
 产品目标是通用且更强的 Computer Use Agent。先用 DeepSeek Harness 跑通**最小可用 Agent**（模型、会话、真实工具调用、图片和最低安全控制），随即进入 Computer Use；三份文本、CSV和完整通用插件体验不是进入 Computer Use 的前置门槛。OS 原生接口属于后续 O0。第一套交互复用官方 Web UI，第一套真实桌面使用现有 macOS 测试 VM；不预先开发独立桌面 App。
 
-框架接入设计固定到源码 `00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2`，已在本地安装构建，但A0尚未验收。使用同一源码版本的依赖锁及 API，不与 npm latest 混用。本地Node `24.9.0`、pnpm `11.7.0`；Driver 历史版本 `0.28.2`，到 C0 重新核对。
+框架接入设计固定到源码 `00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2`，已在本地安装构建；A0 本地最小门槛于 2026-09-29 通过，证据及限制见 [PROGRESS](PROGRESS.md)。使用同一源码版本的依赖锁及 API，不与 npm latest 混用。本地Node `24.9.0`、pnpm `11.7.0`；Driver 历史版本 `0.28.2`，到 C0 重新核对。
 
-已迁移框架无关工具、31项 Node 测试、7项历史 Python mock 和 Lume 补丁。Pi＋DeepSeek 的CSV/图片成功属于历史记录。新 Harness A0 尚未通过，Computer Use 阶段也未通过，不能把迁移文件或旧记录当集成验收。
+已迁移框架无关工具、31项 Node 测试、7项历史 Python mock 和 Lume 补丁。Pi＋DeepSeek 的CSV/图片成功属于历史记录，不计入本次 Harness 验收。Harness A0 的新证据见 [PROGRESS](PROGRESS.md)；Computer Use 阶段尚未通过，不能把迁移文件或旧记录当桌面集成验收。
 
 ## 2. 阶段与交付
 

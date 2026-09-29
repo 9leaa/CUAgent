@@ -1,0 +1,63 @@
+# The complete CUAgent A0 profile layer. The profile uses only dsh-base and
+# dsh-web-app bundles; never apply this file to the shipped personal web profile.
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: off
+
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config:
+    enabled: false
+
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config:
+    mode: DISABLED
+
+# Shipped Web presets include shell, filesystem, web, and delegation tools.
+# Do not offer a switch to them from the A0 profile.
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config:
+    default: a0-verify
+
+- insert:
+    - id: cuagent-a0-policy
+      name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/a0-policy-plugin.ts'
+    - id: preset-a0-verify
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: a0-verify
+        name: CUAgent A0 controlled
+        description: Five reviewed A0 test tools under a 30-call execution policy.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the CUAgent A0 test agent. Your permitted tools are
+                calculate, workspace_image_probe, workspace_list, workspace_read,
+                and workspace_write. Use file paths relative to the dedicated
+                test workspace. Do not use shell, network, subagents, plugin
+                management, or any other capability.
+              complete: true
+              includeRuntimeContext: false
+          - id: workspace-image-probe
+            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/image-probe.ts'
+          - id: a0-calculate
+            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/calculate.ts'
+          - id: a0-file-tools
+            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/a0-file-tools.ts'

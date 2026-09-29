@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["node"],
+    "paths": {
+      "@deepseek-ai/cordis": ["../../.runtime/harness/vendor/cordis/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-agent": ["../../.runtime/harness/packages/core/agent/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-llm": ["../../.runtime/harness/packages/llm/llm/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-session": ["../../.runtime/harness/packages/core/session/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-system-prompt": ["../../.runtime/harness/packages/core/system-prompt/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-tools": ["../../.runtime/harness/packages/core/tools/lib/types/index.d.ts"]
+    },
+    "typeRoots": ["../../.runtime/harness/node_modules/@types"]
+  },
+  "include": [
+    "a0-policy.ts",
+    "a0-policy-plugin.ts",
+    "a0-file-tools.ts",
+    "a0-policy.test.ts",
+    "a0-policy.integration.test.ts",
+    "a0-file-tools.integration.test.ts"
+  ]
+}
