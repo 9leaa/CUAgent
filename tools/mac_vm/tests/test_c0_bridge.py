@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from c0_bridge import Task, StopRun, BUNDLE
+from c0_cases import CALCULATORS
 
 
 class BridgePolicy(unittest.TestCase):
@@ -45,6 +46,31 @@ class BridgePolicy(unittest.TestCase):
     def test_explicit_approval_required(self):
         with self.assertRaises(StopRun):
             Task(self.root.parent / 'unapproved')
+
+    def test_registry_nine_cases_immutable_and_unknown_denied(self):
+        self.assertEqual(len(CALCULATORS), 9)
+        self.assertEqual(CALCULATORS['add125_75'].actions,
+                         ('All Clear','1','2','5','Add','7','5','Equals'))
+        with self.assertRaises(TypeError): CALCULATORS['injected'] = CALCULATORS['mul12_34']
+        with self.assertRaises(StopRun): Task(self.root.parent/'unknown', approved=True, case_id='eval')
+
+    def test_case_rebind_and_unapproved_operator_denied(self):
+        with self.assertRaises(StopRun): Task(self.root, approved=True, case_id='add8_9')
+        args=self.snapshot('Add')
+        with self.assertRaises(StopRun): self.task.click(args)
+        self.assertEqual(self.sent, [])
+
+    def test_each_case_verifier_uses_its_fixed_expected_and_trajectory(self):
+        for case_id, case in CALCULATORS.items():
+            task=Task(self.root.parent/case_id,self.transport,lambda _:None,approved=True,case_id=case_id)
+            task.snapshot={'tree_markdown':f'- AXWindow\n  - AXStaticText = "{case.expected}"'}
+            (task.directory/'result.txt').write_text(case.expected+'\n')
+            task.read_result()
+            for label in case.actions: task.record({'event':'completed_action','label':label})
+            with patch.object(task,'observe'):
+                self.assertEqual(task.verify()['status'],'SUCCEEDED')
+                task.snapshot['tree_markdown']='- AXWindow\n  - AXStaticText = "999"'
+                self.assertEqual(task.verify()['status'],'UNVERIFIED')
 
     def test_other_app_shell_wrong_pid_window_denied(self):
         self.snapshot()
@@ -124,9 +150,11 @@ class BridgePolicy(unittest.TestCase):
         self.assertEqual(self.sent, [])
 
     def test_driver_refusal_never_completed(self):
-        self.task.transport = lambda *_: {'status': 'refused'}
-        with self.assertRaises(StopRun): self.task.click(self.snapshot())
+        for value in ({'status':'refused'},{'effect':'refused','code':'element_outside_target_window'}):
+            self.task.transport = lambda *_,value=value: value
+            with self.assertRaises(StopRun): self.task.click(self.snapshot())
         self.assertFalse(any(row['event']=='completed_action' for row in self.rows()))
+        self.assertFalse(self.task.uncertain)
 
     def test_audit_write_failure_prevents_all_future_dispatch(self):
         with patch('c0_bridge.os.fsync', side_effect=OSError('audit unavailable')):
@@ -154,6 +182,13 @@ class BridgePolicy(unittest.TestCase):
         with self.assertRaises(StopRun): self.task.observe()
         self.assertIsNone(self.task.snapshot)
         with self.assertRaises(StopRun): self.task.click(args)
+
+    def test_delivery_failure_code_is_not_a_completed_action(self):
+        self.task.transport=lambda *_: {'code':'delivery_failed','message':'exact target not focused'}
+        with self.assertRaises(StopRun):self.task.click(self.snapshot())
+        self.assertEqual(self.task.used,1)
+        self.assertTrue(self.task.uncertain)
+        self.assertFalse(any(json.loads(line)['event']=='completed_action' for line in self.task.ledger.read_text().splitlines()))
 
     def test_result_and_ledger_symlinks_refused(self):
         target = self.root.parent/'external.txt'

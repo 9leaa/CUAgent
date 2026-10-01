@@ -18,7 +18,9 @@ export function apply(ctx: Context): void {
   if (connection.url !== URL || typeof connection.token !== 'string' || !/^[\w-]{40,60}$/.test(connection.token)) {
     throw new Error('Invalid fixed VM connection')
   }
-  const allowed = [...BASE_TOOLS]
+  const allowed = [...BASE_TOOLS,
+    ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
+    ...(connection.caseId === 'scroll' ? ['vm_scroll'] : [])]
   const auditPath = process.env.CUAGENT_C0_AUDIT_PATH
   if (!auditPath) throw new Error('C0 request audit required')
   // Developer-only standard RPC login, never included in tool output or model workspace.
@@ -103,5 +105,21 @@ export function apply(ctx: Context): void {
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request(spec.op, args, exec.signal)) } },
+  }))
+  if (allowed.includes('vm_type')) ctx.tools.register(defineTool({
+    name: 'vm_type', description: 'Type the reviewed task text into an approved field from a fresh observation. Only this task field/text pair is permitted; no arbitrary input.',
+    parameters: { snapshot_id: { type: 'string', required: true }, element_index: { type: 'integer', required: true },
+      element_token: { type: 'string', required: true }, text: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('type_text', args, exec.signal)) } },
+  }))
+  if (allowed.includes('vm_scroll')) ctx.tools.register(defineTool({
+    name: 'vm_scroll', description: 'Scroll at x/y screenshot pixels inside the approved task viewport from a fresh screenshot. AX containers are not indexed by this Driver. Read coordinates from the screenshot, never from desktop points. Direction up/down, amount 1–10. Observe effect before another action.',
+    parameters: { snapshot_id: { type: 'string', required: true }, x: { type: 'number', required: true },
+      y: { type: 'number', required: true }, direction: { type: 'string', required: true }, amount: { type: 'integer', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('scroll', args, exec.signal)) } },
   }))
 }

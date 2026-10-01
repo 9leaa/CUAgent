@@ -1,6 +1,6 @@
 # Harness A0 接入与边界
 
-本分支完成 c0-01；后续阶段不纳入当前提交，结果见根 PROGRESS。
+本分支完成 c0-01、c0-02；后续阶段不纳入当前提交，结果见根 PROGRESS。
 
 2026-09-29 已建立独立 `cuagent-a0` profile 和启动脚本，固定版源码见 [上游参考版本](upstream-reference.json)。下文保留安装过程与早期设计记录；当前有效状态以本节和 [PROGRESS](../../PROGRESS.md) 为准。
 
@@ -71,7 +71,7 @@ DSH_HOME=/Users/zhangchengjie/CUAgent/.runtime/harness-home \
 
 ## 本阶段 VM 入口
 
-先在测试 VM 显式审批启动 c0_bridge.py，私有连接只含模型 token，独立验证能力不能交给模型。正常退出 App 后，构建 `build-desktop-plugins.mjs --c0`，应用 `configure-desktop.mjs --c0`，以 `start-c0-desktop.sh <matching-run-id>` 启动。每任务 30 次实际请求，取消传递 guest stop；不得在宿主执行桌面任务。阶段方案和总结见根 docs/stages。
+先在测试 VM 显式审批启动 c0_bridge.py，私有连接只含模型 token，独立验证能力不能交给模型。正常退出 App 后，构建 `build-desktop-plugins.mjs --c0`，应用 `configure-desktop.mjs --c0-ui`，以 `start-c0-desktop.sh <matching-run-id>` 启动。每任务 30 次实际请求，取消传递 guest stop；不得在宿主执行桌面任务。阶段方案和总结见根 docs/stages。
 
 ## macOS ARM64原生模块修复（2026-09-23）
 

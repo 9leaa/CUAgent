@@ -1,0 +1,52 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: c0-ui }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-c0-ui
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: c0-ui
+        name: CUAgent C0 VM fixed UI
+        description: Reviewed native task, fixed fields and file locations, independent verification.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Operate only the approved VM task window using the vm tools.
+                Observe before each single action and after the last action.
+                Each observation is valid for one action only. Use exact indices and tokens.
+                Do not use shell, arbitrary files, network, subagents, clipboard or other apps.
+                Complete the GUI action, observe its actual result, write result.txt and read it back.
+                Never batch actions. On uncertainty observe, do not blindly repeat a side effect.
+                Report UNVERIFIED at completion; an independent verifier decides success.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

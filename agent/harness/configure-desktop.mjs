@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const { load, dump } = await import(`${root}/.runtime/desktop-build-tools/node_modules/js-yaml/index.js`)
 const profile = `${root}/.runtime/desktop-home/profiles/desktop`
 const target = `${profile}/cordis.patch.yml`
-const stage = process.argv.includes('--c0') ? 'c0' : 'a0'
+const stage = process.argv.includes('--c0-ui') ? 'c0-ui' : process.argv.includes('--c0') ? 'c0' : 'a0'
 const additions = load(readFileSync(`${root}/agent/harness/cordis.desktop.${stage}.patch.yml`, 'utf8')
   .replaceAll('@@PLUGIN_URL@@', pathToFileURL(`${profile}/cuagent-plugins`).href))
 const before = load(readFileSync(target, 'utf8')) ?? []
