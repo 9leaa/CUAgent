@@ -20,7 +20,10 @@ export function apply(ctx: Context): void {
   }
   const allowed = [...BASE_TOOLS,
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
-    ...(connection.caseId === 'scroll' ? ['vm_scroll'] : [])]
+    ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
+    ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
+    ...(['cross_app','popup','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId)
+      ? ['vm_select_target'] : [])]
   const auditPath = process.env.CUAGENT_C0_AUDIT_PATH
   if (!auditPath) throw new Error('C0 request audit required')
   // Developer-only standard RPC login, never included in tool output or model workspace.
@@ -121,5 +124,12 @@ export function apply(ctx: Context): void {
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request('scroll', args, exec.signal)) } },
+  }))
+  if (allowed.includes('vm_select_target')) ctx.tools.register(defineTool({
+    name: 'vm_select_target', description: 'Select one developer-reviewed application/window by its exact task title. Only the fixed case registry is allowed. This consumes the old observation; call vm_observe before acting on the selected window.',
+    parameters: { target: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('select_target', args, exec.signal)) } },
   }))
 }

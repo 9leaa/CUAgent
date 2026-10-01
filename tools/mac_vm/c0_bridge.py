@@ -21,12 +21,12 @@ from c0_identity import app_identity
 ALLOWED = {'All Clear', 'Clear', *map(str, range(10)), 'Multiply', 'Equals'}
 
 class Task:
-    def __init__(self, directory, transport=Calls.cli, identity=None, *, approved=False, case_id='mul12_34'):
+    def __init__(self, directory, transport=Calls.cli, identity=None, *, approved=False, case_id='mul12_34', registry=TASKS):
         if not approved:
             raise StopRun('BLOCKED', 'Explicit fixed-task approval required')
-        if case_id not in TASKS:
+        if case_id not in registry:
             raise StopRun('BLOCKED', 'Task is not in the reviewed fixed registry')
-        self.case_id, self.case = case_id, TASKS[case_id]
+        self.case_id, self.case = case_id, registry[case_id]
         self.is_calculator = case_id in CALCULATORS
         self.allowed = frozenset(self.case.actions if self.is_calculator else self.case.buttons)
         self.launch_args = {'bundle_id':self.case.bundle}
@@ -403,19 +403,19 @@ class Task:
                     and self.task_file('task-note.txt').read_text()==self.case.expected)
         return False
 
-def main():
+def main(task_class=Task, registry=TASKS, stage='C0'):
     require_vm()
     import argparse
     parser=argparse.ArgumentParser();parser.add_argument('--run',required=True);parser.add_argument('--port',type=int,default=8766)
     parser.add_argument('--approve-task', '--approve-calculator', dest='approved', action='store_true')
-    parser.add_argument('--case', choices=tuple(TASKS), default='mul12_34')
+    parser.add_argument('--case', choices=tuple(registry), default='mul12_34' if stage=='C0' else None, required=stage!='C0')
     args=parser.parse_args()
     if not args.run.replace('_','').replace('-','').isalnum() or len(args.run)>80: raise ValueError('Invalid run id')
     root=Path.home()/'C0Evidence'
     if root.is_symlink(): raise ValueError('Evidence root symlink')
     root.mkdir(mode=0o700,exist_ok=True)
     owner=(root/'bridge.lock').open('a');fcntl.flock(owner,fcntl.LOCK_EX|fcntl.LOCK_NB)
-    task=Task(root/args.run, approved=args.approved, case_id=args.case)
+    task=task_class(root/args.run, approved=args.approved, case_id=args.case)
     token=secrets.token_urlsafe(32)
     verifier_token=secrets.token_urlsafe(32)
     (task.directory/'bridge-token').write_text(token);os.chmod(task.directory/'bridge-token',0o600)
@@ -450,13 +450,14 @@ def main():
                     elif op=='click': result=task.click(payload)
                     elif op=='type_text': result=task.type_text(payload)
                     elif op=='scroll': result=task.scroll(payload)
+                    elif op=='select_target' and hasattr(task,'select_target'): result=task.select_target(payload)
                     elif op=='write_result': result=task.write_result(payload)
                     elif op=='read_result' and payload=={}: result=task.read_result()
                     elif op=='verify' and payload=={}: result=task.verify()
                     else: raise ValueError('Operation not permitted')
                     self.reply(200,result)
             except Exception as exc:
-                if prior_used is not None and op in ('observe','click','type_text','scroll','write_result','read_result'):
+                if prior_used is not None and op in ('observe','click','type_text','scroll','write_result','read_result','select_target'):
                     with task.lock:task.charge_rejection(op,prior_used,str(exc))
                 task.record({'event':'denied','error':str(exc)})
                 self.reply(409,{'error':str(exc),'used':task.used})

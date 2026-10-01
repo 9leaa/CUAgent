@@ -1,8 +1,8 @@
 # macOS VM 桥接与历史诊断
 
-本分支完成 c0-01、c0-02。执行器只允许固定任务、明确授权、新观察、30 次真实调用与独立验证；模型没有任意 shell、路径或 verifier 权限。原生 fixture 提供固定测试界面，不替代模型决策。
+本分支完成 c0-01、c0-02、c1。执行器只允许固定任务、明确授权、新观察、30 次真实调用与独立验证；模型没有任意 shell、路径或 verifier 权限。原生 fixture 提供固定测试界面，不替代模型决策。
 
-方案与结果见 [阶段总结](../../docs/stages/c0-02-summary.md)。后续阶段不计入本分支。
+方案与结果见 [阶段总结](../../docs/stages/c1-summary.md)。后续阶段不计入本分支。
 
 三个Python文件从旧项目原字节迁入，源头是 `cua/samples/mac_agent_mvp/`。它们是环境诊断和固定运算对照，不是Harness Agent。来源哈希见根 [迁移清单](../../migration-assets.json)。
 

@@ -2,7 +2,7 @@
 
 CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。2026-09-30 起交互入口改为官方 macOS Desktop App；继续复用模型接入、会话与 Agent 循环。
 
-**当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。本分支完成 c0-01、c0-02；后续阶段不计入本分支。**
+**当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。本分支完成 c0-01、c0-02、c1；后续阶段不计入本分支。**
 
 ## 当前进度
 
@@ -49,7 +49,7 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 
 该入口使用独立 `.runtime/desktop-home`，不复制旧 Web 凭证或会话；项目插件从保留源码重新编译。Finder 直接启动应用使用应用默认 home，与本项目入口不同。旧 Web 的源码、依赖、home 和启动配置已移至 `/Users/zhangchengjie/Documents/ChatGPT/osagentmvp/retired-dsh-web-20260930`，恢复清单在该目录的 `archive-manifest.json`；任务证据仍保留。此前 A0 Web 验收属于历史，不能计入 Desktop 验收。Desktop A0 已按同版本接口重新接入并真实验证，配置和编译步骤见 agent/harness/README.md；C0 真实桌面仍须在测试 VM 中执行。
 
-2026-10-01：本分支阶段 c0-02 完成。方案与结果见 [阶段总结](docs/stages/c0-02-summary.md)。这是验收后按用户授权整理的提交，后续 c1 和 C3 不计为完成。
+2026-10-01：本分支阶段 c1 完成。方案与结果见 [阶段总结](docs/stages/c1-summary.md)。这是验收后按用户授权整理的提交，后续 c2 和 C3 不计为完成。
 
 ## 目录
 

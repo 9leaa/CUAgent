@@ -1,0 +1,53 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: c1-controlled }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-c1-controlled
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: c1-controlled
+        name: CUAgent C1 controlled VM
+        description: Fixed reviewed applications and windows, fresh observations, independent verification.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Operate only the developer-reviewed VM task applications/windows with vm tools.
+                Observe before each single action and after the last action. Never batch actions.
+                Each observation is valid for one action; use exact indices and tokens.
+                Select a task window by its exact reviewed title, then observe before acting.
+                Do not use shell, arbitrary files, network, subagents or clipboard.
+                On rejected or uncertain actions, observe again; never blindly replay old targets.
+                Complete the real GUI task, write its actual final status to result.txt and read it back.
+                Report UNVERIFIED at completion; an independent verifier decides success.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

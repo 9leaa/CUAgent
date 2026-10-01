@@ -57,3 +57,38 @@ test('C0 fixed tools, ownership, fresh image attachment, cancellation and no ret
   await assert.rejects(tools[0].execute({}, { agent, signal: new AbortController().signal }), /stopped/)
   assert.equal(calls.filter(c => c === 'observe').length, 1)
 })
+
+test('C1 cases add only reviewed target selection and necessary typing', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'cuagent-c1-tools-'))
+  const previous={connection:process.env.CUAGENT_C0_CONNECTION,audit:process.env.CUAGENT_C0_AUDIT_PATH,fetch:globalThis.fetch}
+  t.after(()=>{
+    globalThis.fetch=previous.fetch
+    for(const [key,value] of [['CUAGENT_C0_CONNECTION',previous.connection],['CUAGENT_C0_AUDIT_PATH',previous.audit]]) {
+      if(value===undefined)delete process.env[key!];else process.env[key!]=value
+    }
+    rmSync(dir,{recursive:true,force:true})
+  })
+  process.env.CUAGENT_C0_CONNECTION=join(dir,'connection.json')
+  process.env.CUAGENT_C0_AUDIT_PATH=join(dir,'audit.jsonl')
+  const calls:string[]=[]
+  globalThis.fetch=(async (_url:any,options:any)=>{
+    calls.push(JSON.parse(options.body).op)
+    return {ok:true,json:async()=>({selected:'CUAgent Destination',requires_new_observation:true})}
+  }) as any
+  for(const caseId of ['cross_app','popup','window_change','input_correction','long_workflow','reobserve_failure']){
+    writeFileSync(process.env.CUAGENT_C0_CONNECTION,JSON.stringify({url:'http://192.168.64.3:8766',token:'x'.repeat(43),caseId}),{mode:0o600})
+    const registered:any[]=[],handlers=new Map();let guard:any
+    const ctx:any={inject(){},on:(name:string,fn:any)=>handlers.set(name,fn),logger:{error(){}},
+      tools:{register:(tool:any)=>registered.push(tool),guard:(fn:any)=>{guard=fn}}}
+    apply(ctx)
+    assert.deepEqual(registered.map(x=>x.name),['vm_observe','vm_click','vm_write_result','vm_read_result',
+      ...(caseId==='popup'?[]:['vm_type']),'vm_select_target'])
+    const signal=new AbortController().signal,agent:any={session:{id:'owner'}}
+    await handlers.get('agent/pre-step')({agent,signal},async()=>({}))
+    assert.match(guard({name:'vm_scroll',agent,signal}),/not allowed/)
+    assert.match(guard({name:'shell',agent,signal}),/not allowed/)
+    assert.equal(guard({name:'vm_select_target',agent,signal}),undefined)
+    await registered.find(x=>x.name==='vm_select_target').execute({target:'CUAgent Destination'},{agent,signal})
+  }
+  assert.deepEqual(calls,Array(6).fill('select_target'))
+})
