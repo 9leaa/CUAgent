@@ -4,9 +4,9 @@
 
 2026-09-29 已建立独立 `cuagent-a0` profile 和启动脚本，固定版源码见 [上游参考版本](upstream-reference.json)。下文保留安装过程与早期设计记录；当前有效状态以本节和 [PROGRESS](../../PROGRESS.md) 为准。
 
-## 当前入口：官方 Desktop（2026-09-30）
+## 当前入口：官方 Desktop（更新 2026-10-02）
 
-用户要求移出旧 Web 并安装官方桌面 App。官方 macOS arm64 安装包 `0.1.7-rc.2` 已下载；安装、签名与启动结果见 [PROGRESS](../../PROGRESS.md)。项目入口为：
+用户要求移出旧 Web 并安装官方桌面 App。首次安装包为 `0.1.7-rc.2`；实际验收 App 已更新到 `0.2.0-rc.2`，安装来源与历史签名记录见 [PROGRESS](../../PROGRESS.md)。完成下节 A0 构建与配置、正常退出已有 App 后，A0 项目入口为：
 
 ```bash
 /bin/zsh /Users/zhangchengjie/CUAgent/agent/harness/start-desktop.sh
@@ -31,15 +31,15 @@ agent/harness/start-desktop.sh desktop_a0_new_run
 
 configure 保存原 patch 备份，合并项目限制，保留账号模型/UI 设置。不要迁入旧凭证。Launcher 检查 App 版本和运行状态；版本变化先重新核对接口。不传 run-id 会生成时间戳；恢复同次运行必须传原 run-id，30 次预算不会重置。工具根目录是 `.runtime/runs/<run-id>/workspace`，在 App 中添加该目录作为测试工作区。
 
-本次真实文件、工具图片、停止和预算均通过，证据见 `.runtime/runs/desktop_a0_20260930_001/verification.json`；此 run 已耗尽。仅验收 A0；VM Computer Use 和直接上传图片分别验证。
+Desktop A0 初次验证见 `.runtime/runs/desktop_a0_20260930_001/verification.json`；最新 C2 回归 `c2_a0_20261001_001` 已核对真实文件、工具及直接输入图片、标准取消和持久预算，见 [C2 总结](../../docs/stages/c2-summary.md)。两旧 run 均已耗尽；新任务必须新 run。直接图片经官方 prompt API 验证，不冒充本轮人工点击上传按钮；VM Computer Use 使用下方独立配置。
 
-## 固定基点
+## 历史 Web 固定基点（2026-09-23）
 
 源仓库 `deepseek-ai/deepseek-harness`，commit `00102833dfaee1da9f48a3a8eae9d34005a75218`，源码版本 `0.1.7-alpha.2`。Node要求 `^22.19.0 || >=24.0.0`，包管理器 `pnpm@11.7.0`。本机Node 24.9.0（macOS arm64）已通过完整源码构建及CLI版本/帮助检查；尚未验证Web启动和真实模型。
 
 初始实现选择固定源码及其lockfile，构建输出放忽略目录。源码下载后遵循其AGENTS与LICENSE；依赖安装/构建和模型执行分别记录。npm latest=0.1.5-rc.2与当前源码不一致，不能混用API。
 
-## A0 实施顺序
+## 历史 Web A0 实施顺序
 
 1. 已完成固定源码构建和launcher help/版本检查；独立设置 `DSH_HOME`，不用默认个人配置。当前 A0 profile 已固定模型和策略；开发凭证只保存在本地，不入库。
 2. 根据官方Web模板创建项目profile，在启动模型前展开有效配置。第一次创建与已存在profile的启动参数分开处理。已完成。
@@ -69,7 +69,7 @@ DSH_HOME=/Users/zhangchengjie/CUAgent/.runtime/harness-home \
 
 本地记录：`.runtime/harness-installation.json`、`.runtime/harness-build.log`、`.runtime/harness-install.log`（后者为构建后的离线锁文件复核）。首次安装在CLI产物生成前提示三个SDK/desktop workspace的`dsh` bin链接缺失；构建后离线install未补建它们。已验证的入口是上述根目录`pnpm dsh`，这些子包入口未验收。构建另有上游弃用项及bundle体积警告，不影响本次退出码为0。全部`.runtime`内容被Git忽略，不公开上传。
 
-## C0/C1 专用入口
+## C0/C1/C2 专用入口
 
 方案见 `docs/stages/c0-01-design.md`。guest 先以新 run-id 启动受控 bridge，完成授权、登录和新窗口观察；开发侧为对应 run 建立 `.runtime/runs/<run-id>/c0-connection.json`（0600，仅固定私有 VM URL 和 model token，不含 verifier token）。不要把 token 放进 prompt 或 Git。
 
@@ -81,13 +81,13 @@ C0 GUI 配置使用 `configure-desktop.mjs --c0-ui`；字段输入、滚动仅�
 
 C1 观察提示为开发侧 `CUAGENT_C1_OBSERVATION_HINTS=1`，默认关闭，仅在 popup 主窗口观察到真实 owned Confirmation 窗口时提示下一步；查询窗口也计 30 次预算，不自动点击。前后 36 次及独立核验结束前不宣称 C1 完成。离线汇总命令：`python3 tools/mac_vm/c1_report.py --runtime /absolute/private/runtime --output /absolute/private/new-report.json`；它核对实际官方会话与请求审计，缺任何固定轮次即失败，原报告不覆盖。
 
-C2 使用 `configure-desktop.mjs --c2` 与同一 `start-c0-desktop.sh`，模型工具集合不新增开发控制/验证能力。私有连接标记 `stage: c2` 和当前 epoch，每次实际请求附官方 session ID；响应停止后根 guard 关闭，交还新 session 必须由开发控制通道明确授权且重新观察，原任务预算保持。一次真实 Submit 响应丢失后的新会话恢复通过，原失败会话/UNKNOWN 保留；完整 C2 七故障、18 次及回归仍未验收，见 PROGRESS。
+C2 使用 `configure-desktop.mjs --c2` 与同一 `start-c0-desktop.sh`，模型工具集合不新增开发控制/验证能力。私有连接标记 `stage: c2` 和当前 epoch，每次实际请求附官方 session ID；响应停止后根 guard 关闭，交还新 session 必须由开发控制通道明确授权且重新观察，原任务预算保持。最终冻结版七故障、正式 18/18、九计算器及 A0/声明安全范围回归已通过；原失败与 UNKNOWN 保留，见 PROGRESS 和 C2 总结。
 
 C2 文档故障复用原五个 VM 工具（观察、点击、正文输入、写/读 result），不提供模型手动改文档或通用 set_value。开发控制编辑后，官方新会话重新观察、纠正正文并经系统保存面板保存；真实独立诊断 25/30 raw 通过，首次追加失败保留。内部正文替换受新观察/固定内容/原任务预算约束，未增加另一 Agent 循环；不将文档诊断当正式六例之一。
 
 C2 单次模型流故障由私有连接 `modelFault: after_first_observation` 控制，不接受模型 prompt 开启。真实工具图进入上下文后，在官方 `llm/stream` 项目钩子、provider 调用前持久化私有标记并抛错；先停止 VM 新派发。原官方 error、明确接管及新官方会话恢复有真实独立通过记录（14/30 raw），不是服务商停机证明。默认关闭，恢复/重启同 run 不再注入。官方 App 同版库打包适配测试 4/4 只验证插件行为，不冒充完整 C2 或真实模型验收。
 
-C2 真实权限撤销诊断在 guest 关闭再恢复 Driver Accessibility；恢复观察确实因 AX 不可用被拒，原预算内新观察/明确交还后官方新会话完成业务，独立 15/30 raw 通过。撤权由独立开发 VNC 完成，受测模型没有这个绕过入口；不操作宿主权限。七故障不同版本诊断不等于最终同版全部验收，正式 18 次与回归仍待完成。
+C2 真实权限撤销诊断在 guest 关闭再恢复 Driver Accessibility；恢复观察确实因 AX 不可用被拒，原预算内新观察/明确交还后官方新会话完成业务，独立 15/30 raw 通过。撤权由独立开发 VNC 完成，受测模型没有这个绕过入口；不操作宿主权限。不同版本初次诊断不能拼成同版成绩；最终冻结版全部门槛另已完成，见 C2 总结。C3 干净部署与第二人复现仍未做。
 
 ## macOS ARM64原生模块修复（2026-09-23）
 

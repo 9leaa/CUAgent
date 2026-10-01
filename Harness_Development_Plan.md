@@ -1,14 +1,14 @@
 # DeepSeek Harness 与 Computer Use 开发计划书
 
-版本：v1.1 · 日期：2026-09-23 · 项目：CUAgent。用户已确定切换基座，并将 Computer Use 作为开发主线；本文替代旧 Pi 主计划和更早的 J/M 阶段路线，有效验收要求不因调整顺序而删除。
+版本：v1.2 · 更新：2026-10-02 · 项目：CUAgent。用户已确定切换基座，并将 Computer Use 作为开发主线；本文替代旧 Pi 主计划和更早的 J/M 阶段路线，有效验收要求不因调整顺序而删除。
 
 ## 1. 目标、基点与现状
 
 产品目标是通用且更强的 Computer Use Agent。先用 DeepSeek Harness 跑通**最小可用 Agent**（模型、会话、真实工具调用、图片和最低安全控制），随即进入 Computer Use；三份文本、CSV和完整通用插件体验不是进入 Computer Use 的前置门槛。OS 原生接口属于后续 O0。2026-09-30 起交互入口改为官方 macOS Desktop App，第一套真实桌面使用现有 macOS 测试 VM；不自行开发桌面壳。此前 A0 Web 验收作为历史保留，Desktop 的插件配置、模型、工具和停止/预算需重新核验。
 
-框架接入设计固定到源码 `00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2`，已在本地安装构建；A0 本地最小门槛于 2026-09-29 通过，证据及限制见 [PROGRESS](PROGRESS.md)。使用同一源码版本的依赖锁及 API，不与 npm latest 混用。本地Node `24.9.0`、pnpm `11.7.0`；Driver 历史版本 `0.28.2`，到 C0 重新核对。
+当前验收版本为官方 Desktop App `0.2.0-rc.2` / 内置 Node `24.18.1`，同版源码参考 `639ed015`；模型 `deepseek-account/deepseek-flash`、Driver `0.28.2`、guest Python `3.12.14`，每任务 30 次实际请求。初始 Web 源码 `00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2`、本地 Node `24.9.0` 和 pnpm `11.7.0` 仅对应历史安装，不混用其 API 与当前 Desktop。证据及限制见 [PROGRESS](PROGRESS.md)。
 
-已迁移框架无关工具、31项 Node 测试、7项历史 Python mock 和 Lume 补丁。Pi＋DeepSeek 的CSV/图片成功属于历史记录，不计入本次 Harness 验收。Harness A0 的新证据见 [PROGRESS](PROGRESS.md)；Computer Use 阶段尚未通过，不能把迁移文件或旧记录当桌面集成验收。
+A0 Desktop、C0-01、C0-02、C1、C2 本地验收已完成；C1 前后 36/36，C2 正式 18/18、七故障、九计算器及 A0/声明安全范围回归通过。最新执行层测试为 Node 核心 36/36、Python 103/103，不能替代真实模型/VM 证据。Pi 历史与迁移时的 31 项 Node/7 项 Python 不计入当前验收。C3 干净部署、第二人复现和发布尚未完成，A1/O0 后续实施。Desktop 配置、模型和停止/预算已重新核验，不是沿用 Web 验收。
 
 ## 2. 阶段与交付
 
@@ -31,7 +31,7 @@
 | 任务 | 工作与交付 | 验收证据 |
 |---|---|---|
 | A0-01 固定环境 | 固定源码/依赖锁/Node/模型/策略；独立构建目录、Harness home与开发凭证 | 版本输出、安装日志、锁文件摘要；不得读取旧个人凭证 |
-| A0-02 专用Web配置 | 复用官方UI；实现cuagent-a0 profile和a0-controlled preset；检查所有工具来源与上报配置 | 首次/重复启动的有效配置一致；只出现允许工具；额外日志上报关闭 |
+| A0-02 专用Desktop配置 | 复用官方UI；在独立 home 的 desktop profile 接入 a0-verify preset；检查工具和上报配置，旧 Web profile 仅历史 | 首次/重复启动的有效配置一致；只出现允许工具；额外日志上报关闭 |
 | A0-03 模型与会话 | 配置开发模型，三轮对话，重启后找回会话和选定模型 | 实际响应、模型ID、会话恢复记录；模型名和能力均实查 |
 | A0-04 最小真实工具 | 注册受控list/read/write和图片探针；一个简单测试文件任务读、写、读回 | 真实结构化call/result、产物及独立读回；DSML普通文本不算调用 |
 | A0-05 图片链路 | 固定图直接输入与工具图片返回，特别核对后者可供模型观察 | 真实图片内容块、模型识别结果和调用事件；截图路径复用此能力 |
@@ -132,6 +132,6 @@ O0按真实业务另立计划，逐项定义系统/应用原生接口、权限�
 
 先约定接口，再各自写mock；真实桌面串行预约。阶段分支优先用 `a0-harness-bootstrap`、`c0-computer-use`、`c1-computer-use`，通用增强再用`a1-agent-expansion`；不加codex前缀。除首次发布的单独授权外，由用户提交、推送和决定PR，助手只完成本地实现、测试、差异与交接。
 
-近期顺序：A0-01～07最小底座 → C0-01真实`12×34`闭环 → C0-02九例与三个基础GUI → C1六类增强 → C2可靠性 → C3第二人复现。A1三份文本、CSV和通用插件体验单独排期，可并行但不阻塞C0；O0仍后置。这是计划清单，未自动创建GitHub Issues。
+当前下一阶段：C3 干净环境部署、第二人扩展与复现；前序 A0/C0-01/C0-02/C1/C2 已本地验收。A1三份文本、CSV和通用插件体验单独排期，可并行但不阻塞C3；O0仍后置。这是计划清单，未自动创建GitHub Issues。
 
 每项记录负责人、依赖、改动、命令、通过条件、证据与未测项；对应 [整体设计](DESIGN.md)、[协作说明](COLLABORATION.md) 和 [实际进度](PROGRESS.md)。旧方案逐项映射见 [MIGRATION](MIGRATION.md)。

@@ -9,7 +9,7 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
-- [x] A0：独立 Web profile 中真实模型、会话、简单受控工具、图片和最低执行边界通过（Web 停止按钮在先前同策略隔离实例人工验收；正式 profile 未重复点击）。
+- [x] A0：官方 Desktop 专用配置下，真实模型/会话、受控文件、直接与工具图片、标准取消及 30 次持久预算回归通过；重启首回复错误及后续澄清保留，见 C2 总结。旧 Web 验收仅作历史。
 - [x] C0-01：真实模型在测试 VM 中完成计算器12×34，轨迹、新显示、文件读回和独立期望值闭环通过（20/30 raw 调用，见阶段总结）。
 - [x] C0-02：真实观察驱动计算器九例和三个基础界面任务（失败保留，见阶段总结）。
 - [x] C1：六类前后各三次，36/36 独立通过，见 [阶段总结](docs/stages/c1-summary.md)。
@@ -29,9 +29,16 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 | [协作说明](COLLABORATION.md) | 两人分工、阶段分支与 VM 调试 |
 | [迁移清单](MIGRATION.md) | 所有旧方案如何承接、哪些实现复用 |
 | [开发规则](AGENTS.md) | 后续代理必须遵循的范围 |
-| [Harness 接入说明](agent/harness/README.md) | 固定上游、待实现适配点和启动门槛 |
+| [Harness 接入说明](agent/harness/README.md) | 固定版本、Desktop 配置、工具适配及启动限制 |
 
-本地项目目录：`/Users/zhangchengjie/CUAgent`。首次发布分支：`harness-migration`；本次经用户单独授权直接提交、推送，不开 PR。后续仍由维护者决定提交、推送和 PR。
+本地项目目录：`/Users/zhangchengjie/CUAgent`。GitHub 默认分支为 `harness-migration`，本次按用户授权快进同步 C0-01 → C0-02 → C1 → C2 及文档修正；不创建 PR、标签或发布版本。四个阶段分支保留，后续提交和发布仍需维护者授权。
+
+| 阶段分支 | 对应内容 |
+|---|---|
+| `c0-01-computer-use` | 单例计算器闭环、方案和总结 |
+| `c0-02-fixed-ui` | 九计算器及三个基础 GUI 用例 |
+| `c1-computer-use` | 六类增强和前后 36 次评测 |
+| `c2-reliability` | 接管/恢复、故障与回归、当前文档 |
 
 现有测试无需安装 Harness、配置 API Key 或启动 VM：
 
@@ -41,7 +48,7 @@ node --test agent/tests/*.test.mjs
 python3 -m unittest discover -s tools/mac_vm/tests -v
 ```
 
-这两条命令仅验证工具核心与历史 mock。当前交互入口为官方 **DeepSeek Harness.app 0.2.0-rc.2（macOS arm64）**，安装于 `/Applications/DeepSeek Harness.app`。项目启动命令：
+这两条命令仅验证工具核心和执行层单元/mock，不调用模型或控制桌面，也不替代真实 VM 验收。当前已验收入口为官方 **DeepSeek Harness.app 0.2.0-rc.2（macOS arm64）**，安装于 `/Applications/DeepSeek Harness.app`。按 [接入说明](agent/harness/README.md) 完成构建和 A0 配置、正常退出已有 App 后，A0 项目启动命令：
 
 ```bash
 /bin/zsh /Users/zhangchengjie/CUAgent/agent/harness/start-desktop.sh
@@ -49,7 +56,9 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 
 该入口使用独立 `.runtime/desktop-home`，不复制旧 Web 凭证或会话；项目插件从保留源码重新编译。Finder 直接启动应用使用应用默认 home，与本项目入口不同。旧 Web 的源码、依赖、home 和启动配置已移至 `/Users/zhangchengjie/Documents/ChatGPT/osagentmvp/retired-dsh-web-20260930`，恢复清单在该目录的 `archive-manifest.json`；任务证据仍保留。此前 A0 Web 验收属于历史，不能计入 Desktop 验收。Desktop A0 已按同版本接口重新接入并真实验证，配置和编译步骤见 agent/harness/README.md；C0 真实桌面仍须在测试 VM 中执行。
 
-2026-10-01：C0-01、C0-02、C1、C2 独立通过，见 [C0-01 总结](docs/stages/c0-01-summary.md)、[C0-02 总结](docs/stages/c0-02-summary.md)、[C1 总结](docs/stages/c1-summary.md) 和 [C2 总结](docs/stages/c2-summary.md)。仅完成原计划本次指定阶段，不将固定用例算作通用 Computer Use 或 C3 发布完成。用户随后授权分别提交和推送；四个阶段按依赖顺序保存递进代码快照，实际提交及远端状态以 Git 为准。
+Computer Use 使用对应 VM bridge、明确任务审批、私有连接和 C0/C1/C2 配置，再由 `start-c0-desktop.sh <run-id>` 启动；A0 启动命令不授予桌面权限。旧回归 run 已耗尽预算，新任务必须新建 run，不能清零旧账本。其他机器的干净部署和第二人复现属于尚未完成的 C3。
+
+2026-10-01：C0-01、C0-02、C1、C2 独立通过，见 [C0-01 总结](docs/stages/c0-01-summary.md)、[C0-02 总结](docs/stages/c0-02-summary.md)、[C1 总结](docs/stages/c1-summary.md) 和 [C2 总结](docs/stages/c2-summary.md)。四阶段递进提交已分别推送；2026-10-02 按用户授权将最新阶段和文档快进同步至默认分支，不将固定用例算作通用 Computer Use 或 C3 发布完成。
 
 ## 目录
 
@@ -59,11 +68,12 @@ agent/
   image-probe.mjs         # 图片探针编码与随机四色测试数据
   tests/                 # 核心边界测试
   fixtures/              # 无凭证测试输入
-  harness/               # A0 profile、受控插件、启动脚本和接入说明
-tools/mac_vm/            # 历史计算器固定流程、环境诊断与mock
+  harness/               # Desktop 配置、受控插件、启动脚本和接入说明
+tools/mac_vm/            # C0/C1/C2 执行器、固定任务、验证器、fixture及单元/mock
 patches/cua/             # 固定上游的Lume隔离补丁和MIT许可证
 patches/harness/         # 固定Harness版本的插件元数据异常补丁
 docs/history/            # 明确标记为历史的验收摘要
+docs/stages/             # 各阶段实施前方案、完成总结与已知限制
 migration-assets.json    # 原字节迁移文件及SHA-256
 vm-manifest.json         # 历史VM声明，不是当前运行状态
 ```

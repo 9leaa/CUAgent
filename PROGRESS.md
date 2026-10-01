@@ -1,12 +1,12 @@
 # CUAgent 实际进度
 
-更新：2026-10-01。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。设计、实际实现、本轮测试和历史结果分别记录。
+更新：2026-10-02。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。下方“当前交付”及最新收尾记录代表当前状态；各日期过程中的未提交/未完成描述保留当时事实，不代表目前状态。
 
 ## 当前交付
 
 | 项目 | 状态与证据范围 |
 |---|---|
-| 新仓库 | 公开 `9leaa/CUAgent`；首次发布使用 `harness-migration` 分支，不创建PR；以Git远端实际状态为准 |
+| 新仓库 | 公开 `9leaa/CUAgent`；四阶段分支已分别提交推送，默认 `harness-migration` 按本次授权快进同步最新阶段与文档；不创建PR/标签，远端以Git为准 |
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
@@ -17,6 +17,13 @@
 | C0-01及C0–C3 | C0-01、C0-02、C1 与 C2 本地验收完成；C2 正式 18/18、七故障、九计算器及 A0/声明安全范围回归通过；C3 未做 |
 | A1通用增强 | 三份文本、CSV和完整插件/会话体验待实施；不阻塞C0–C3 |
 | O0 | 后置，未开始 |
+
+## 2026-10-02：文档收尾与默认分支同步
+
+- 四阶段已分别推送：C0-01 `be77dbd`、C0-02 `373e2d3`、C1 `46b4d47`、C2 `5d5383e`。此前 GitHub 首页仍显示旧 `harness-migration`，仅推阶段分支不会更新首页。
+- 用户授权先做文档收尾和默认分支快进同步。修正 README 的 A0 Web/历史 mock/目录描述，同步 DESIGN 和开发计划的版本、现有能力及 C3 下一步；历史方案、失败和过程日志不倒改为成功。
+- 文档修正提交追加于 C2；默认分支只做 fast-forward，不重写四阶段提交、不强推、不改默认分支设置，不创建 PR、标签或 C3 发布。检查文档链接、差异及远端 README/提交一致性，不以此次检查冒充重跑模型/VM。
+- 本次仅变更文档及 Git 引用；虚拟机、Driver、SSH/VNC、运行配置和私有原始证据保持原状。
 
 ## 2026-09-30：Desktop A0 迁移与真实验证
 

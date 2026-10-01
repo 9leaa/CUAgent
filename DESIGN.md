@@ -1,6 +1,6 @@
 # CUAgent 整体设计
 
-版本：v1.1，2026-09-23。状态：方案已迁移；本文除明确列为现有资产的部分外均为待实现设计。主基座已确定为 DeepSeek Harness，不并行维护 Pi 运行时。
+版本：v1.2，更新 2026-10-02。状态：A0 Desktop 与 C0-01/C0-02/C1/C2 已本地实现并验收；C3 干净部署/第二人复现、A1/O0 尚未完成。本文描述现有架构与后续约束，不将历史设计稿或固定测试当通用能力证明。主基座为 DeepSeek Harness，不并行维护 Pi 运行时。
 
 ## 1. 产品目标与职责
 
@@ -8,7 +8,7 @@
 
 | 组件 | 专业职责 | 直白解释 |
 |---|---|---|
-| Harness | 模型适配、Agent loop、会话、Web UI、插件生命周期 | 提供可用 Agent 的主体 |
+| Harness | 模型适配、Agent loop、会话、官方 Desktop UI、插件生命周期 | 提供可用 Agent 的主体 |
 | 项目插件 | 注册受控工具、接入执行策略、输出可展示结果 | 给主体增加我们要的能力 |
 | 工具核心 / 执行器 | 路径、目标、参数、调用上限、停止检查 | 真正检查能不能执行 |
 | Cua Driver + 测试 VM | 桌面观察、AX 与输入动作、环境隔离 | 在测试电脑里操作 |
@@ -30,19 +30,19 @@ Agent 循环只保留 Harness 一套；不额外套第二套主循环。Cua 是�
 
 ## 2. 上游与版本
 
-本轮固定设计参考为 `deepseek-ai/deepseek-harness@00102833dfaee1da9f48a3a8eae9d34005a75218`，源码版本 `0.1.7-alpha.2`。此版本已在本地安装构建，但项目profile、模型与Web链路未验收。npm `latest` 在选型时为 `0.1.5-rc.2`，不能拿它安装后直接照固定源码API开发。
+当前验收固定到官方 Desktop App `0.2.0-rc.2`、内置 Node `24.18.1` 和同版源码参考 `639ed015`；真实模型为 `deepseek-account/deepseek-flash`，执行后端为 Driver `0.28.2` / guest Python `3.12.14`。版本冻结与真实证据见 [C2 总结](docs/stages/c2-summary.md)。
 
-初始 A0 已按固定源码及其 lockfile 构建；本地Node `24.9.0`、pnpm `11.7.0`。安装、构建与原生模块验证见[接入说明](agent/harness/README.md)；不使用浮动 latest，变更基点需同步方案和测试。
+初始 Web A0 使用 `deepseek-ai/deepseek-harness@00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2` 及其 lockfile，本地 Node `24.9.0`、pnpm `11.7.0`；已安装、验收后归档，仅作历史。安装、构建与原生模块验证见[接入说明](agent/harness/README.md)。不使用浮动 latest 或混用两版 API，变更基点需另行回归。
 
 上游是开发者预览版，公开声明尚未完成安全审计。项目不把官方组件名称当作边界已验证的证据。具体基点、来源和未测状态在 [upstream-reference.json](agent/harness/upstream-reference.json)。
 
 ## 3. Harness 集成方式
 
-### 3.1 Web profile 与插件组合
+### 3.1 Desktop profile 与插件组合
 
-复用官方 `web` surface，通过项目 profile / bundle / `cordis.patch.yml` 组织依赖，使用独立 Harness home，不读旧 Pi 配置。配置补丁替换整个 config 块的语义需要保留；不能假定递归合并。
+复用官方 Desktop 和其独立 `.runtime/desktop-home` 下的 `desktop` profile，通过项目 `cordis.desktop.*.patch.yml` 组织受控插件和 preset，不读旧 Pi 配置。Desktop 内部共享 Web 客户端，不恢复旧 Web 服务。配置补丁替换整个 config 块，不能假定递归合并。
 
-拟建立 `cuagent-a0` profile 和 `a0-controlled` Agent preset。A0只启用受控list/read/write和图片探针；CSV插件及完整文件业务验收移至A1。C0另增经审查的Computer Use工具，不自动继承任何默认桌面能力。Web 的预置 Agent preset 会重新挂载工具，因此必须同时检查根插件、继承层、可选择的 preset 和重启后的有效配置。只禁用根 `tool-bash` 不足以证明无 Shell。
+已接入 A0 的 `a0-verify`、C0 的 `c0-calculator`/`c0-ui`、C1/C2 的受控 preset，按任务显式选择，不同时开放默认工具。A0只启用受控 list/read/write、算术诊断和图片探针；CSV及完整文件业务验收在A1。C0另接 VM 工具，不能继承任意宿主桌面能力。preset 可能重新挂载工具，需同时检查根插件、继承层、模型请求和最终 guard；只禁用根 `tool-bash` 不足以证明无 Shell。
 
 实施时核对固定版本的 profile/preset API，使用官方配置展开能力保存有效插件清单，运行时再断言模型可见工具和可执行工具一致。新增工具默认不获准，参数错误或策略加载失败应拒绝运行。
 
@@ -58,15 +58,15 @@ preset热更新时已有Agent保留原revision；进程重启后按preset ID使�
 
 | 工具 | 现有核心 | Harness 适配状态 |
 |---|---|---|
-| workspace_list | 限定目录、排序、最多200项 | 待注册与真实调用 |
-| workspace_read | UTF-8白名单、1 MiB文件、最多200行/64 KiB输出、SHA-256 | 待注册与真实调用 |
-| workspace_write | 文本白名单、256 KiB上限、默认不覆盖、临时文件落盘 | 待接取消、并发队列与真实读回 |
+| workspace_list | 限定目录、排序、最多200项 | 已注册并真实调用，受 A0 策略约束 |
+| workspace_read | UTF-8白名单、1 MiB文件、最多200行/64 KiB输出、SHA-256 | 已注册，真实文件读回与独立核对通过 |
+| workspace_write | 文本白名单、256 KiB上限、默认不覆盖、临时文件落盘 | 已注册，受控写入、读回、取消和边界测试通过；不宣称 OS 竞态隔离 |
 | workspace_csv_stats | 1 MiB、10000行、100列、最多20个指定数值列 | A1通用增强；不阻塞C0 |
-| workspace_image_probe | 固定96×64四象限PNG | 待接图片内容块与真实模型 |
+| workspace_image_probe | 固定96×64四象限PNG | 官方附件/image block、实际模型识别和独立像素核对通过 |
 
-MCP 可通过 Harness 官方组件接入，但 A0 无需增加 MCP 服务器。C0 是否走 native provider 或 MCP 由固定 Driver 接口和边界测试决定，不能因框架支持 MCP 就开放整个服务器。
+现有 Computer Use 由官方 Harness 工具插件 → 私有受控 HTTP bridge → VM 内 Driver 执行；bridge 负责目标/预算/停止/审计，验证器能力独立。未开放通用 MCP 或宿主 native provider，不能因框架支持它们就开放整个服务器。
 
-### 3.3 Web 交互
+### 3.3 Desktop 交互
 
 当前入口复用官方 Desktop 的会话、模型设置、工具卡片、停止和审批界面，不自行开发桌面壳。Desktop 独占其 home 中的 `desktop` profile，不能直接启动旧 `cuagent-a0` Web profile；项目插件须在新入口重新接入和核验。Web 只绑定受控本地地址，远程协作走受控连接；不能把管理端口直接暴露公网。UI 显示工具结果不等于独立验证成功。
 
@@ -76,12 +76,12 @@ A0 检查附件上传、手动终端、插件管理、预置切换和后台任�
 
 沿用已确定的本地A0路线：开发源码、文档、无凭证单元测试及一个受控文件试验位于新项目目录。A0运行前先核验Harness专用profile、任务根、可见工具和网络；原有本地授权不等于默认Web配置已安全。A0最小验收后优先进入C0；桌面执行及对应任务数据、原始证据必须位于测试VM。首次桌面动作前核验VM隔离、授权目标、停止、预算和审计，不能等到A1。
 
-计划的运行时目录分开保存：
+当前运行时数据分开保存，不提交到 Git：
 
 ```text
-.runtime/harness-home/    # 框架配置、开发凭证、会话；不向模型开放
-.runtime/workspace/       # 模型可以处理的专用测试文件
-.runtime/runs/            # 执行证据、截图、验证报告；模型不可写
+.runtime/desktop-home/         # Desktop 配置、开发凭证、会话；不向模型开放
+.runtime/runs/<run>/workspace/ # A0 专用文件；桌面数据和原始证据在VM
+.runtime/runs/                 # host 私有汇总；模型不能修改验证/审计
 ```
 
 同进程路径检查只针对模型工具参数，不隔离恶意插件、同用户并发进程或竞态攻击；处理不可信输入与真实桌面时需要 OS/VM 边界。不能宣称核心单测覆盖了全部系统攻击面。
@@ -121,7 +121,7 @@ C0 首先复核历史 macOS VM/Driver，保留固定12×34 smoke作为诊断对�
 
 复用：文件/CSV核心及边界测试、图片探针、CSV独立核对器、三份Python历史文件、Lume五文件补丁与MIT许可证。Pi历史摘要只用于追溯。
 
-已完成固定Harness本地安装与构建；尚未实现专用profile、插件注册、模型接入、Web验收和Computer Use适配。已有Pi工具协议成功不是新运行时的通过记录。下一项应先完成A0最小门槛，再做C0单例闭环；三份文本/CSV后移A1。
+已完成 Desktop 专用配置、真实模型/文件/图片链路、C0 固定桌面任务、C1 六类增强、C2 控制权/故障恢复和独立评测。实现与失败记录见 [PROGRESS](PROGRESS.md) 和各阶段总结。下一项为 C3 干净部署和第二人复现；三份文本/CSV仍在A1，通用开放式任务不属于当前完成声明。
 
 后置：多Agent、第二套规划循环、长期记忆平台、完整OS原生库、跨设备调度、独立GUI。Agent-S/Jev仅在固定失败或成本记录支持时另行评估。
 
