@@ -1,4 +1,8 @@
-# 历史 macOS VM 诊断与固定回归
+# macOS VM 桥接与历史诊断
+
+本分支完成 c0-01。执行器只允许固定任务、明确授权、新观察、30 次真实调用与独立验证；模型没有任意 shell、路径或 verifier 权限。当前是单个 Calculator 12×34 闭环。
+
+方案与结果见 [阶段总结](../../docs/stages/c0-01-summary.md)。后续阶段不计入本分支。
 
 三个Python文件从旧项目原字节迁入，源头是 `cua/samples/mac_agent_mvp/`。它们是环境诊断和固定运算对照，不是Harness Agent。来源哈希见根 [迁移清单](../../migration-assets.json)。
 

@@ -1,19 +1,37 @@
 # Harness A0 接入与边界
 
+本分支完成 c0-01；后续阶段不纳入当前提交，结果见根 PROGRESS。
+
 2026-09-29 已建立独立 `cuagent-a0` profile 和启动脚本，固定版源码见 [上游参考版本](upstream-reference.json)。下文保留安装过程与早期设计记录；当前有效状态以本节和 [PROGRESS](../../PROGRESS.md) 为准。
 
-## 当前受控启动
+## 当前入口：官方 Desktop（2026-09-30）
+
+用户要求移出旧 Web 并安装官方桌面 App。官方 macOS arm64 安装包 `0.1.7-rc.2` 已下载；安装、签名与启动结果见 [PROGRESS](../../PROGRESS.md)。项目入口为：
+
+```bash
+/bin/zsh /Users/zhangchengjie/CUAgent/agent/harness/start-desktop.sh
+```
+
+启动脚本使用专用 `.runtime/desktop-home`。旧 Web 的源码、home、依赖、日志、启动脚本和配置移至 `/Users/zhangchengjie/Documents/ChatGPT/osagentmvp/retired-dsh-web-20260930`，其中 `archive-manifest.json` 记录每项原路径和恢复方法。任务运行证据保留在 `.runtime/runs/`。可复用的工具与策略源码仍在本目录；旧 Web 的真实通过记录不构成 Desktop 验收，不复制旧凭证或会话。
+
+官方 Desktop 是 Electron 壳，内部继续使用共享 Web 客户端和 Harness Host；其受管 `desktop` profile 与 Web 的自定义 profile 不同。安装之后已另行完成 Desktop A0 项目工具、模型、文件、工具图片、停止与预算验收；Computer Use 和 VM 验收仍独立进行。以下固定源码安装和 Web 接入记录为历史，所列旧 `.runtime/harness` 路径现已归档。
+
+## Desktop A0 配置与运行
+
+当前已验证 App `0.2.0-rc.2`，六个项目适配插件编译到专用 desktop profile，官方 App 包未修改。构建依赖仅用于编译与合并 YAML，固定版本：
 
 ```bash
 cd /Users/zhangchengjie/CUAgent
-/bin/zsh agent/harness/start-a0-web.sh a0_manual_001 3099
+npm install --prefix .runtime/desktop-build-tools --ignore-scripts --save-exact esbuild@0.28.1 js-yaml@4.3.1
+node agent/harness/build-desktop-plugins.mjs
+node agent/harness/configure-desktop.mjs
+# 先退出 App；指定新的 run-id 开始新验证
+agent/harness/start-desktop.sh desktop_a0_new_run
 ```
 
-一个任务固定一个 `run-id`；重启复用相同 ID 才会继承 30 次调用预算和审计。启动脚本只接受专用 profile，并检查补丁来源和全局覆盖；不要直接启动上游 `web` 默认 profile，也不要把旧 `cordis.a0.patch.yml` 测试叠层当作正式入口。专用 profile 仅带 base+Web bundle，默认仅 `a0-verify` 预置；模型实际请求列出 `calculate`、`workspace_image_probe`、`workspace_list/read/write` 五个工具。`calculate` 是此前停止/预算测试使用的无副作用诊断工具，不是桌面权限。配置层关闭独立 DeepSeek 会话日志贡献和 OTel；没有做网络抓包，因此只证明有效配置与本地会话日志，不声称无任何网络流量。
+configure 保存原 patch 备份，合并项目限制，保留账号模型/UI 设置。不要迁入旧凭证。Launcher 检查 App 版本和运行状态；版本变化先重新核对接口。不传 run-id 会生成时间戳；恢复同次运行必须传原 run-id，30 次预算不会重置。工具根目录是 `.runtime/runs/<run-id>/workspace`，在 App 中添加该目录作为测试工作区。
 
-本地 profile 位于 `.runtime/harness-home/profiles/cuagent-a0/`，其 `cordis.patch.yml` 指向本目录的 [正式补丁](cordis.a0.profile.patch.yml)。这个初始化产物在 Git 忽略的 `.runtime` 中，重建环境时应从固定 Web 模板创建 profile、核对只含 base+Web 两个 bundle，再链接正式补丁；启动脚本会拒绝缺失或不同补丁。模型工具调用受根级最终 guard、30 次实际派发预算和追加审计约束；它是进程内边界，不是 OS 沙箱。Web 配置编辑器和用户手动管理界面属于操作者权限，不能把其可改配置能力算成模型权限；无人为更改配置时的模型工具清单已由真实请求核对。
-
-正式 profile 的真实模型三轮会话、重启恢复、工具调用、`result.txt` 写读及独立校验、工具返回图片和用户直接输入图片均通过。Web 停止按钮在此前同一策略的隔离 3100 实例人工点击验收，正式 profile 未重复点击。测试证据只保存在 `.runtime/runs/` 与 `.runtime/harness-home/`，不上传；A0 测试不涉及 VM 桌面。C0 首次动作还需另加应用/窗口白名单、逐项授权和观察后验证。
+本次真实文件、工具图片、停止和预算均通过，证据见 `.runtime/runs/desktop_a0_20260930_001/verification.json`；此 run 已耗尽。仅验收 A0；VM Computer Use 和直接上传图片分别验证。
 
 ## 固定基点
 
@@ -50,6 +68,10 @@ DSH_HOME=/Users/zhangchengjie/CUAgent/.runtime/harness-home \
 以上安装时通过。锁文件SHA-256：`b86256be5afec5814a404747893cab392a73b40901d14fa8135f663fb42c8d40`。上游源码安装后已应用下面记录的本地补丁，工作树不再干净。独立home、workspace、runs已建立；没有配置API Key、授权桌面或修改个人配置。
 
 本地记录：`.runtime/harness-installation.json`、`.runtime/harness-build.log`、`.runtime/harness-install.log`（后者为构建后的离线锁文件复核）。首次安装在CLI产物生成前提示三个SDK/desktop workspace的`dsh` bin链接缺失；构建后离线install未补建它们。已验证的入口是上述根目录`pnpm dsh`，这些子包入口未验收。构建另有上游弃用项及bundle体积警告，不影响本次退出码为0。全部`.runtime`内容被Git忽略，不公开上传。
+
+## 本阶段 VM 入口
+
+先在测试 VM 显式审批启动 c0_bridge.py，私有连接只含模型 token，独立验证能力不能交给模型。正常退出 App 后，构建 `build-desktop-plugins.mjs --c0`，应用 `configure-desktop.mjs --c0`，以 `start-c0-desktop.sh <matching-run-id>` 启动。每任务 30 次实际请求，取消传递 guest stop；不得在宿主执行桌面任务。阶段方案和总结见根 docs/stages。
 
 ## macOS ARM64原生模块修复（2026-09-23）
 

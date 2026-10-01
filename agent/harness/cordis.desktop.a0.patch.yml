@@ -1,24 +1,11 @@
-# The complete CUAgent A0 profile layer. The profile uses only dsh-base and
-# dsh-web-app bundles; never apply this file to the shipped personal web profile.
-- id: agent-default-model
-  name: '@deepseek-ai/dsh-agent-default-model'
-  config:
-    provider: deepseek-official
-    model: deepseek-flash
-    reasoningEffort: off
-
 - id: session-log-deepseek
   name: '@deepseek-ai/dsh-session-log-deepseek'
   config:
     enabled: false
-
 - id: session-telemetry-otel
   name: '@deepseek-ai/dsh-session-telemetry-otel'
   config:
     mode: DISABLED
-
-# Shipped Web presets include shell, filesystem, web, and delegation tools.
-# Do not offer a switch to them from the A0 profile.
 - id: preset-standard
   disabled: true
 - id: preset-ptc
@@ -27,15 +14,14 @@
   disabled: true
 - id: preset-cordis
   disabled: true
-
 - id: agent-preset-registry
   name: '@deepseek-ai/dsh-agent-preset-registry'
   config:
     default: a0-verify
-
 - insert:
     - id: cuagent-a0-policy
-      name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/a0-policy-plugin.ts'
+      name: >-
+        @@PLUGIN_URL@@/a0-policy-plugin.mjs
     - id: preset-a0-verify
       name: '@deepseek-ai/dsh-agent-preset'
       config:
@@ -56,8 +42,29 @@
               complete: true
               includeRuntimeContext: false
           - id: workspace-image-probe
-            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/image-probe.ts'
+            name: >-
+              @@PLUGIN_URL@@/image-probe.mjs
           - id: a0-calculate
-            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/calculate.ts'
+            name: >-
+              @@PLUGIN_URL@@/calculate.mjs
           - id: a0-file-tools
-            name: 'file:///Users/zhangchengjie/CUAgent/agent/harness/a0-file-tools.ts'
+            name: >-
+              @@PLUGIN_URL@@/a0-file-tools.mjs
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- insert:
+    - id: cuagent-desktop-request-audit
+      name: >-
+        @@PLUGIN_URL@@/desktop-request-audit.mjs
+
+- id: workspace-dependencies
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- insert:
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

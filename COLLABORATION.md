@@ -1,6 +1,6 @@
 # CUAgent 联合开发与调试
 
-主计划为 [Harness_Development_Plan.md](Harness_Development_Plan.md)。A负责Harness/profile/Web/模型与会话，B负责工具/执行边界/Cua/验证；共同约定请求、结果、事件和验收证据。
+主计划为 [Harness_Development_Plan.md](Harness_Development_Plan.md)。A负责Harness/profile/官方Desktop/模型与会话，B负责工具/执行边界/Cua/验证；共同约定请求、结果、事件和验收证据。
 
 ## Git 工作方式
 

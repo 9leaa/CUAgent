@@ -4,7 +4,7 @@
 
 先完整阅读 README.md、Harness_Development_Plan.md、PROGRESS.md，再检查实际 Git 和文件状态。架构依据 DESIGN.md；迁移范围见 MIGRATION.md。文档尚未生成时先向负责迁移的主任务核对，不恢复旧路线。
 
-用户于 2026-09-23 明确切换到 DeepSeek Harness，并将Computer Use定为开发主线。复用官方Web UI、Agent循环、模型适配、会话及Cordis插件系统；顺序为A0最小可用底座→C0单例及固定用例→C1–C3增强、评测和交付。A1三份文本、CSV及通用插件体验可并行或后补，不阻塞Computer Use；O0系统原生能力后置。Pi、OpenCode、Claude SDK仅作历史来源，不是运行依赖。
+用户于 2026-09-23 明确切换到 DeepSeek Harness，并将Computer Use定为开发主线。2026-09-30 起改用官方 macOS Desktop App；复用官方桌面界面、Agent循环、模型适配、会话及Cordis插件系统；顺序为A0最小可用底座→C0单例及固定用例→C1–C3增强、评测和交付。A1三份文本、CSV及通用插件体验可并行或后补，不阻塞Computer Use；O0系统原生能力后置。Pi、OpenCode、Claude SDK仅作历史来源，不是运行依赖。
 
 ## 实现与验证
 

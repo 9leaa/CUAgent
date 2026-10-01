@@ -1,8 +1,8 @@
 # CUAgent
 
-CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。复用官方 Web UI、模型接入、会话与 Agent 循环。
+CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。2026-09-30 起交互入口改为官方 macOS Desktop App；继续复用模型接入、会话与 Agent 循环。
 
-**当前本地 A0 已有独立 Web profile、真实模型/会话/工具/两种图片链路及最低安全控制的验收记录；尚未开始 C0 真实桌面操作。** 具体证据与限制见 [PROGRESS](PROGRESS.md)。Pi 的历史通过记录不计入 Harness 验收。
+**当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。本分支完成 c0-01；后续阶段不计入本分支。**
 
 ## 当前进度
 
@@ -10,10 +10,10 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
 - [x] A0：独立 Web profile 中真实模型、会话、简单受控工具、图片和最低执行边界通过（Web 停止按钮在先前同策略隔离实例人工验收；正式 profile 未重复点击）。
-- [ ] C0-01：真实模型在测试 VM 中完成计算器12×34，轨迹、新显示、文件读回和独立期望值闭环通过。
-- [ ] C0-02：真实观察驱动计算器九例和三个基础界面任务。
-- [ ] C1：长流程、弹窗、窗口变化与跨应用任务。
-- [ ] C2：人工接管、异常恢复和固定任务集评测。
+- [ ] C0-01：后续阶段。
+- [ ] C0-02：后续阶段。
+- [ ] C1：后续阶段。
+- [ ] C2：后续阶段。
 - [ ] C3：第二位开发者能部署、扩展和复现 Computer Use 任务。
 - [ ] A1：三份文本、CSV和通用插件/会话能力补强；不阻塞C0–C3。
 - [ ] O0：按真实用例另行增加系统原生接口。
@@ -41,7 +41,15 @@ node --test agent/tests/*.test.mjs
 python3 -m unittest discover -s tools/mac_vm/tests -v
 ```
 
-这两条命令仅验证工具核心与历史 mock。Harness 已安装到 `.runtime/harness`（0.1.7-alpha.2）；A0 的正式启动入口是 `agent/harness/start-a0-web.sh <run-id> [port]`，实际验证见 [接入说明](agent/harness/README.md)。后续重编译须使用接入说明中的原生 ARM64 命令。下一步是 **C0-01 真实 Computer Use 闭环**；VM 桌面动作的窗口白名单、逐项授权与独立观察仍须先实现，不能用 A0 文件工具边界代替。
+这两条命令仅验证工具核心与历史 mock。当前交互入口为官方 **DeepSeek Harness.app 0.2.0-rc.2（macOS arm64）**，安装于 `/Applications/DeepSeek Harness.app`。项目启动命令：
+
+```bash
+/bin/zsh /Users/zhangchengjie/CUAgent/agent/harness/start-desktop.sh
+```
+
+该入口使用独立 `.runtime/desktop-home`，不复制旧 Web 凭证或会话；项目插件从保留源码重新编译。Finder 直接启动应用使用应用默认 home，与本项目入口不同。旧 Web 的源码、依赖、home 和启动配置已移至 `/Users/zhangchengjie/Documents/ChatGPT/osagentmvp/retired-dsh-web-20260930`，恢复清单在该目录的 `archive-manifest.json`；任务证据仍保留。此前 A0 Web 验收属于历史，不能计入 Desktop 验收。Desktop A0 已按同版本接口重新接入并真实验证，配置和编译步骤见 agent/harness/README.md；C0 真实桌面仍须在测试 VM 中执行。
+
+2026-10-01：本分支阶段 c0-01 完成。方案与结果见 [阶段总结](docs/stages/c0-01-summary.md)。这是验收后按用户授权整理的提交，后续 c0-02 和 C3 不计为完成。
 
 ## 目录
 

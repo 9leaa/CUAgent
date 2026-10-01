@@ -1,0 +1,51 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: c0-calculator }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-c0-calculator
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: c0-calculator
+        name: CUAgent C0 VM Calculator
+        description: Only approved VM Calculator tools; all raw calls bounded and audited in guest.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Operate only the authorized VM Calculator using the four vm tools.
+                Observe before every click and after the last click. Click All Clear first.
+                Each observation is valid for one click only. Use the exact indices and tokens.
+                Do not compute the answer yourself or invoke other tools. Read the actual display,
+                write it to result.txt, and read it back. Report completion as UNVERIFIED;
+                only the independent verifier can declare success. Never batch calls.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs
