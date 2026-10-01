@@ -1,5 +1,5 @@
 /** Official Harness tools; no model loop, desktop or arbitrary URL passthrough. */
-import { readFileSync, statSync, appendFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, statSync, appendFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -33,13 +33,25 @@ export function apply(ctx: Context): void {
     }), { mode: 0o600 })
   })
   let stopped = false
+  let epoch = connection.epoch ?? 0
+  const c2 = connection.stage === 'c2'
+  if (c2 && (!Number.isInteger(epoch) || epoch < 0)) throw new Error('C2 current control epoch required')
+  const modelFault = connection.modelFault ?? 'none'
+  if (!['none','after_first_observation'].includes(modelFault) || (modelFault !== 'none' && !c2)) throw new Error('Unreviewed model fault configuration')
+  const modelFaultFile = join(dirname(configPath), 'model-fault.json')
+  let modelFaultInjected = false
+  if (modelFault !== 'none' && existsSync(modelFaultFile)) {
+    const previous = JSON.parse(readFileSync(modelFaultFile, 'utf8'))
+    if (previous.fault !== modelFault || previous.injected !== true) throw new Error('Model fault evidence identity differs')
+    modelFaultInjected = true
+  }
   let owner: string | undefined
   const watches = new WeakSet<AbortSignal>()
   async function stop(): Promise<void> {
     stopped = true
     // Separate request, not cancelled together with the action; never retry actions.
     await fetch(URL, { method: 'POST', headers: { Authorization: `Bearer ${connection.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ op: 'stop', args: {} }), signal: AbortSignal.timeout(5000) })
+      body: JSON.stringify({ op: 'stop', args: {}, ...(c2 ? { session_id: owner, epoch } : {}) }), signal: AbortSignal.timeout(5000) })
   }
   function watch(signal: AbortSignal): void {
     if (watches.has(signal)) return
@@ -64,6 +76,14 @@ export function apply(ctx: Context): void {
     appendFileSync(auditPath, JSON.stringify({ at: new Date().toISOString(), toolNames,
       provider: options.provider, model: options.model,
       imageBlocks })+'\n', { mode: 0o600 })
+    if (modelFault === 'after_first_observation' && !modelFaultInjected && owner && toolNames.length && imageBlocks > 0) {
+      writeFileSync(modelFaultFile, JSON.stringify({ fault: modelFault, injected: true, sessionId: owner,
+        layer: 'official llm/stream project hook before provider call', imageBlocks,
+        provider: options.provider, model: options.model, at: new Date().toISOString() }), { mode: 0o600, flag: 'wx' })
+      modelFaultInjected = true
+      await stop()
+      throw new Error('C2 controlled model stream failure after real VM observation')
+    }
     yield* next()
   })
   async function request(op: string, args: unknown, signal: AbortSignal): Promise<any> {
@@ -71,8 +91,13 @@ export function apply(ctx: Context): void {
     if (stopped || signal.aborted) throw new Error('C0 stopped')
     const response = await fetch(URL, { method: 'POST',
       headers: { Authorization: `Bearer ${connection.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ op, args }), signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]) })
+      body: JSON.stringify({ op, args, ...(c2 ? { session_id: owner, epoch } : {}) }), signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]) })
     const value = await response.json()
+    if (c2) {
+      if (!Number.isInteger(value.control_epoch) || value.control_epoch < epoch) throw new Error('C2 response control epoch missing or stale')
+      epoch = value.control_epoch
+      if (value.stopped === true) stopped = true
+    }
     if (!response.ok) throw new Error(value.error ?? 'VM request denied')
     return value
   }

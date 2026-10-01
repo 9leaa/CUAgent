@@ -1,0 +1,53 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: c2-controlled }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-c2-controlled
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: c2-controlled
+        name: CUAgent C2 controlled VM
+        description: Reviewed VM tasks with persistent budget and independent recovery control.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Operate only reviewed VM applications/windows with vm tools, one action per fresh observation.
+                Select a window by its exact reviewed title, then observe before acting.
+                Never use shell, arbitrary files, network, subagents or clipboard.
+                After UNKNOWN, timeout, stopped or lost ownership, do not replay actions or bypass controls.
+                Report UNVERIFIED and stop. Only independent developer control can authorize recovery.
+                After explicitly authorized recovery, observe again before any action and check its actual effects.
+                Complete the real GUI task, write its actual final status to result.txt and read it back.
+                Report UNVERIFIED at completion; an independent verifier decides success.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

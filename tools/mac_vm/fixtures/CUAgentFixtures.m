@@ -22,6 +22,7 @@
 @property NSPanel *confirmation;
 @property NSInteger stage;
 @property NSMutableArray *effects;
+@property BOOL keepAliveAfterClose;
 @end
 
 @implementation Fixture
@@ -167,20 +168,32 @@
         if(ok)[self record:@{@"saved":@YES,@"filename":@"task-note.txt",@"text":self.editor.string} name:@"document-save.json"];
     }];
 }
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return YES; }
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return !self.keepAliveAfterClose; }
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)visible {
+    if(!self.keepAliveAfterClose || visible)return YES;
+    // Reuse the original content/effects, not another task or reset fixture.
+    NSWindow *old=self.window;
+    NSView *content=old.contentView;
+    self.window=[[NSWindow alloc] initWithContentRect:NSMakeRect(360,240,640,480) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
+    self.window.title=old.title;self.window.releasedWhenClosed=NO;
+    old.contentView=[NSView new];self.window.contentView=content;
+    [self.window makeKeyAndOrderFront:nil];return YES;
+}
 @end
 
 int main(int argc,const char **argv){@autoreleasepool{
     char model[128]={0};size_t size=sizeof(model);sysctlbyname("hw.model",model,&size,NULL,0);
     if(strncmp(model,"VirtualMac",10)!=0 || ![NSUserName() isEqual:@"mvpagent"])return 77;
     NSArray *args=NSProcessInfo.processInfo.arguments;
-    if(args.count!=5 || ![args[1] isEqual:@"--task"] || ![args[3] isEqual:@"--output"])return 64;
+    BOOL keepAlive=args.count==6 && [args[5] isEqual:@"--keep-alive-after-close"];
+    if((args.count!=5 && !keepAlive) || ![args[1] isEqual:@"--task"] || ![args[3] isEqual:@"--output"])return 64;
     NSString *task=args[2],*directory=args[4];
+    if(keepAlive && ![task isEqual:@"input_correction"])return 64;
     if(![@[@"form",@"scroll",@"document",@"cross_app",@"popup",@"window_change",@"input_correction",@"long_workflow",@"reobserve_failure"] containsObject:task])return 64;
     NSString *root=[NSHomeDirectory() stringByAppendingPathComponent:@"C0Evidence"];
     if(![[directory stringByDeletingLastPathComponent] isEqual:root])return 77;
     NSDictionary *attributes=[[NSFileManager defaultManager] attributesOfItemAtPath:directory error:nil];
     if(![attributes[NSFileType] isEqual:NSFileTypeDirectory])return 77;
     [NSApplication sharedApplication];NSApp.activationPolicy=NSApplicationActivationPolicyRegular;
-    Fixture *fixture=[Fixture new];fixture.task=task;fixture.directory=directory;NSApp.delegate=fixture;[NSApp run];
+    Fixture *fixture=[Fixture new];fixture.task=task;fixture.directory=directory;fixture.keepAliveAfterClose=keepAlive;NSApp.delegate=fixture;[NSApp run];
 }return 0;}

@@ -11,10 +11,10 @@
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
 | 工具核心测试 | Node 24.9.0：最新本地回归 36/36 通过；属于无模型单元测试 |
-| 本轮VM工具测试 | 本阶段无凭证测试重新核对；实际模型结果见阶段总结 |
+| 本轮VM工具测试 | 最新 Python 103/103 执行层/mock/反例通过；不替代真实 VM 七故障、18 次与九计算器证据 |
 | Harness版本 | 当前官方 Desktop App 0.2.0-rc.2 / 内置 Node 24.18.1，同版源码参考639ed015；初始 Web 固定源码00102833d / 0.1.7-alpha.2仅历史 |
-| Harness A0最小底座 | Desktop A0 迁移记录见下文；后续 C2 回归不计入本分支 |
-| C0-01及C0–C3 | 本分支已完成 c0-01、c0-02、c1；后续阶段尚未纳入 |
+| Harness A0最小底座 | 最新 Desktop 真会话/文件/直接与工具图片/标准取消/30 次持久预算回归通过；重启首回复错误和后续澄清保留，Web记录仅历史 |
+| C0-01及C0–C3 | C0-01、C0-02、C1 与 C2 本地验收完成；C2 正式 18/18、七故障、九计算器及 A0/声明安全范围回归通过；C3 未做 |
 | A1通用增强 | 三份文本、CSV和完整插件/会话体验待实施；不阻塞C0–C3 |
 | O0 | 后置，未开始 |
 
@@ -200,7 +200,122 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 - Python 53/53、核心 Node 36/36、官方 App 适配 2/2；离线 `c1-independent-comparison.json` 完整覆盖 36 次及实际官方 usage。阶段总结 `docs/stages/c1-summary.md` 已写，C1 完成，不宣称 C2 或发布完成。
 - C1 suite 正常退出，全部任务冻结，guest bridge 无存活进程。VM/现有端口继续运行，未提交或推送。下一步建 C2 分支，先写可靠性方案。
 
+## 2026-10-01：进入 C2
 
-## 阶段提交整理
+- 新建 `c2-reliability`，先写 `docs/stages/c2-design.md`，固定原计划 18 次、七故障、人工接管/取消/安全/恢复/反假成功及九计算器/A0 回归门槛。没有以 C1 成绩替代。
+- 当前只有方案，C2 实现和验收尚未完成；不提交/推送，保留用户未提交改动、任务证据、VM 和现有端口。
+- 新增 `c2_cases.py` 固定新 18 次 schedule、七故障具体证据、九计算器及 A0/安全 gate。三项注册表测试通过，Python 共 56/56；仅无模型定义验证，尚未实现恢复或执行 C2 真实故障。
 
-本分支 c1 为用户在四阶段验收后授权整理的递进提交。guest 原阶段执行器保留并用于还原，适配器按阶段拆分、本地测试重新运行；没有重跑或改写原模型证据。下一阶段 c2，不计入本分支完成状态。
+## 2026-10-01：C2 接管/恢复控制初步实现
+
+- 新增 `c2_bridge.py` 的独立 C2Task 扩展，不改 C0/C1 默认执行行为。控制 owner/epoch 持久化，停止使旧快照失效，在途/UNKNOWN 未核清不能接管；重启恢复 PID/窗口/传递上下文与原预算，但不恢复旧快照或自动准入。
+- 开发侧恢复观察使用线程与 epoch 绑定的只读能力，只允许 list_windows/get_window_state，仍计原 30 次；恢复期间再次停止使该能力失效。交还须新观察、当前控制权、足够预算及无 UNKNOWN，模型重新观察，旧 session/epoch 拒绝。
+- Python 65/65（新增九项 mock，含停止与恢复并发、重启、预算、UNKNOWN/悬空 dispatch、会话串扰、坏 epoch 和非法 session）；不能作为真实模型或全故障验收。
+- 独立 VM 目录 `/Users/mvpagent/CUAgent-c2-20261001` 部署，host/guest C2 两源码 SHA 一致。`c2_control_live.py --run c2_control_20261001_001 --approve-task` 真实 Driver 诊断 PASS：3 次初始请求 → 5 次接管后恢复观察 → 6 次交还后新观察，三个 snapshot 不同，最终 stopped。host 独立读回 trace/报告核对每次派发、结果、控制 epoch 与预算；诊断 fixture 正常结束，VM 保持运行。
+- 该诊断无模型、无业务提交，明确 taskStatus UNVERIFIED，不计入 C2 18 次或七故障完成。模型/HTTP 控制通道集成、UNKNOWN 独立对账、真实七故障与正式评测/回归仍待完成；尚未写完成总结，不提交/推送。
+- 诊断后收紧 session 格式与 epoch 的整数类型，新增反例通过；该额外参数校验尚未重跑 live，原诊断源码哈希不倒改，新版须在后续集成中重新部署验证。
+
+## 2026-10-01：C2 官方模型控制集成与一次 UNKNOWN 恢复
+
+- C2 HTTP 分离 model/verifier/control 三种能力；只有开发控制通道可接管、恢复观察、独立对账和交还，模型配置不含 control/verifier token。官方插件携带真实 session/epoch，停止响应立即关闭 guard，旧会话/epoch 不能继续派发；没有增加模型主循环。
+- 正常模型诊断 `c2_model_gate_20261001_001` 独立 SUCCEEDED，11/30 raw、8 个模型工具调用；实际模型为 `deepseek-account/deepseek-flash`。六项实际 HTTP 能力拒绝检查通过，拒绝不消耗合法任务的 Driver 预算。
+- 故障 `c2_timeout_gate_20261001_001` 在实际 Driver Submit 返回后丢弃响应；首次官方会话真实 error，原 UNKNOWN 保留。开发侧新观察结合实际提交文件、完整轨迹及 fixture 效果确认已生效一次，再明确交还新官方会话；没有重新输入/提交，没有清零预算。
+- 恢复会话真实 completed，独立 GUI、result.txt、读回和期望一致，最终 SUCCEEDED，原任务共 19/30 raw；两个真实会话共 10 个模型工具调用。恢复首次 prompt RPC 拒绝，错误细节未保存；独立核对新会话仍无用户消息/轮次后向同一 session 派发，未重建任务或重复动作。不能据此声称 RPC 根因已确定。
+- `c2_fault_audit.py` 只离线审查这一响应丢失故障；核对原 Submit、UNKNOWN、不同新快照/真实 AX/截图、同 PID/窗口、单次效果、预算连续、停止后的只读恢复和显式交还。VM 原证据重新审计 PASS。新增九项合成反例测试，不能冒充真实故障注入。
+- 当前 Python 78/78（含新增审计反例及进程退出钩子 mock）；官方 App 适配上轮 3/3。正常与超时故障 run 均已冻结并结束对应 executor/fixture，VM 和用户接受的 VNC 端口保持运行。没有提交/推送。
+- 开始下一故障：开发钩子在实际首次观察和目标绑定持久化后退出 VM 执行进程（exit 85）；重启必须同 run、保留预算、默认暂停且旧快照不可用。单元测试不替代真实进程/模型恢复证据，实际验收结果另记。
+- 进程退出诊断 `c2_exit_gate_20261001_001` 实际进入退出钩子，观察原 executor 已不存在；同 run 重启后 paused、3 次预算，能力拒绝不新增派发，开发恢复观察后共 5 次。恢复程序没有刷新重启后旋转的 model token，官方恢复会话工具实际 Forbidden、没有 GUI 输入；最终 UNVERIFIED 保留，不能计故障恢复成功。修复私有恢复程序：重新读取当前 model token，仍不传 verifier/control token，prompt 请求 ID 与内容先持久化，RPC 拒绝细节以后留私有证据。新诊断 `c2_exit_gate_20261001_002` 已启动，结果待独立核对。
+- 本轮直接执行 TypeScript 测试因未经过官方 App 依赖打包而 ERR_MODULE_NOT_FOUND，不计通过；使用现有 `build-c0-tests.mjs` 按官方 App 同版库重新打包后，官方 Electron Node 3/3 通过。未安装另一版本依赖或修改 App 包。
+- 修复后 `c2_exit_gate_20261001_002` 首次模型实际触发 executor 退出（当时累计 4 raw），观察确认无该 run executor；同 run 重启仍 paused、4 raw。新恢复观察两次实际请求，明确交还 epoch 4/新官方 session 后恢复业务；最终独立 SUCCEEDED，14/30 raw、两个会话共 12 个模型工具调用，Submit 实际效果一次。独立账本审查预算连续、结果完整、无 UNKNOWN、重启至交还期间仅两次只读恢复请求、目标 PID/窗口未变，以及新界面/文件/期望一致。两会话真实 terminal、任务冻结并结束对应 executor/fixture；VM 仍运行。原会话虽 completed，但没有业务成功证据，不能把框架 completed 当作首次任务成功。
+- 当前响应丢失与进程退出两类有真实恢复通过证据；窗口关闭、人工 GUI 改文档、模型失败、真实权限撤销、预算耗尽，以及新 18 次正式评测、九计算器和 A0/完整安全回归未完成。C2 仍未验收，不写完成总结。
+
+## 2026-10-01：C2 窗口关闭与同任务恢复
+
+- 实现前补充 `c2-design.md` 窗口故障细化。fixture 只有显式 `--keep-alive-after-close` 的输入纠错测试保留进程；关闭后重开创建新窗口，复用原内容/效果，不重新创建任务或覆盖旧文件，默认 C0/C1 行为不变。
+- 独立开发控制操作只在停止、人类控制权、无在途/UNKNOWN、当前 epoch 下获准。Close 必须是实际新截图/AX 中同 PID/窗口、唯一标题栏按钮；关闭点击和新窗口清单都计预算。重新打开前核对旧窗口消失和固定可执行文件身份；模型/verifier 不能调用关窗或重开。
+- 首轮 `c2_window_gate_20261001_001` 已真实关闭原窗口，但 Driver launch 只激活进程，没有新窗口；两次新观察确认仍无目标。最终 UNVERIFIED、11 raw 保留，不继续盲重开。模型首次因受控暂停出现真实 error，不称模型服务故障。
+- 修复开发恢复路径：固定 `/usr/bin/open -a /Users/mvpagent/Applications/CUAgentFixtures.app`、不使用 shell/任意路径/新实例；原生请求计预算、在途与结果，超时为 UNKNOWN，重启仍禁止交还。返回只说明已请求激活，不能当窗口证明；必须实际新 Driver 观察后继续。
+- 新诊断 `c2_window_gate_20261001_002` 官方真实模型恢复并独立 SUCCEEDED，22/30 raw、两个会话共 8 个模型工具调用；原 PID 23069，关闭窗口 784，恢复窗口 791，Submit 效果一次。交还后实际旧快照请求 409/Fresh observation required，被审计为拒绝，没有旧窗口输入；八项 HTTP 能力隔离检查通过。
+- `c2_window_audit.py` 独立读回实际 guest 账本、效果/产物/验证文件 PASS；核对原新截图中的 close 按钮、真实点击与旧窗口消失、同 PID 新窗口、恢复前新观察、持久预算和完整结果/拒绝。五项合成反例不能代替真实故障。本轮 Python 87/87，fixture 编译/签名和 guest 严格签名核对通过，`git diff --check` 通过。
+- 诊断有明确开发介入，控制/GUI动作均在账本，不能用启动 metadata 的初始零值声称零介入；私有 `window-fault-audit.json` 另记介入类型。两官方会话真实 terminal，任务冻结并退出确切 executor/fixture；VM 与 VNC/SSH 保持运行，不提交/推送。
+- 当前三类故障有诊断通过证据，版本/源码哈希逐 run 保留；不把不同版本诊断拼成同版完整验收。人工 GUI 改文档、模型失败、真实权限撤销、预算耗尽、正式 18 次、九计算器、A0 和完整安全回归仍待完成。C2 不登记完成。
+
+## 2026-10-01：C2 真实文档接管、正文纠正与 GUI 保存
+
+- 依实施前方案将持久控制权提为 `C2ControlMixin`；`C2Task` 保持 C1 六例后端，新增 `C2DocumentTask` 复用 C0 原生 NSTextView、owned 系统保存面板和固定文件规则。文档仅为故障诊断，不加入或替代六例正式 18 次。
+- 首次模型真实输入原正文后停止；开发侧只能在接管、无在途/UNKNOWN、当前新观察的固定 Document Body 下编辑，操作计原预算，模型不能调用此控制入口。交还前必须实际观察干扰正文；恢复后独立要求新会话观察到干扰，再纠正正文、新观察、GUI Save Document/Save 和真实文件核对。原始两次模型输入保留，不删首轮轨迹。
+- 首轮 `c2_document_gate_20261001_001` 确认 Driver type_text 会在 NSTextView 追加。实际新观察为原文加干扰文本，恢复条件拒绝，UNVERIFIED、11 raw 保留；新建的空恢复 session 未派发任务，不将其算作恢复通过。
+- 固定 Driver `describe set_value` 确认原生 AXValue 支持；只在 C2 文档唯一新鲜正文与两个固定值下使用。实际请求记录为 set_value，不伪装 type_text；未增加模型通用 set_value/shell/键盘工具，C0/C1 默认 raw 仍拒绝。新增超时 UNKNOWN 跨重启保留和越权反例。
+- 新诊断 `c2_document_gate_20261001_002` 独立 SUCCEEDED，25/30 raw、两个官方会话共 13 个模型工具调用，实际模型仍 deepseek-account/deepseek-flash。新观察先确认固定干扰正文，恢复模型再纠正，动作完整 Save Document/Save；真实 task-note.txt、新 Saved 界面、result.txt/读回和预定正文一致。原首次错误会话与全部证据保留。
+- Python 94/94（包括既有全部控制/UNKNOWN/窗口测试和七项文档 mock），`git diff --check` 通过；无模型测试不替代 GUI。私有 `document-fault-audit.json` 只读重核原账本、实际 GUI/保存完整判据及开发介入，不构造 Task、不改 guest 证据，亦不是完整 C2 发布报告。
+- 两官方会话真实终止，任务冻结并退出确切 executor/fixture；VM、SSH/VNC 保持运行，未提交/推送。控制层变化后旧故障需在最终冻结版重新回归，不能把不同版本绿色诊断拼成同版全通过；模型失败、真实权限撤销、预算耗尽、真实在途停止、正式 18 次、九计算器和 A0/完整安全回归仍未完成。
+
+## 2026-10-01：C2 官方模型流故障恢复
+
+- `c2_model_error_gate_20261001_001` 在官方 `llm/stream` 项目钩子、provider 调用前注入单次错误；此前真实 VM 图片已进入上下文。原官方会话以明确受控错误终止，任务暂停在 4 raw，无在途或 UNKNOWN；不将此测试称为服务商宕机。
+- 九项实际 HTTP 能力隔离检查通过且调用预算未变。开发接管、原预算新观察、明确交还新官方会话后，模型重新观察并完成 Submit；独立 SUCCEEDED，14/30 raw、两会话共 9 个模型工具调用，实际效果一次。单次故障标记跨 App 重启保留，没有再次注入。
+- App 重启后首次 prompt 返回 `gateway/service-unavailable`，错误细节保留。独立检查同一新会话尚无用户消息/轮次后，使用相同 session 和持久 request ID 派发；不新建任务/会话，不重复已准入的 prompt。恢复完成及原错误会话均真实 terminal。
+- 私有 `model-fault-audit.json` 只读重核实际账本、原错误、恢复前后观察、连续预算和单次效果 PASS；原任务已冻结，对应 executor/fixture 已不存在，VM 与 VNC 保持运行。官方 App 同版打包适配测试 4/4、Python 94/94 属于无模型测试。
+- 目前五类故障有历史版本诊断通过证据，不拼成冻结同版完整验收；真实权限撤销、预算耗尽、真实在途停止、正式 18 次、九计算器和 A0/全安全回归仍待完成。C2 未完成，不提交/推送。
+
+## 2026-10-01：C2 实际预算耗尽与跨进程保持
+
+- 先补充预算诊断方案，再新增 `c2_budget_live.py`；复用 C2Task/真实 Driver，在固定输入纠错窗口连续观察，未设置 used、未伪造 dispatch、未执行业务输入或提交。
+- `c2_budget_gate_20261001_001` 实际 30 raw（一次 launch、一次窗口清单、28 次不同新观察）；第 31 次、停止后观察、开发恢复观察、换会话交还均 BLOCKED，未新增派发。第二个独立 Python 进程 PID 25179（原 24815）读取同一账本，仍 30/30、paused、无可用旧快照；重启后观察/恢复/交还仍被拒。
+- 离线 `budget-audit.json` 核对 30 个唯一连续 dispatch/result、28 张真实 PNG/不同快照、七项拒绝、同源码与不同进程及停止后零派发 PASS。安全 gate 通过，业务保持 UNVERIFIED；没有官方模型会话，不计正式 18 次，也不替代 A0 的真实模型预算回归。
+- 新增五项无模型反例（缺结果、重复观察、同进程冒充重启、伪成功产物等）；Python 99/99、`git diff --check` 通过。原账本/报告仍留 VM，并独立复制至私有 host 目录；诊断进程已正常结束，对应唯一 fixture PID 24961 已退出，VM 和端口未改。
+- 目前六类故障有历史版本真实诊断证据；真实权限撤销、真实在途停止、最终同版故障回归、正式 18 次、九计算器和 A0/完整安全回归仍未完成。C2 保持未验收。
+
+## 2026-10-01：C2 真实 guest 权限撤销与恢复
+
+- 实施前补充方案；新增只负责首次实际观察后暂停的 `permission_revoke_after_observe`，不模拟权限错误或自动改变 TCC。官方原会话在 3 raw 后真实 error 终止，开发接管后，经独立 guest VNC/测试管理员授权将 CuaDriver Accessibility 真正关闭。
+- 实际设置 Off 截图与 Driver daemon 自身权限 false 一致，Screen Recording 仍为 true。同一任务的真实恢复观察返回 409，预算从 3 到 5；Driver 返回原窗口 `ax_window_unresolved`、空 AX 树和无 snapshot，执行器拒绝使用。没有 GUI 输入、结果文件或成功报告，不换工具绕过。
+- 经同一 guest 设置恢复原 On，新 VNC 截图与同 daemon PID 1144 的权限 true 一致；关闭设置窗口后新 Driver 观察核对原 fixture PID 25440/窗口 828。明确交还 epoch 4、新官方会话重新观察并完成任务，独立 SUCCEEDED，15/30 raw、两会话共 8 个模型工具调用、Submit 效果一次。九项实际 HTTP 能力隔离检查通过且预算不变。
+- 私有 `permission-fault-audit.json` 只读核对权限前/关闭/恢复时间、真实不可用观察、连续原预算、停止期间四次只读恢复请求、新模型观察后输入及实际文件/效果 PASS。开发介入明确记为两次权限切换、一次管理员确认、接管和交还，不用 metadata 初始零值宣称零介入。
+- Python 100/100（新增暂停/重启 mock，不代替真实权限证据）；对应任务冻结，executor/fixture 已不存在，Driver 原权限已恢复。未修改宿主 TCC/SIP、全盘访问、SSH或端口；VM 保持运行。七类故障已有不同版本真实诊断证据，但真实在途停止、最终同版全部门槛、正式 18 次、九计算器和 A0/全安全回归仍未完成，C2 不登记完成。
+
+## 2026-10-01：C2 真实在途停止及当前版预算复验
+
+- 实施前补充在途方案，新增 `c2_inflight_live.py`。固定正文由真实 Driver 输入；仅在实际 Driver 返回之后、执行器 result/清除 inflight 之前暂存返回。`c2_inflight_gate_20261001_001` stop 约 0.000685 秒返回并携带唯一在途 call-id，新请求和提前接管均 BLOCKED、无新增派发。放行原返回后只记录一次 result，才允许接管；新 Driver 观察确认同 PID/窗口正文 cedra-42 → cedar-42。
+- 独立离线审查 dispatch→实际返回暂存→stop→原 result→takeover→新观察的顺序通过，共 6 raw。无 UNKNOWN、无业务提交/结果文件，业务 UNVERIFIED；这是实际执行层停止诊断，不称官方 UI 取消、网络超时或模型业务成功。三项新增 mock/反假证据测试不替代真实 GUI，Python 103/103。
+- 添加真实权限暂停钩子后，重跑 `c2_budget_gate_20261001_002`：当前相同 C2 源码下实际 30 次、七项拒绝、独立进程重启预算不变、停止后零派发，再次 PASS。新原账本/报告保留，不倒改首次预算证据。
+- 两诊断均已停止，独立进程已退出；准确核对并结束对应 fixture PID 25930/26137，VM/Driver/SSH/VNC 保持原状态。最新权限、预算和在途证据同 C2 bridge 哈希 `3d98634cc7ec83c7b594ae431a5f4d7cdd984a80fb389e1990c425f8cf7a605f`；其余旧故障仍需当前版回归，不把历史绿灯拼成最终同版全通过。正式 18 次、九计算器和 A0/完整安全回归未完成，未提交/推送。
+
+## 2026-10-01：C2 冻结版故障回归与正式评测准备
+
+- 私有 `c2-final-version.json` 固定 16 个源码/策略/fixture 源及实际签名二进制、App 0.2.0-rc.2、内置 Node 24.18.1、原模型 deepseek-account/deepseek-flash、30 raw 和默认关闭的 C1 提示。首次冻结检查发现 guest 尚无仅作注册表的 c2_cases.py，补部署原文件后独立哈希核对通过；未改运行策略或旧证据。
+- 当前版新真实故障：响应丢失 `c2_timeout_gate_20261001_002` 16 raw，进程退出 `c2_exit_gate_20261001_003` 15，窗口关闭 `c2_window_gate_20261001_003` 21，人工正文修改 `c2_document_gate_20261001_003` 23，模型流错误 `c2_model_error_gate_20261001_002` 13，均原预算内恢复、实际官方会话终止和独立 GUI/文件/轨迹通过。模型错误为项目扩展层注入，不称服务商宕机；进程退出首会话虽 completed，不称业务成功。
+- 真实退出前后检查原 executor 不存在、新进程 PID 27060、同 run 默认 paused/3 raw；新观察后明确交还，源任务和预算不重建。窗口真实旧 ID 879→新 886、同 PID 27396；旧快照请求实际 409。文档原输入/人工 set_value/恢复纠正两次输入及 GUI 保存完整保留。
+- 模型恢复首 prompt RPC 拒绝细节保留；核对同一新 session 只有四条设置事件、没有用户消息/轮次后，沿相同持久 request ID 投递。恢复完成前另实测旧真实会话携带当前 epoch、以及新会话携带旧 epoch 均 409；当时任务为 model-owned/未停止，预算 12→12，不以已停止拒绝冒充会话隔离。
+- `c2-faults-report.json` 将上述五项与当前版真实权限撤销（15）、预算耗尽（30，业务 UNVERIFIED）和在途停止（6，业务 UNVERIFIED）按哈希核对，七故障与在途 gate PASS；不代替正式评测或完整发布报告。原失败及历史版本诊断继续保留。
+- Python 103/103、Node 核心 36/36、官方 App 同版适配 4/4、git diff --check 通过，均属于无模型测试。正式 runner 只负责生命周期，不替换官方主循环；先固化六类×三次唯一 run schedule，formal/diagnostic 分开、禁止补跑替换，并逐任务核对冻结源码和 fixture。正式 18 次开始，尚未登记通过；九计算器、A0 和全安全/完成审计仍待完成。
+
+## 2026-10-01：C2 正式 18 次与原始证据复核通过
+
+- 冻结六类各三次，18/18 独立 SUCCEEDED；每类 3/3，原全部 run/session 和失败诊断保留。跨应用 raw 23/25/24，弹窗 15/16/18，窗口变化 14/14/13，输入纠错 12/11/11，长流程 16/16/19，失败后重新观察 13/14/15；共 289 raw、233 模型工具调用。每次仍受原 30 次预算和默认关闭的提示策略约束。
+- 第 2 次跨应用在创建会话前遇到 `sessionController` 未注册，官方 gateway 在调用方法前拒绝。检查 executor PID 28841 仍存活、used=0、官方只读 session list 无该 workspace 会话后，在同一 run 准入一次；未重启 VM/executor、未补跑替换。开发生命周期程序增加只读服务就绪检查、创建身份和 prompt request ID 持久化，实际 RPC 拒绝另留私有记录，不改冻结适配/执行代码。初次只读 list 参数名误用被 gateway 拒绝，按实际 descriptor 改为 `_request`，没有工具派发。
+- 正式 GUI 接管 0 次，启动恢复 1 次，分别统计。全程 host 计时 1037.599 秒，包含该启动等待，不删除异常耗时。官方实际 usage：input 638368、output 31420、cache-read 5842806、cache-write 0、total 6512594；货币费用 unavailable，未猜费用。
+- 私有 `c2-formal-independent-audit.json` 逐个读回 18 个原官方会话、guest 原 trace/verification/result 和真实 PNG；核对唯一会话、原模型/工具清单、冻结版本、连续预算、完整 result/error、无 UNKNOWN/接管、停止后零派发及期望一致 PASS。审计开发初次将执行器约定的末尾换行当作不一致、随后宿主 Python 3.9 不支持 ISO `Z`；修正比较与时间解析后重读全部原证据，没有修改原文件或报告。
+- 本轮 Python 103/103、Node 核心 36/36、官方 App C0/C2 适配 4/4、A0 原执行层 7/7；新增私有官方注册表集成实测 16 类路径/类型/大小/链接/覆盖/审计逃逸拒绝，18 次含两个合法文件请求，原内容不变。上述属于无模型执行层回归，不冒充模型任务。
+- 九计算器的新真实回归已开始，使用冻结 guest 源和新的 `c2_calc_<case>_20261001_001`；A0 真会话/文件/两种图片/取消/预算及最终全安全映射仍待完成。C2 尚不登记完成，不写完成总结；VM、权限、SSH/VNC 和端口保持原状态，未提交/推送。
+
+## 2026-10-01：C2 回归、最终安全审计与本次目标完成
+
+- 新九计算器全部独立成功，raw 按加/减/乘顺序 20/16/22、20/20/20、20/16/18，共 172；固定模型、当前冻结 guest 源，真实按钮/新显示/result.txt/读回/期望一致。未使用旧 C0 成绩替代，结束后各任务冻结，executor 退出。
+- A0 新 run `c2_a0_20261001_001` 三轮修订与同 session/App 重启、原模型、文件字节读回、工具返回及直接输入的随机 PNG 像素/答案全部核对。重启首回复错误声称无记忆，实际原三轮用户消息完整；保留原回复为 UNVERIFIED，同会话仅澄清依据先前用户消息后正确回答，不告诉答案、不重建会话。文件 SHA-256 `531955f7dba60e127825edfdf4c1c25e5298d70235ef89962c8d610d12aaf58a`。
+- 真实 A0 第 9 轮工具派发后由标准官方 cancel API 形成 aborted/user，取消之后旧轮次无新派发。随后明确新轮次用满原 30 次；第 31 次与 App 再重启后的请求均实际拒绝，最终预算 30，未重置。API 取消不冒充本轮点击 UI Stop。审计原先错误要求预算耗尽后仍恰好五工具，修为合法子集及最初完整清单；实际请求只有原五工具或空集、没有额外工具，原模型不变。
+- `c2-safety-audit.json` 映射全部 13 个声明安全 gate，结合真实七故障/在途/HTTP/会话隔离和执行层反例 PASS；最终 Python 103/103、Node 36/36、官方 App C0/C2 4/4、A0 原执行层 7/7，另完整文件边界注册表 1/1/16 类拒绝。保存实际命令输出，冻结版核对、原 Driver 权限和 git diff --check 通过；不声称所有反例均为真人 GUI 或整机安全认证。
+- 原 C0 的 13 个成功任务和 C1 的 36 个正式任务，当前重新读取原官方会话/独立结果通过；四分支 reflog 与四份方案创建时间核对，方案均在对应阶段实施前建立。最新 C2 总结 `docs/stages/c2-summary.md` 已补齐做了什么/怎么做/怎么验证及失败、用量、限制；README/PROGRESS 同步。原 C0/C1 总结保留其当时范围，不倒改历史为全项目成功。
+- 本次 C0-01、C0-02、C1、C2 本地阶段目标完成；C3 干净部署、第二人扩展/复现、发布仍未做。四分支创建但没有独立阶段提交，改动仍未提交/推送；不冒充每分支已保存可 checkout 的阶段代码快照。
+- 当前普通 mvpagent、SIP enabled、无 virtiofs 宿主挂载、SSH 仅 mvpagent，原 VM/VNC/端口保留；没有活动 Computer Use executor，Driver 原权限已恢复。App 留在 A0 回归配置，旧 run 30/30，开始新任务必须使用新 run/明确配置。私有原始证据和失败全部保留，不公开账号、token、原截图或完整会话。
+
+## 2026-10-01：按用户授权整理四阶段提交
+
+- 用户在本地验收完成后明确授权分别提交、推送 C0-01、C0-02、C1、C2。按依赖建立四个递进代码提交，保留各阶段方案和总结，不创建 PR、标签或合并主分支。
+- 前序执行器读取保留的 guest 阶段源码；共享适配器、fixture 与阶段文档按对应能力拆分。每个整理后的树重新执行无凭证本地测试，不声称完整 Git 快照在原验收时已经保存，也不将此次本地测试冒充重跑真实模型/VM。
+- 仅提交公开源码、测试、模板和脱敏文档；私有 `.runtime`、原始会话/截图、凭证、VM 和未公开证据不上传。VM、Driver、SSH/VNC 与应用运行配置不变。提交与远端结果以实际 Git 记录为准。
+
+## 后续更新规则
+
+
+每轮记录阶段、版本、文件、实际命令、运行环境、成功与失败证据、未测项和下一步。只有独立验收通过才更新阶段状态。不要恢复旧文档中“自动提交PR”“默认codex前缀”或“旧Git历史一定可恢复”的假设。

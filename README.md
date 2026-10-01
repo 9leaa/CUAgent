@@ -2,7 +2,7 @@
 
 CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。2026-09-30 起交互入口改为官方 macOS Desktop App；继续复用模型接入、会话与 Agent 循环。
 
-**当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。本分支完成 c0-01、c0-02、c1；后续阶段不计入本分支。**
+**当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。C0-01、C0-02、C1、C2 本地阶段已完成；C2 新正式评测 18/18、七故障、九计算器和 A0 回归通过。** 具体证据与限制见 [PROGRESS](PROGRESS.md) 和 [C2 总结](docs/stages/c2-summary.md)。这不是 C3 发布/第二人复现，Pi 的历史通过记录不计入 Harness 验收。
 
 ## 当前进度
 
@@ -10,10 +10,10 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
 - [x] A0：独立 Web profile 中真实模型、会话、简单受控工具、图片和最低执行边界通过（Web 停止按钮在先前同策略隔离实例人工验收；正式 profile 未重复点击）。
-- [ ] C0-01：后续阶段。
-- [ ] C0-02：后续阶段。
-- [ ] C1：后续阶段。
-- [ ] C2：后续阶段。
+- [x] C0-01：真实模型在测试 VM 中完成计算器12×34，轨迹、新显示、文件读回和独立期望值闭环通过（20/30 raw 调用，见阶段总结）。
+- [x] C0-02：真实观察驱动计算器九例和三个基础界面任务（失败保留，见阶段总结）。
+- [x] C1：六类前后各三次，36/36 独立通过，见 [阶段总结](docs/stages/c1-summary.md)。
+- [x] C2：七故障、正式 18/18、九计算器、A0 和声明范围内安全回归通过，见 [阶段总结](docs/stages/c2-summary.md)。
 - [ ] C3：第二位开发者能部署、扩展和复现 Computer Use 任务。
 - [ ] A1：三份文本、CSV和通用插件/会话能力补强；不阻塞C0–C3。
 - [ ] O0：按真实用例另行增加系统原生接口。
@@ -49,7 +49,7 @@ python3 -m unittest discover -s tools/mac_vm/tests -v
 
 该入口使用独立 `.runtime/desktop-home`，不复制旧 Web 凭证或会话；项目插件从保留源码重新编译。Finder 直接启动应用使用应用默认 home，与本项目入口不同。旧 Web 的源码、依赖、home 和启动配置已移至 `/Users/zhangchengjie/Documents/ChatGPT/osagentmvp/retired-dsh-web-20260930`，恢复清单在该目录的 `archive-manifest.json`；任务证据仍保留。此前 A0 Web 验收属于历史，不能计入 Desktop 验收。Desktop A0 已按同版本接口重新接入并真实验证，配置和编译步骤见 agent/harness/README.md；C0 真实桌面仍须在测试 VM 中执行。
 
-2026-10-01：本分支阶段 c1 完成。方案与结果见 [阶段总结](docs/stages/c1-summary.md)。这是验收后按用户授权整理的提交，后续 c2 和 C3 不计为完成。
+2026-10-01：C0-01、C0-02、C1、C2 独立通过，见 [C0-01 总结](docs/stages/c0-01-summary.md)、[C0-02 总结](docs/stages/c0-02-summary.md)、[C1 总结](docs/stages/c1-summary.md) 和 [C2 总结](docs/stages/c2-summary.md)。仅完成原计划本次指定阶段，不将固定用例算作通用 Computer Use 或 C3 发布完成。用户随后授权分别提交和推送；四个阶段按依赖顺序保存递进代码快照，实际提交及远端状态以 Git 为准。
 
 ## 目录
 

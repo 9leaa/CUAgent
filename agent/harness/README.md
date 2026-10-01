@@ -1,6 +1,6 @@
 # Harness A0 接入与边界
 
-本分支完成 c0-01、c0-02、c1；后续阶段不纳入当前提交，结果见根 PROGRESS。
+当前收口状态（2026-10-01）：C0-01、C0-02、C1、C2 本地验收完成，C2 正式 18/18、七故障、九计算器、A0 和声明安全范围回归通过，见 [C2 总结](../../docs/stages/c2-summary.md)。下文开发过程中的“待完成”和初次诊断次数仅是历史记录，不替代最终冻结版结果；C3 尚未完成。
 
 2026-09-29 已建立独立 `cuagent-a0` profile 和启动脚本，固定版源码见 [上游参考版本](upstream-reference.json)。下文保留安装过程与早期设计记录；当前有效状态以本节和 [PROGRESS](../../PROGRESS.md) 为准。
 
@@ -69,9 +69,25 @@ DSH_HOME=/Users/zhangchengjie/CUAgent/.runtime/harness-home \
 
 本地记录：`.runtime/harness-installation.json`、`.runtime/harness-build.log`、`.runtime/harness-install.log`（后者为构建后的离线锁文件复核）。首次安装在CLI产物生成前提示三个SDK/desktop workspace的`dsh` bin链接缺失；构建后离线install未补建它们。已验证的入口是上述根目录`pnpm dsh`，这些子包入口未验收。构建另有上游弃用项及bundle体积警告，不影响本次退出码为0。全部`.runtime`内容被Git忽略，不公开上传。
 
-## 本阶段 VM 入口
+## C0/C1 专用入口
 
-先在测试 VM 显式审批启动 c1_bridge.py，私有连接只含模型 token，独立验证能力不能交给模型。正常退出 App 后，构建 `build-desktop-plugins.mjs --c0`，应用 `configure-desktop.mjs --c1`，以 `start-c0-desktop.sh <matching-run-id>` 启动。每任务 30 次实际请求，取消传递 guest stop；不得在宿主执行桌面任务。阶段方案和总结见根 docs/stages。
+方案见 `docs/stages/c0-01-design.md`。guest 先以新 run-id 启动受控 bridge，完成授权、登录和新窗口观察；开发侧为对应 run 建立 `.runtime/runs/<run-id>/c0-connection.json`（0600，仅固定私有 VM URL 和 model token，不含 verifier token）。不要把 token 放进 prompt 或 Git。
+
+正常退出现有 App 后，使用官方 Electron Node 构建 `build-desktop-plugins.mjs --c0`，运行 `configure-desktop.mjs --c0`（保留账号/UI项并备份 patch），再用 `start-c0-desktop.sh <run-id>` 启动。C0 preset 只提供 `vm_observe`、`vm_click`、`vm_write_result`、`vm_read_result`；取消传 guest stop。每任务 raw 30 次由 guest 计数，审批、白名单、轨迹与独立验证仍在 guest。
+
+恢复 A0 时重新运行 `configure-desktop.mjs`，正常退出后使用原 `start-desktop.sh`；不删除任何旧任务账本。C0 的独立验证必须走开发侧 verifier token，不能由执行模型声明成功。2026-10-01 C0-01 与 C0-02 的真实模型/VM 用例已经通过，见阶段总结；此入口不自动证明后续可靠性。
+
+C0 GUI 配置使用 `configure-desktop.mjs --c0-ui`；字段输入、滚动仅按固定任务注册。C1 配置使用 `configure-desktop.mjs --c1`，固定六类来自 `tools/mac_vm/c1_cases.py`，guest 显式运行 `c1_bridge.py --run <new-run> --case <reviewed-case> --approve-task`。只有 C1 注册 `vm_select_target`，只接受当前任务审查过的完整窗口标题；切换后必须新观察。启动器仍为 `start-c0-desktop.sh`，不增加第二套 Agent 循环。
+
+C1 观察提示为开发侧 `CUAGENT_C1_OBSERVATION_HINTS=1`，默认关闭，仅在 popup 主窗口观察到真实 owned Confirmation 窗口时提示下一步；查询窗口也计 30 次预算，不自动点击。前后 36 次及独立核验结束前不宣称 C1 完成。离线汇总命令：`python3 tools/mac_vm/c1_report.py --runtime /absolute/private/runtime --output /absolute/private/new-report.json`；它核对实际官方会话与请求审计，缺任何固定轮次即失败，原报告不覆盖。
+
+C2 使用 `configure-desktop.mjs --c2` 与同一 `start-c0-desktop.sh`，模型工具集合不新增开发控制/验证能力。私有连接标记 `stage: c2` 和当前 epoch，每次实际请求附官方 session ID；响应停止后根 guard 关闭，交还新 session 必须由开发控制通道明确授权且重新观察，原任务预算保持。一次真实 Submit 响应丢失后的新会话恢复通过，原失败会话/UNKNOWN 保留；完整 C2 七故障、18 次及回归仍未验收，见 PROGRESS。
+
+C2 文档故障复用原五个 VM 工具（观察、点击、正文输入、写/读 result），不提供模型手动改文档或通用 set_value。开发控制编辑后，官方新会话重新观察、纠正正文并经系统保存面板保存；真实独立诊断 25/30 raw 通过，首次追加失败保留。内部正文替换受新观察/固定内容/原任务预算约束，未增加另一 Agent 循环；不将文档诊断当正式六例之一。
+
+C2 单次模型流故障由私有连接 `modelFault: after_first_observation` 控制，不接受模型 prompt 开启。真实工具图进入上下文后，在官方 `llm/stream` 项目钩子、provider 调用前持久化私有标记并抛错；先停止 VM 新派发。原官方 error、明确接管及新官方会话恢复有真实独立通过记录（14/30 raw），不是服务商停机证明。默认关闭，恢复/重启同 run 不再注入。官方 App 同版库打包适配测试 4/4 只验证插件行为，不冒充完整 C2 或真实模型验收。
+
+C2 真实权限撤销诊断在 guest 关闭再恢复 Driver Accessibility；恢复观察确实因 AX 不可用被拒，原预算内新观察/明确交还后官方新会话完成业务，独立 15/30 raw 通过。撤权由独立开发 VNC 完成，受测模型没有这个绕过入口；不操作宿主权限。七故障不同版本诊断不等于最终同版全部验收，正式 18 次与回归仍待完成。
 
 ## macOS ARM64原生模块修复（2026-09-23）
 

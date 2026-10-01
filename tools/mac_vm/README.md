@@ -1,8 +1,32 @@
 # macOS VM 桥接与历史诊断
 
-本分支完成 c0-01、c0-02、c1。执行器只允许固定任务、明确授权、新观察、30 次真实调用与独立验证；模型没有任意 shell、路径或 verifier 权限。原生 fixture 提供固定测试界面，不替代模型决策。
+当前收口状态（2026-10-01）：C0-01、C0-02、C1、C2 本地验收完成；最终冻结版七故障、正式 18/18、九计算器和 A0/安全回归见 [C2 总结](../../docs/stages/c2-summary.md)。以下初次诊断及“待完成”描述保留开发过程，不作为当前完成状态；C3 未做。
 
-方案与结果见 [阶段总结](../../docs/stages/c1-summary.md)。后续阶段不计入本分支。
+## 当前 C0 接口
+
+`c0_bridge.py` 只在 VirtualMac 普通 mvpagent 账户运行；`c0_cases.py` 是开发侧固定任务注册表，`c0_identity.py` 校验应用可执行文件。模型只能调用当前任务允许的观察、点击、输入/滚动、result.txt 写入及读回；不开放 shell、任意文件路径或独立验证器。每个任务最多 30 次实际请求（包含失败、拒绝及内部请求），停止后不再派发，审计失败即关闭执行。
+
+`fixtures/CUAgentFixtures.m` 提供原生表单、长滚动页面和文档编辑；保存使用系统 NSSavePanel。`build-fixture.sh` 生成签名测试 app，只能在测试 VM 运行。fixture 不代替模型操作，Driver 返回也不等于效果成功，最终核对实际界面、轨迹、真实文件与固定独立期望。
+
+无模型测试仍使用下方 unittest 命令；它们不是 GUI 验收。真实证据留在 VM `C0Evidence/<run-id>` 与私有 `.runtime/runs/`，不得公开凭证、原始截图或完整会话。阶段结果见 [PROGRESS](../../PROGRESS.md)，方案见 [C0-02](../../docs/stages/c0-02-design.md)。
+
+## 历史固定回归
+
+C2 方案见 [可靠性方案](../../docs/stages/c2-design.md)。`c2_bridge.py` 的 `C2ControlMixin` 提供持久 owner/epoch、停止/在途检查、保持预算的开发侧只读恢复观察、明确交还及新观察要求；`C2Task` 复用 C1 六例，`C2DocumentTask` 复用 C0 原生正文/系统保存面板，后者仅用于故障诊断，不替换正式六例。显式 C2 HTTP 通道分离 model/verifier/control；模型不能控制恢复或验证。UNKNOWN 的已生效 Submit 仅在实际新观察、完整轨迹、提交文件及效果独立一致时对账，原 UNKNOWN 不删除；不能用调用者提供的 verdict 清除不确定性。
+
+开发故障开关 `CUAGENT_C2_FAULT` 允许 `none`、`submit_response_timeout`、`process_exit_after_observe`、`window_close_after_observe`、`manual_document_edit`、`permission_revoke_after_observe`。依次为正常、真实 Submit 返回后丢响应、首次观察/窗口绑定后退出 executor、首次观察后暂停供开发侧实际关窗、真实文档初次输入后暂停供 GUI 接管修改、首次观察后暂停供开发侧真实撤销 guest 权限。最后一项钩子不模拟权限错误或自动改设置；真实 VNC Off/On 与 Driver 自身权限状态、不可用 AX、原预算恢复已有 15/30 raw 诊断通过证据。故障只注入一次，重启读取原账本并暂停，不自动重放。窗口故障仅在输入纠错测试启用固定 keep-alive 参数；恢复通过开发 control 关窗/原生打开固定应用，同 PID 新窗口观察后才能交还。原生打开请求也计预算与 UNKNOWN，不授权模型 shell。
+
+文档编辑控制只允许当前文档正文的固定干扰文本，必须新观察确认变化才能交还。恢复模型 `vm_type` 只替换固定原文；内部 `set_value` 绑定唯一新鲜原生正文、按真实工具名计预算，C0/C1 不开放此 raw 能力。模型没有通用 set_value 或人工改文档入口，最终仍必须经 GUI Save 并独立核对完整前后轨迹和文件。真实诊断通过 25/30 raw；首次追加失败保留。控制层重构后的旧故障同版回归仍待完成，不能合并不同版本成绩当作整体验收。
+
+官方模型流故障另由开发侧 C2 私有连接的 `modelFault: after_first_observation` 启用：真实 VM 图片进入上下文后，官方 `llm/stream` 项目钩子持久化一次标记、暂停并抛错，provider 调用前发生，不声称服务商宕机。原真实 error 与新会话恢复独立通过 14/30 raw；同 run 重启不再注入，C0/C1 与默认 C2 不启用。
+
+`c2_fault_audit.py --directory <private-guest-evidence>` 只离线核对响应丢失；`c2_window_audit.py` 只核对窗口关闭恢复。两者及合成反例测试都不是完整 C2 发布报告。`c2_control_live.py` 是无模型/无业务提交的 Driver 诊断，taskStatus 为 UNVERIFIED，不计固定 18 次。目前七类故障有历史版本真实诊断证据；正式评测、A0/九计算器及最终同版完整回归仍待完成，见 PROGRESS。
+
+`c2_budget_live.py --run c2_budget_<unique-id> --stage fill|restart|audit --approve-task` 同样仅供测试 VM 开发诊断：fill 实际观察到 30 次，restart 须在第二个独立 Python 进程运行，audit 离线核对实际请求/结果/图片和拒绝。真实诊断已通过：30 次实际请求、七项继续/恢复拒绝、跨进程预算不清零、停止后零派发，业务 UNVERIFIED。禁止改计数、补造请求或把 UNVERIFIED 业务写成成功；不替代官方模型的预算回归。
+
+`c2_inflight_live.py --run c2_inflight_<unique-id> --approve-task` 在真实 Driver 正文输入返回后暂存响应，独立线程 stop 必须立即返回并记在途 ID，新请求和提前接管被拒；放行原返回后再接管、新观察证明正文实际变化。真实诊断 6 raw 通过，未业务提交、状态 UNVERIFIED；不是官方模型 UI 取消或网络超时证明。临时返回 hold 层、完整顺序与所有真实结果保留。
+
+C1 扩展为 `c1_cases.py` 和 `c1_bridge.py`，复用同一准入/预算/审计/停止层。注册表固定六类、前后各三次；只有开发者显式启动 C1 才注册目标切换能力，C0 默认注册表不包含 C1。窗口选择仅按当前任务固定标题，重新核对应用/PID/可见窗口，旧观察失效。`--approve-task` 仍必需；模型不能直接传 bundle、可执行路径或期望值。实际启动前诊断与正式评测必须分别报告，见 [C1 方案](../../docs/stages/c1-design.md)。
 
 三个Python文件从旧项目原字节迁入，源头是 `cua/samples/mac_agent_mvp/`。它们是环境诊断和固定运算对照，不是Harness Agent。来源哈希见根 [迁移清单](../../migration-assets.json)。
 

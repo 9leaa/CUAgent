@@ -14,6 +14,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from contextlib import nullcontext
 from driver_smoke import require_vm, calculator_identity, display_value, Calls, StopRun, BUNDLE
 from c0_cases import CALCULATORS, UI_CASES, TASKS
 from c0_identity import app_identity
@@ -21,6 +22,8 @@ from c0_identity import app_identity
 ALLOWED = {'All Clear', 'Clear', *map(str, range(10)), 'Multiply', 'Equals'}
 
 class Task:
+    RAW_TOOLS=frozenset(('launch_app','list_windows','get_window_state','click','type_text','scroll','press_key'))
+    SIDE_EFFECT_TOOLS=frozenset(('click','launch_app','type_text','scroll','press_key'))
     def __init__(self, directory, transport=Calls.cli, identity=None, *, approved=False, case_id='mul12_34', registry=TASKS):
         if not approved:
             raise StopRun('BLOCKED', 'Explicit fixed-task approval required')
@@ -106,7 +109,7 @@ class Task:
         return call_id
 
     def raw(self, tool, args):
-        if tool not in ('launch_app', 'list_windows', 'get_window_state', 'click', 'type_text', 'scroll', 'press_key'):
+        if tool not in self.RAW_TOOLS:
             raise StopRun('BLOCKED', 'Raw tool not permitted')
         if tool=='press_key' and (self.case_id!='document' or not self.save_confirmation_pending
                 or args!={'pid':self.pid,'window_id':self.window,'session':self.run_id,'key':'return','delivery_mode':'foreground'}):
@@ -117,7 +120,7 @@ class Task:
             raise StopRun('BLOCKED', 'Application not permitted')
         if tool != 'launch_app' and (args.get('pid') != self.pid or self.pid is None):
             raise StopRun('BLOCKED', 'PID not permitted')
-        if tool in ('get_window_state', 'click', 'type_text', 'scroll', 'press_key') and args.get('window_id') != self.window:
+        if tool in ('get_window_state', 'click', 'type_text', 'scroll', 'press_key','set_value') and args.get('window_id') != self.window:
             raise StopRun('BLOCKED', 'Window not permitted')
         if self.pid: self.identity(self.pid)
         with self.dispatch_lock:
@@ -136,7 +139,7 @@ class Task:
             self.record({'event':'result','tool':tool,'value':value,'call_id':call_id})
             return value
         except Exception as exc:
-            if tool in ('click','launch_app','type_text','scroll','press_key') and not explicitly_refused: self.uncertain = True
+            if tool in self.SIDE_EFFECT_TOOLS and not explicitly_refused: self.uncertain = True
             self.record({'event':'UNKNOWN' if self.uncertain else 'error','tool':tool,'error':type(exc).__name__,'call_id':call_id})
             raise
         finally:
@@ -420,31 +423,54 @@ def main(task_class=Task, registry=TASKS, stage='C0'):
     verifier_token=secrets.token_urlsafe(32)
     (task.directory/'bridge-token').write_text(token);os.chmod(task.directory/'bridge-token',0o600)
     (task.directory/'verifier-token').write_text(verifier_token);os.chmod(task.directory/'verifier-token',0o600)
+    control_token=None
+    if stage=='C2':
+        control_token=secrets.token_urlsafe(32)
+        (task.directory/'control-token').write_text(control_token);os.chmod(task.directory/'control-token',0o600)
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*_): pass
         def reply(self,code,value):
+            if stage=='C2':value={**value,'control_epoch':task.epoch,'stopped':task.stopped.is_set()}
             data=json.dumps(value).encode();self.send_response(code);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
         def do_GET(self):
             # Only a narrowly scoped authenticated client is admitted.
             self.reply(405,{'error':'POST only'})
         def do_POST(self):
             auth = self.headers.get('Authorization')
-            if self.client_address[0]!='192.168.64.1' or auth not in ('Bearer '+token, 'Bearer '+verifier_token):
+            admitted_tokens=('Bearer '+token,'Bearer '+verifier_token)+(('Bearer '+control_token,) if control_token else ())
+            if self.client_address[0]!='192.168.64.1' or auth not in admitted_tokens:
                 return self.reply(403,{'error':'Forbidden'})
             prior_used=None;op=None
             try:
                 size=int(self.headers.get('Content-Length','0'))
                 if not 0<size<4096: raise ValueError('Invalid body length')
                 body=json.loads(self.rfile.read(size));op=body.get('op');payload=body.get('args',{})
-                if set(body)-{'op','args'}: raise ValueError('Unexpected envelope fields')
+                model_c2=stage=='C2' and auth=='Bearer '+token
+                if set(body)-({'op','args','session_id','epoch'} if model_c2 else {'op','args'}): raise ValueError('Unexpected envelope fields')
+                if control_token and auth=='Bearer '+control_token:
+                    if op=='control_status' and payload=={}:result=task.control_status()
+                    elif op=='stop' and payload=={}:result=task.stop()
+                    elif op=='claim_human' and payload=={}:result=task.claim_human()
+                    elif op=='recovery_observe' and payload=={}:result=task.recovery_observe()
+                    elif op=='reconcile_submit' and payload=={}:result=task.reconcile_submit()
+                    elif op=='close_current_window' and payload=={}:result=task.close_current_window()
+                    elif op=='reopen_window' and payload=={}:result=task.reopen_window()
+                    elif op=='edit_document' and payload=={} and hasattr(task,'edit_document'):result=task.edit_document()
+                    elif op=='resume' and set(payload)=={'session_id','epoch'}:result=task.resume(payload['session_id'],payload['epoch'])
+                    else:return self.reply(403,{'error':'Control cannot run model tools or independent verifier'})
+                    return self.reply(200,result)
+                if stage=='C2' and op in ('control_status','claim_human','recovery_observe','reconcile_submit','resume','close_current_window','reopen_window','edit_document'):
+                    return self.reply(403,{'error':'Independent control authorization required'})
                 if op=='verify' and auth!='Bearer '+verifier_token:
                     return self.reply(403, {'error':'Independent verifier authorization required'})
                 if auth=='Bearer '+verifier_token and op not in ('verify','stop'):
                     return self.reply(403, {'error':'Verifier cannot act'})
                 if op=='stop':
                     if payload!={}: raise ValueError('Unexpected stop fields')
-                    return self.reply(200,task.stop())
-                with task.lock:
+                    with task.dispatch_lock:
+                        if model_c2:task.authorize_session(body.get('session_id'),body.get('epoch'))
+                        return self.reply(200,task.stop())
+                with task.lock, (task.model_request(body.get('session_id'),body.get('epoch')) if model_c2 else nullcontext()):
                     prior_used=task.used
                     if op=='observe' and payload=={}: result=task.observe()
                     elif op=='click': result=task.click(payload)

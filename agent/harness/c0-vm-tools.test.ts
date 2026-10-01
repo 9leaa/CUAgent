@@ -92,3 +92,85 @@ test('C1 cases add only reviewed target selection and necessary typing', async t
   }
   assert.deepEqual(calls,Array(6).fill('select_target'))
 })
+
+test('C2 carries actual session/epoch, propagates paused state, and adds no control tools', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'cuagent-c2-tools-'))
+  const previous={connection:process.env.CUAGENT_C0_CONNECTION,audit:process.env.CUAGENT_C0_AUDIT_PATH,fetch:globalThis.fetch}
+  t.after(()=>{
+    globalThis.fetch=previous.fetch
+    for(const [key,value] of [['CUAGENT_C0_CONNECTION',previous.connection],['CUAGENT_C0_AUDIT_PATH',previous.audit]]) {
+      if(value===undefined)delete process.env[key!];else process.env[key!]=value
+    }
+    rmSync(dir,{recursive:true,force:true})
+  })
+  process.env.CUAGENT_C0_CONNECTION=join(dir,'connection.json')
+  process.env.CUAGENT_C0_AUDIT_PATH=join(dir,'audit.jsonl')
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION,JSON.stringify({url:'http://192.168.64.3:8766',token:'x'.repeat(43),caseId:'input_correction',stage:'c2',epoch:7}),{mode:0o600})
+  const registered:any[]=[],handlers=new Map(),calls:any[]=[];let guard:any
+  const ctx:any={inject(){},on:(name:string,fn:any)=>handlers.set(name,fn),logger:{error(){}},
+    tools:{register:(tool:any)=>registered.push(tool),guard:(fn:any)=>{guard=fn}}}
+  globalThis.fetch=(async (_url:any,options:any)=>{
+    const body=JSON.parse(options.body);calls.push(body)
+    assert.equal(body.session_id,'session-owner')
+    if(calls.length===1){assert.equal(body.epoch,7);return {ok:true,json:async()=>({control_epoch:8,stopped:false,content:'actual'})}}
+    assert.equal(body.epoch,8)
+    return {ok:false,json:async()=>({control_epoch:9,stopped:true,error:'Task paused after UNKNOWN'})}
+  }) as any
+  apply(ctx)
+  assert.deepEqual(registered.map(x=>x.name),['vm_observe','vm_click','vm_write_result','vm_read_result','vm_type','vm_select_target'])
+  const signal=new AbortController().signal,agent:any={session:{id:'session-owner'}}
+  await handlers.get('agent/pre-step')({agent,signal},async()=>({}))
+  const read=registered.find(x=>x.name==='vm_read_result')
+  await read.execute({},{agent,signal})
+  await assert.rejects(read.execute({},{agent,signal}),/paused after UNKNOWN/)
+  assert.match(guard({name:'vm_observe',agent,signal}),/stopped/)
+  await assert.rejects(read.execute({},{agent,signal}),/stopped/)
+  assert.equal(calls.length,2)
+})
+
+test('C2 controlled model error requires a tool image, stops, and persists once across restart', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'cuagent-model-fault-'))
+  const previous={connection:process.env.CUAGENT_C0_CONNECTION,audit:process.env.CUAGENT_C0_AUDIT_PATH,fetch:globalThis.fetch}
+  t.after(()=>{
+    globalThis.fetch=previous.fetch
+    for(const [key,value] of [['CUAGENT_C0_CONNECTION',previous.connection],['CUAGENT_C0_AUDIT_PATH',previous.audit]]) {
+      if(value===undefined)delete process.env[key!];else process.env[key!]=value
+    }
+    rmSync(dir,{recursive:true,force:true})
+  })
+  process.env.CUAGENT_C0_CONNECTION=join(dir,'connection.json')
+  process.env.CUAGENT_C0_AUDIT_PATH=join(dir,'audit.jsonl')
+  const config={url:'http://192.168.64.3:8766',token:'x'.repeat(43),caseId:'input_correction',stage:'c2',epoch:1,modelFault:'after_first_observation'}
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION,JSON.stringify(config),{mode:0o600})
+  const calls:any[]=[]
+  globalThis.fetch=(async (_url:any,options:any)=>{
+    calls.push(JSON.parse(options.body))
+    return {ok:true,json:async()=>({stopped:true,control_epoch:2})}
+  }) as any
+  function context(){
+    const handlers=new Map();let guard:any
+    const ctx:any={inject(){},on:(name:string,fn:any)=>handlers.set(name,fn),logger:{error(){}},
+      tools:{register(){},guard:(fn:any)=>{guard=fn}}}
+    apply(ctx);return {handlers,get guard(){return guard}}
+  }
+  const first=context(),signal=new AbortController().signal,agent:any={session:{id:'session-first'}}
+  await first.handlers.get('agent/pre-step')({agent,signal},async()=>({}))
+  const plain={provider:'test',model:'image',tools:[{name:'vm_observe'}],messages:[]}
+  let streamed=0
+  const next=async function*(){streamed++;yield {type:'mock'}}
+  for await(const _ of first.handlers.get('llm/stream')(plain,next)){}
+  assert.equal(streamed,1);assert.equal(calls.length,0)
+  const pictured={...plain,messages:[{content:[{type:'image'}]}]}
+  await assert.rejects(async()=>{for await(const _ of first.handlers.get('llm/stream')(pictured,next)){}},/controlled model stream failure/)
+  assert.equal(streamed,1);assert.deepEqual(calls.map(r=>r.op),['stop'])
+  assert.equal(calls[0].session_id,'session-first')
+  assert.match(first.guard({name:'vm_observe',agent,signal}),/stopped/)
+  const marker=readFileSync(join(dir,'model-fault.json'),'utf8')
+  assert.equal(JSON.parse(marker).sessionId,'session-first')
+  const restored=context(),resumed:any={session:{id:'session-resumed'}}
+  await restored.handlers.get('agent/pre-step')({agent:resumed,signal},async()=>({}))
+  for await(const _ of restored.handlers.get('llm/stream')(pictured,next)){}
+  assert.equal(streamed,2);assert.equal(readFileSync(join(dir,'model-fault.json'),'utf8'),marker)
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION,JSON.stringify({...config,stage:'c0'}),{mode:0o600})
+  assert.throws(()=>context(),/Unreviewed model fault/)
+})
