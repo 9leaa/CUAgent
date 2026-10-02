@@ -6,7 +6,9 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
-后续按 [个人任务服务路线](docs/product-roadmap.md) 推进：P1 日报 → P2 后端/日志 → P3 长任务 → P4 效率 → P5 日常用途。目前进入 `p1-daily-report`，先写 [技术方案](docs/stages/p1-design.md)，实现和真实 20 组评测尚未完成。
+后续按 [个人任务服务路线](docs/product-roadmap.md) 推进：P1 日报 → P2 后端/日志 → P3 长任务 → P4 效率 → P5 日常用途。P1 已完成：先 [技术方案](docs/stages/p1-design.md)，再实现和两轮真实模型对照，修正后 20/20 独立通过；首轮 17/20 的失败保留。见 [使用方法](docs/stages/p1-usage.md) 和 [结果](docs/stages/p1-summary.md)。下一阶段为任务后端与可查日志。
+
+后续 DSH 推理按用户指定固定 **DeepSeek 4.1 Flash，思考关闭**：当前 App 路由 `deepseek-account/deepseek-flash`、`reasoningEffort=off`。旧阶段 high 的记录保留为历史，不再沿用。
 
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
@@ -19,6 +21,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 - [ ] C3：第二位开发者能部署、扩展和复现 Computer Use 任务；用户指定暂时跳过，仍未完成。
 - [x] A1 本地部分：三文本/CSV、通用插件与会话、安全及真实 VM 回归通过，见 [本地总结](docs/stages/a1-summary.md)；第二人验收按用户确认暂缓、未验。
 - [x] 单人真实应用小任务：VM TextEdit 输入、保存、结果读回独立通过；结束后在线重观察失败单独保留，见 [总结与限制](docs/stages/real-app-summary.md)。不算 C3 或广泛泛化。
+- [x] P1 日报：指定记录＋CSV → 来源可核对的 JSON/Markdown 报告，固定新输入 20/20 通过。
+- [ ] P2 任务后端与日志；P3 长任务；P4 效率；P5 实际用途与一周使用。
 - [ ] O0：按真实用例另行增加系统原生接口。
 
 A1 新真实三文本与 CSV 业务、重启续接、手动压缩、首轮前 preset 切换、两种图片、标准取消和跨重启预算拒绝已独立通过，见 [业务阶段记录](docs/stages/a1-business-progress.md)。核心测试 59/59、同版官方工具注册集成 25/25；当前 App 使用 A1 配置，文本/CSV/只读任务预算为 10/30、30/30、1/30，CSV 已耗尽。已提供[受控插件示例](docs/stages/a1-plugin-extension.md)和[等效流程](docs/stages/a1-controlled-workflow.md)；新真实 C0 计算器、安全能力拒绝、VM 持久预算与在途停止回归已独立通过，A1 本地部分完成。第二人独立扩展按用户确认暂缓、未验，不算通过；C3 继续跳过。
@@ -27,7 +31,7 @@ A1 新真实三文本与 CSV 业务、重启续接、手动压缩、首轮前 pr
 
 ## 阅读与开发入口
 
-最新无模型回归为核心 59/59、官方注册集成 26/26、Python 123/123；原 A1 总结保留当时测试数量。当前仍为 A1 配置，本次独立任务 executor 已退出，旧预算未变。2026-10-02 用户授权逐阶段验证后提交推送；A1 与 TextEdit 分别保存在 `a1-agent-expansion`、`real-app-textedit`，历史“未提交”说明保留当时状态。
+最新无模型回归为核心 59/59、官方注册集成 29/29、VM Python 123/123、P1 Python 12/12；旧总结保留当时测试数量。当前 App 恢复 A1 配置，旧预算未变。用户授权逐阶段验证后提交推送；A1、TextEdit、P1 分别保存在 `a1-agent-expansion`、`real-app-textedit`、`p1-daily-report`，历史“未提交”说明保留当时状态。
 
 | 文档 | 用途 |
 |---|---|
@@ -38,7 +42,7 @@ A1 新真实三文本与 CSV 业务、重启续接、手动压缩、首轮前 pr
 | [开发规则](AGENTS.md) | 后续代理必须遵循的范围 |
 | [Harness 接入说明](agent/harness/README.md) | 固定版本、Desktop 配置、工具适配及启动限制 |
 
-本地项目目录：`/Users/zhangchengjie/CUAgent`。GitHub 默认分支为 `harness-migration`，本次按用户授权快进同步 C0-01 → C0-02 → C1 → C2 及文档修正；不创建 PR、标签或发布版本。四个阶段分支保留，后续提交和发布仍需维护者授权。
+本地项目目录：`/Users/zhangchengjie/CUAgent`。GitHub 默认分支为 `harness-migration`，按用户本次授权将验证后的阶段代码及 README 快进同步；各阶段分支保留。当前交付到 P1，不创建 PR、标签或发布版本。
 
 | 阶段分支 | 对应内容 |
 |---|---|
@@ -46,6 +50,9 @@ A1 新真实三文本与 CSV 业务、重启续接、手动压缩、首轮前 pr
 | `c0-02-fixed-ui` | 九计算器及三个基础 GUI 用例 |
 | `c1-computer-use` | 六类增强和前后 36 次评测 |
 | `c2-reliability` | 接管/恢复、故障与回归、当前文档 |
+| `a1-agent-expansion` | A1 文件/CSV、插件与会话、本地验收 |
+| `real-app-textedit` | 单人真实 TextEdit 闭环与限制 |
+| `p1-daily-report` | 可复用日报、确定性排版与两轮真实对照 |
 
 现有测试无需安装 Harness、配置 API Key 或启动 VM：
 

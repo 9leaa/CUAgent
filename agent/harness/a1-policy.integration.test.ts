@@ -14,7 +14,7 @@ import * as policyPlugin from './a1-policy-plugin.ts'
 import * as toolsPlugin from './a1-tools.ts'
 import * as fingerprintPlugin from './a1-example-fingerprint.ts'
 
-async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
+async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-a1-registry-'))
   const previous = process.env.CUAGENT_A1_TASKS_PATH
   const tasks = ['one', 'two'].map(id => {
@@ -23,7 +23,8 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
     writeFileSync(join(workspaceRoot, 'source.txt'), `ONLY_${id}`)
     writeFileSync(join(workspaceRoot, 'sales.csv'), 'units\n2\n4\n')
     return { workspaceRoot, ledgerPath: join(audit, 'calls.jsonl'), runId: `run-${id}`, sessionId: `session-${id}`,
-      allowedTools: options.readOnly ? ['calculate', 'workspace_list', 'workspace_read', 'workspace_csv_stats']
+      allowedTools: options.dailyReport ? ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report']
+        : options.readOnly ? ['calculate', 'workspace_list', 'workspace_read', 'workspace_csv_stats']
         : ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', ...(options.example ? ['workspace_text_fingerprint'] : [])] }
   })
   const config = join(dir, 'tasks.json')
@@ -37,7 +38,7 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
   await ctx.plugin(SystemPrompt, {}); await ctx.plugin(ToolRuntime)
   await ctx.plugin(LocalAttachmentStore, { dshHome: join(dir, 'home') })
   const policyFiber = await ctx.plugin(policyPlugin)
-  const toolsFiber = await ctx.plugin(toolsPlugin, { readOnly: options.readOnly ?? false })
+  const toolsFiber = await ctx.plugin(toolsPlugin, { readOnly: options.readOnly ?? false, dailyReport: options.dailyReport ?? false })
   t.after(() => {
     ctx.fiber.dispose()
     if (previous === undefined) delete process.env.CUAGENT_A1_TASKS_PATH
@@ -51,6 +52,48 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
   const ledger = (n = 0) => readFileSync(tasks[n].ledgerPath, 'utf8').trim().split('\n').map(JSON.parse)
   return { ctx, tasks, config, call, ledger, policyFiber, toolsFiber }
 }
+
+const daily = { date: '2026-10-02', notes: [{ path: 'inputs/n.md', sha256: 'a'.repeat(64), title: 'A', progress: 'Done', blockers: 'None', next: 'Review' }],
+  csv: [{ path: 'inputs/m.csv', sha256: 'b'.repeat(64), rowCount: 1, columnCount: 1, columns: ['n'], bytes: 4,
+    numeric: { n: { count: 1, missing: 0, sum: 2, min: 2, max: 2, mean: 2 } } }] }
+
+test('P1 renderer uses actual registry and counts internal read plus write; never overwrites', async t => {
+  const { call, ledger, tasks } = await fixture(t, { dailyReport: true })
+  writeFileSync(join(tasks[0].workspaceRoot, 'report.json'), JSON.stringify(daily))
+  const result = await call('workspace_daily_report', {})
+  assert.equal(result.isError, false, JSON.stringify(result.content))
+  const original = readFileSync(join(tasks[0].workspaceRoot, 'report.md'), 'utf8')
+  assert.ok(original.startsWith('# 日报 2026-10-02\n\n## A\n'))
+  assert.ok(original.endsWith('| n | 1 | 0 | 2 | 2 | 2 | 2 |\n'))
+  const dispatch = ledger().filter(row => row.event === 'dispatch')
+  assert.deepEqual(dispatch.map(row => row.used), [1, 2])
+  assert.equal(dispatch[1].callId, dispatch[0].callId + ':daily-source')
+  assert.equal(ledger().filter(row => row.event === 'result').length, 2)
+  assert.equal((await call('workspace_daily_report', {})).isError, true)
+  assert.equal(readFileSync(join(tasks[0].workspaceRoot, 'report.md'), 'utf8'), original)
+  assert.equal(ledger().filter(row => row.event === 'dispatch').length, 4)
+})
+
+test('P1 renderer cannot turn one remaining slot into two actual requests', async t => {
+  const { call, ledger, tasks } = await fixture(t, { dailyReport: true })
+  writeFileSync(join(tasks[0].workspaceRoot, 'report.json'), JSON.stringify(daily))
+  for (let i = 0; i < 29; i++) assert.equal((await call('workspace_read', { path: 'source.txt' })).isError, false)
+  assert.equal((await call('workspace_daily_report', {})).isError, true)
+  assert.equal(existsSync(join(tasks[0].workspaceRoot, 'report.md')), false)
+  assert.equal(ledger().filter(row => row.event === 'dispatch').length, 30)
+  assert.equal(ledger().filter(row => row.event === 'result').length, 30)
+})
+
+test('P1 renderer is opt-in, rejects stopped requests and unavailable policy', async t => {
+  const { call, tasks, policyFiber } = await fixture(t, { dailyReport: true })
+  writeFileSync(join(tasks[0].workspaceRoot, 'report.json'), JSON.stringify(daily))
+  const stop = new AbortController(); stop.abort()
+  assert.equal((await call('workspace_daily_report', {}, 'session-one', stop.signal)).isError, true)
+  assert.equal((await call('calculate', { expression: '1+1' })).isError, true)
+  await policyFiber.dispose()
+  assert.equal((await call('workspace_daily_report', {})).isError, true)
+  assert.equal(existsSync(join(tasks[0].workspaceRoot, 'report.md')), false)
+})
 
 test('A1 official registry isolates two approved roots and rejects foreign session/path/stop', async t => {
   const { call, ledger } = await fixture(t)

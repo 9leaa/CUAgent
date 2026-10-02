@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
 export const A1_REVIEWED_TOOLS = Object.freeze(['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats']);
 // Reviewed example candidates, never implicitly enabled by a preset or default task.
-export const A1_REVIEWED_EXTENSION_TOOLS = Object.freeze(['workspace_text_fingerprint']);
+export const A1_REVIEWED_EXTENSION_TOOLS = Object.freeze(['workspace_text_fingerprint', 'workspace_daily_report']);
 const sha = value => createHash('sha256').update(value).digest('hex');
 const inside = (root, target) => { const path = relative(root, target); return path === '' || (!isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`)); };
 const safeCode = code => typeof code === 'string' && /^[A-Z0-9_]{1,80}$/.test(code) ? code : 'TOOL_ERROR';

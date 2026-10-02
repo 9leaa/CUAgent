@@ -5,6 +5,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { A1Policy } from '../a1-policy.mjs'
 import { loadA1TaskConfig } from '../a1-task-config.mjs'
+import { readWorkspaceFile } from '../workspace-read.mjs'
 
 export const name = 'cuagent-a1-policy'
 export const inject = ['tools']
@@ -59,6 +60,29 @@ export class A1PolicyService extends Service {
     if (!policy) throw new Error('A1 policy or task unavailable')
     policy.assertAdmitted(callOf(exec))
     return policy.workspaceFor(exec.agent?.session.id)
+  }
+  async dailyReportSource(exec: ToolExecution): Promise<string> {
+    // One separately counted, fixed-path internal read. Outer admission covers
+    // the eventual write, including failure; this cannot be used as free I/O.
+    if (exec.name !== 'workspace_daily_report') throw new Error('wrong internal read owner')
+    const root = this.requireAdmission(exec)
+    const policy = this.policy(exec)!
+    const call = { ...callOf(exec), callId: String(exec.callId) + ':daily-source',
+      name: 'workspace_read', arguments: { path: 'report.json' } }
+    const refusal = policy.dispatch(call)
+    if (refusal) throw new Error(refusal)
+    let value
+    try {
+      exec.signal.throwIfAborted()
+      value = await readWorkspaceFile({ workspaceRoot: root, path: 'report.json' })
+      exec.signal.throwIfAborted()
+      if (value.truncated) throw new Error('report source must be fully read')
+    } catch (error) {
+      policy.result(call, { errorCode: 'DAILY_SOURCE_FAILED' })
+      throw error
+    }
+    policy.result(call, { artifact: value })
+    return value.content
   }
   result(exec: Readonly<ToolExecution>, result: ToolExecutionResult): void {
     // Only called for dispatches admitted by this wrapper; denials are not results.

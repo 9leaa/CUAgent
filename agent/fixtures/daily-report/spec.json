@@ -1,0 +1,5 @@
+{
+  "date": "2026-10-02",
+  "notes": ["progress.md"],
+  "csv": [{"path": "metrics.csv", "numericColumns": ["completed", "hours"]}]
+}

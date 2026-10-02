@@ -8,6 +8,8 @@
 
 ## 实现与验证
 
+- 2026-10-02 用户指定：所有后续 DSH 实际推理使用 DeepSeek 4.1 Flash 且关闭思考。当前核实 route 为 deepseek-account/deepseek-flash、reasoningEffort=off；每个新/恢复会话显式设置并核对请求，不继承旧 high 或回退其他模型。
+
 - 不自行重写主循环，不复制整套上游源码到本仓库。项目工具核心保留于 agent/，Harness 适配器在 agent/harness/；历史诊断在 tools/mac_vm/，Lume 改动在 patches/cua/。
 - 固定框架包、对应源码、Node、模型、Driver 和策略版本。npm 发布版与源码 master 的接口不能混用；候选或调研版本不等于已安装、已验收。
 - 现有文件工具与测试可以复用；Pi 的模型和图片链路通过记录只能作为历史，不计入 Harness 验收。31 项工具测试及 7 项 VM mock 的结果也不能冒充模型或 VM 集成通过。
