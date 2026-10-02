@@ -59,6 +59,28 @@ test("parses quoted commas, escaped quotes, and line breaks", () => {
 	]);
 });
 
+test("preserves a final quoted empty field without a newline", () => {
+	assert.deepEqual(parseCsv('value\n""'), [["value"], [""]]);
+});
+
+test("rejects finite cells whose sum overflows instead of emitting JSON null", async () => {
+	await withWorkspace(async ({ workspaceRoot }) => {
+		await writeFile(join(workspaceRoot, "overflow.csv"), "value\n1e308\n1e308\n");
+		await expectCode(calculateWorkspaceCsvStats({ workspaceRoot, path: "overflow.csv", numericColumns: ["value"] }), "NUMERIC_OVERFLOW");
+	});
+});
+
+test("special object property names remain ordinary numeric column data", async () => {
+	await withWorkspace(async ({ workspaceRoot }) => {
+		await writeFile(join(workspaceRoot, "special.csv"), "__proto__,constructor\n2,3\n4,5\n");
+		const result = await calculateWorkspaceCsvStats({ workspaceRoot, path: "special.csv", numericColumns: ["__proto__", "constructor"] });
+		const decoded = JSON.parse(JSON.stringify(result));
+		assert.deepEqual(decoded.numeric.__proto__, { count: 2, missing: 0, sum: 6, min: 2, max: 4, mean: 3 });
+		assert.deepEqual(decoded.numeric.constructor, { count: 2, missing: 0, sum: 8, min: 3, max: 5, mean: 4 });
+		assert.equal(Object.getPrototypeOf(result.numeric), Object.prototype);
+	});
+});
+
 test("rejects unexpected content after a quoted field", () => {
 	assert.throws(
 		() => parseCsv('name,value\n"alpha"extra,1\n'),

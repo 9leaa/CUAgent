@@ -2,10 +2,11 @@
 import { realpathSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import { listWorkspaceDirectory } from '../workspace-list.mjs'
 import { readWorkspaceFile } from '../workspace-read.mjs'
 import { writeWorkspaceFile } from '../workspace-write.mjs'
+import { withWorkspaceErrors } from './workspace-errors.ts'
 
 export const name = 'cuagent-a0-file-tools'
 export const inject = ['tools']
@@ -17,6 +18,12 @@ export function apply(ctx: Context): void {
   }
   const workspaceRoot = realpathSync(configuredRoot)
   if (!statSync(workspaceRoot).isDirectory()) throw new Error('A0 workspace root is not a directory')
+
+  registerFileTools(ctx, () => workspaceRoot)
+}
+
+/** A1 supplies an admission-checked per-session root; A0 keeps its fixed root. */
+export function registerFileTools(ctx: Context, rootFor: (exec: ToolExecution) => string, includeWrite = true): void {
 
   ctx.tools.register(defineTool({
     name: 'workspace_list',
@@ -39,7 +46,7 @@ export function apply(ctx: Context): void {
     },
     async execute(args, exec) {
       exec.signal.throwIfAborted()
-      const value = await listWorkspaceDirectory({ workspaceRoot, path: args.path ?? '.' })
+      const value = await withWorkspaceErrors(() => listWorkspaceDirectory({ workspaceRoot: rootFor(exec), path: args.path ?? '.' }))
       exec.signal.throwIfAborted()
       return value
     },
@@ -67,13 +74,13 @@ export function apply(ctx: Context): void {
     },
     async execute(args, exec) {
       exec.signal.throwIfAborted()
-      const value = await readWorkspaceFile({ workspaceRoot, path: args.path })
+      const value = await withWorkspaceErrors(() => readWorkspaceFile({ workspaceRoot: rootFor(exec), path: args.path }))
       exec.signal.throwIfAborted()
       return value
     },
   }))
 
-  ctx.tools.register(defineTool({
+  if (includeWrite) ctx.tools.register(defineTool({
     name: 'workspace_write',
     description: 'Create a new UTF-8 text file inside the dedicated A0 test workspace; never overwrite.',
     parameters: {
@@ -94,7 +101,7 @@ export function apply(ctx: Context): void {
     },
     async execute(args, exec) {
       exec.signal.throwIfAborted()
-      const value = await writeWorkspaceFile({ workspaceRoot, path: args.path, content: args.content })
+      const value = await withWorkspaceErrors(() => writeWorkspaceFile({ workspaceRoot: rootFor(exec), path: args.path, content: args.content }))
       exec.signal.throwIfAborted()
       return value
     },

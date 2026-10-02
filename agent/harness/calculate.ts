@@ -9,7 +9,7 @@
  * reachable from the input.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
 
 export const name = 'a0-calculate'
 
@@ -138,6 +138,10 @@ export function evaluateExpression(input: string): number {
 }
 
 export function apply(ctx: Context): void {
+  registerCalculate(ctx)
+}
+
+export function registerCalculate(ctx: Context, requireAdmission?: (exec: ToolExecution) => void): void {
   ctx.tools.register(defineTool({
     name: 'calculate',
     description:
@@ -163,7 +167,9 @@ export function apply(ctx: Context): void {
       },
       render: (_args, value) => [{ type: 'text', text: `${value.expression} = ${value.result}` }],
     },
-    execute(args) {
+    execute(args, exec) {
+      exec.signal.throwIfAborted()
+      requireAdmission?.(exec)
       const value = evaluateExpression(args.expression)
       return Promise.resolve({
         expression: args.expression.trim(),

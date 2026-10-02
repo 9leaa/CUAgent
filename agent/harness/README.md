@@ -1,4 +1,4 @@
-# Harness A0 接入与边界
+# Harness Desktop 接入与边界
 
 当前收口状态（2026-10-01）：C0-01、C0-02、C1、C2 本地验收完成，C2 正式 18/18、七故障、九计算器、A0 和声明安全范围回归通过，见 [C2 总结](../../docs/stages/c2-summary.md)。下文开发过程中的“待完成”和初次诊断次数仅是历史记录，不替代最终冻结版结果；C3 尚未完成。
 
@@ -142,3 +142,22 @@ Pi工具层的导入、注册、写入队列和 `details/content`结构需要重
 - [OTel会话上报](https://github.com/deepseek-ai/deepseek-harness/blob/00102833dfaee1da9f48a3a8eae9d34005a75218/packages/session/session-telemetry-otel/README.md)
 - [Computer Use服务](https://github.com/deepseek-ai/deepseek-harness/blob/00102833dfaee1da9f48a3a8eae9d34005a75218/packages/computer-use/computer-use/README.md)
 - [Cua native provider](https://github.com/deepseek-ai/deepseek-harness/blob/00102833dfaee1da9f48a3a8eae9d34005a75218/packages/experimental/computer-use-cua-driver-native/README.md)
+## A1 当前入口（本地验收完成，第二人暂缓）
+
+
+专业解释：根 Cordis 策略服务绑定 session/run/授权根及持久账本，模型请求清单和工具正文都受约束。直白说：每个会话只能处理批准的目录，重启不增加次数，卸载策略也不能让剩余工具偷跑。以下入口复用官方 App，不增加 Agent 主循环。
+
+```bash
+node agent/harness/build-desktop-plugins.mjs --a1
+# 先核对所有 App 轮次已终止，再正常退出 App；不强杀活动任务。
+node agent/harness/configure-desktop.mjs --a1
+/bin/zsh agent/harness/start-a1-desktop.sh /absolute/private/tasks.json
+```
+
+`tasks.json` 必须由开发侧准备、权限 0600、不在任何模型工作区；格式为 `{"version":1,"tasks":[{"runId":"new-a1-run","sessionId":"actual-official-session-id","workspaceRoot":"/absolute/new/workspace","ledgerPath":"/absolute/private-audit/calls.jsonl","allowedTools":["calculate","workspace_image_probe","workspace_list","workspace_read","workspace_write","workspace_csv_stats"]}]}`。审计父目录权限 0700，各 session 的 run/根/账本不能复用或重叠；实际 session ID 不能填占位符后直接调用模型。原 App 账号/会话保持，不复制凭证。流程说明不是模型权限授权。
+
+启动前核对 App `0.2.0-rc.2`、A1 构建哈希、已配置的 A1 preset 和私有任务配置；工具仅处理新测试目录，不接触宿主 GUI。预算固定 30，失败和卸载工具请求也计数。旧未配对派发为 UNKNOWN，自动续接拒绝，需独立核对后另行处理，禁止删除账本重跑。
+
+当前无凭证核心 59/59、官方注册集成 25/25；实际三文本/CSV、重启/压缩、首轮前 preset 切换、图片、取消及持久预算拒绝已独立通过，见 [业务记录](../../docs/stages/a1-business-progress.md)。默认 `a1-controlled` 六工具，`a1-readonly` 只有计算、列目录、读文件和 CSV 统计；官方首轮之后禁止切换 preset，不绕过此锁。当前文本/CSV/只读预算分别 10/30、30/30、1/30。
+
+[插件示例](../../docs/stages/a1-plugin-extension.md)必须显式审查并批准，编译不等于挂载或授权；[等效流程](../../docs/stages/a1-controlled-workflow.md)不授予额外权限。新真实 C0/VM 兼容与声明安全回归已通过，见 [本地总结](../../docs/stages/a1-summary.md)；第二人按用户确认暂缓、未验，不计为通过。当前 App 是 A1，旧 A0/C0 部分保留各自阶段范围，不直接套用其启动环境。

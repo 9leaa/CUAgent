@@ -67,7 +67,7 @@ export function parseCsv(text) {
 	}
 
 	if (inQuotes) throw new WorkspacePathError("INVALID_CSV", "CSV contains an unterminated quoted field");
-	if (field.length > 0 || row.length > 0) {
+	if (field.length > 0 || row.length > 0 || quotedFieldClosed) {
 		row.push(field);
 		rows.push(row);
 	}
@@ -178,14 +178,18 @@ export async function calculateWorkspaceCsvStats({ workspaceRoot, path, numericC
 			if (value !== null) values.push(value);
 		}
 		const sum = values.reduce((total, value) => total + value, 0);
-		numeric[column] = {
+		if (!Number.isFinite(sum)) {
+			throw new WorkspacePathError("NUMERIC_OVERFLOW", `column ${column} aggregate exceeds finite numeric range`);
+		}
+		// CSV headers are data, including special JavaScript property names.
+		Object.defineProperty(numeric, column, { enumerable: true, configurable: true, writable: true, value: {
 			count: values.length,
 			missing: dataRows.length - values.length,
 			sum,
 			min: values.length === 0 ? null : Math.min(...values),
 			max: values.length === 0 ? null : Math.max(...values),
 			mean: values.length === 0 ? null : sum / values.length,
-		};
+		} });
 	}
 
 	return {

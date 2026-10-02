@@ -10,13 +10,65 @@
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
-| 工具核心测试 | Node 24.9.0：最新本地回归 36/36 通过；属于无模型单元测试 |
-| 本轮VM工具测试 | 最新 Python 103/103 执行层/mock/反例通过；不替代真实 VM 七故障、18 次与九计算器证据 |
+| 工具核心测试 | 最新核心 59/59、官方 Desktop 同版注册集成 25/25；属于无模型测试 |
+| 本轮VM工具测试 | 最新 Python 103/103 执行层/mock/反例通过；不替代真实 VM 证据 |
 | Harness版本 | 当前官方 Desktop App 0.2.0-rc.2 / 内置 Node 24.18.1，同版源码参考639ed015；初始 Web 固定源码00102833d / 0.1.7-alpha.2仅历史 |
 | Harness A0最小底座 | 最新 Desktop 真会话/文件/直接与工具图片/标准取消/30 次持久预算回归通过；重启首回复错误和后续澄清保留，Web记录仅历史 |
 | C0-01及C0–C3 | C0-01、C0-02、C1 与 C2 本地验收完成；C2 正式 18/18、七故障、九计算器及 A0/声明安全范围回归通过；C3 未做 |
-| A1通用增强 | 三份文本、CSV和完整插件/会话体验待实施；不阻塞C0–C3 |
+| A1通用增强 | 分支 a1-agent-expansion；业务/会话/图片/取消/持久预算通过，插件与流程示例已提供；新真实 C0/VM 声明安全及兼容回归通过，A1 本地部分完成；第二人按用户确认暂缓、未验 |
 | O0 | 后置，未开始 |
+
+## 2026-10-02：A1 本地验收完成，第二人继续暂缓
+
+- 用户确认继续后启动原隔离 VM，原 NAT/VNC 57593 保持；mvpagent 登录，SIP enabled、无 virtiofs，Driver daemon 自身两权限 true。十个 guest 源、C0 adapter 和 fixture 与原基线 SHA 相同；未修改 SSH/TCC/SIP或共享。
+- 新 `a1_c0_mul12_34_20261002_001` 官方真实模型独立 SUCCEEDED，20/30 raw、17 模型调用；实际按钮、新 408 显示、result.txt/读回及独立期望一致。八项实际 HTTP 认证/角色/不开放 shell/停止后请求拒绝，仍 20，零新派发。
+- 新 `c2_budget_a1_20261002_001` 真实 30 raw、28 新快照/PNG；两独立进程 1188→1482 预算仍 30，七拒绝、停止后零派发 PASS。新 `c2_inflight_a1_20261002_001` 实际返回 hold 后 stop 约 0.000308 秒、在途记录/拒绝/单次返回/接管后新观察通过，6 raw。两者是无模型安全诊断、业务 UNVERIFIED，不声称官方取消或业务成功。
+- 宿主独立读回原 VM trace/报告/PNG 哈希和新官方 session，私有 `a1_vm_audit_20261002_001/verification.json` PASS。对应 executor/两诊断 fixture 已退出，VM/Driver 保持运行；App 正常恢复 A1，原三预算仍 10/30、30/30、1/30。
+- 最终核心 59/59、官方注册集成 25/25、Python 103/103、原业务证据前缀 SHA 和 git diff --check 通过。同步 README/计划/接入/验收表及 `docs/stages/a1-summary.md`；按用户最新范围 A1 本地部分完成，第二人项暂缓未验，C3 跳过未完成。未提交、推送、发布或创建 PR。
+- 下方过程中的 VM stopped、C0 回归或第二人阻塞等均保留当时事实，以本节最新范围/实际证据为准。
+
+## 2026-10-02：用户确认暂缓所有第二人验收
+
+- 用户澄清并确认：C3 继续跳过，所有第二人验收（包括 A1 的独立新增工具）暂缓，先完成 A1 本地部分。更新主计划、方案、README、接入说明、业务记录和验收表；保留第二人要求/交接清单为未验，不标通过，也不继续以参与者缺失阻塞本次本地收口。
+- 本次剩余 C0 真实安全回归不随第二人暂缓而取消；最近只读检查 VM stopped，尚无启动确认。本轮仅调整文档范围，没有修改代码、运行配置、账本或 VM，没有提交/推送。
+- 以下过程记录中的“第二人待完成/阻塞”保留当时事实，以本节最新用户范围为准。
+
+## 2026-10-02：A1 审批预检与运行时统一
+
+- 后续文件边界复核新增真实 A1 注册集成：21 类绝对/父路径、跨任务链接、最终内部/外部链接写入、列表逃逸、类型/二进制/大小、覆盖/额外 overwrite/root 参数、保护审计和目录/NUL 路径均拒绝，稳定错误码一致；两正常加 21 失败共 23 次派发与结果，原两个任务文件不变。官方集成现在 25/25，核心再次 59/59、Python 再次 103/103；无模型测试不替代 VM。
+- 再次核对原业务 session/audit 字节前缀与独立报告 SHA，一致且未替换历史。原三个官方会话均 terminal、预算 10/30、30/30、1/30；Lume 再查仍 stopped。新增 `docs/stages/a1-acceptance-audit.md` 逐项保留主计划要求，明确 C0 新 VM 回归及第二人扩展没有证据，不登记 A1 完成。
+- 新增只读 `a1-task-config.mjs`，启动预检与实际 policy service 复用；重复 session/run、真实或符号链接别名重叠根、重复/别名账本、审批或任一任务审计进入模型根均拒绝。五项核心反例核对不创建账本、不改配置；原策略限制不放宽。
+- 新增同版真实注册集成：缺失/非法 JSON/重复 session/权限过宽四种审批配置对所有任务与模型请求拒绝、无派发或文件副作用；已批准的 fingerprint 在实际 policy 卸载后仍拒绝。核心 59/59、官方注册集成 24/24，git diff --check 通过。
+- 确认所有官方会话空闲后正常退出 App，重新构建五插件/配置/启动，原三个任务恢复且预算仍 10/30、30/30、1/30；统一预检通过。没有重发业务请求、修改旧账本或 VM 配置。
+- C0 新真实回归的只读环境检查：原 192.168.64.3 SSH 超时，同版 guest 源核对命令因此失败；官方项目隔离 Lume 的 get 检查明确 VM `mac-agent-mvp-15-6-1-restored` 为 stopped，进程清单无该隔离 VM 执行进程。不能推断端口配置损坏或声称完成本轮 VM 回归；没有启动/重启 VM 或修改 SSH/VNC。需要确认启动测试 VM 后才能继续真实 C0 回归，第二人独立扩展也仍待实际参与。
+
+## 2026-10-02：A1 preset、图片、停止和持久预算核对
+
+- 新只读任务 `a1_preset_20261002_001`：官方首轮前从 `a1-controlled` 切换 `a1-readonly`；实际模型只有 calculate/list/read/CSV 四工具，一次真实读回通过。禁用 standard 返回 not-found，首轮后切回返回 locked；没有绕过官方锁。切换时原业务预算 10/6 不变。首个独立 verifier 错把初始 preset 当作切换事件，按真实 session header 和 create 响应修正，原事件与失败说明保留。
+- CSV 原会话真实工具返回图片 3 次、直接图片输入 2 次；随机 PNG 独立像素、受保护答案、颜色产物读回和 SHA 均 PASS，预算 6→9→11。第 12 次派发后用标准官方 cancel API，原轮次 aborted/user；请求取消及确认取消后均没有新派发，不冒充点击 UI Stop。
+- 原任务随后新轮次实际派发 18 次至 30/30，第 31 次拒绝；正常 App 重启仍 30/30，新轮次真实调用请求再次拒绝，未清零或替换任务。`stop-budget-verification.json` 核对 30 个连续唯一派发/结果、取消时序及原预算 PASS。当前 App 为 A1，文本/CSV/只读预算 10/30、30/30、1/30，原会话均终止。
+- 已提供 opt-in `workspace_text_fingerprint` 插件、schema、稳定错误码、取消及官方图片转换说明，以及不授予权限的等效流程。示例仅编译，不默认挂载或授权；正常/非法参数/越界/预取消/未批准有真实注册表测试。测试发现普通 Error.code 被官方丢失，增加 HarnessError 转换；额外参数显式拒绝，未通过放宽测试掩盖错误。
+- 本轮无模型测试：`node --test agent/tests/*.test.mjs` 54/54；`node agent/harness/test-desktop-adapters.mjs a1-policy.integration.test.ts a1-csv-tools.integration.test.ts a0-policy.test.ts a0-policy.integration.test.ts a0-file-tools.integration.test.ts c0-vm-tools.test.ts` 22/22；`python3 -m unittest discover -s tools/mac_vm/tests` 103/103。不代替真实 VM 回归。以下 A1 早期记录保留当时事实。
+- A1 未完成：C0 声明安全回归及第二位开发者真实独立新增工具仍需证据，不能由本代理或 mock 代替。C3 仍未做；没有提交/推送，VM/Driver/权限/SSH/VNC 未改。
+
+## 2026-10-02：进入 A1，C3 暂缓（早期过程记录）
+
+- 真实业务批次 `a1_business_20261002_001`：核对官方 API 的 124 个既有会话均无运行轮次，正常退出 App 后备份并切换 A1；原账号/旧会话/VM/端口保留。新文本与 CSV 各自授权 session、工作区和账本，模型实际选择 `deepseek-account/deepseek-flash` / high；实际请求工具清单只有六个审查工具。三文本 **8/30**、CSV **5/30** 通过独立完整字段/来源/输入字节/JSON及Markdown/两产物读回/哈希/官方 call-result与持久派发关联核对。初次文本验收暴露验证器末尾空行错误，按预先派发的“每条记录之后空行”规则修正，原产物与失败说明保留，不另跑模型或改任务数据。
+- 新增三文本输入/独立字段验证器与反例测试、`prepare-a1-validation.mjs`；核心测试 **54/54**。期望与私有验证程序不在模型工作区，业务验收报告/原始证据仅在私有 `.runtime`。验证过的 session/audit 原字节前缀冻结，后续生命周期追加不替换原报告。
+- 实际重启与续接：两任务预算 **8→8、5→5**，各一次真实 read 后 **9、6**。原 A1 preset 未配置压缩命令，补官方 basic/command-compact；首次 preset 恢复因 compaction 服务缺少 isolate realm 被上游拒绝，保留失败记录，修正为独立 Cordis 分组。重配/重启预算仍 **9、6**；官方手动 `/compact` 实际压缩 16 历史项约 3083 tokens，预算 **9→9**；压缩后真实一次读回 **9→10**，原业务证据哈希完整。独立 lifecycle 报告 PASS，仅覆盖本次重启/压缩，不冒充所有 A1 生命周期门槛。
+- 当前 App 为 A1，文本/CSV任务分别 **10/30、6/30**。C3 仍跳过，A1 尚未完成；待 preset 切换、实际图片/取消/预算与 A0/C0 声明安全回归、通用插件/流程示例、第二位开发者独立扩展。未提交或推送。
+- 后续接入进展：新增官方 Cordis `cuagentA1Policy` 服务、A1 六工具组合及模型请求 guard；配置按批准的 session 绑定不同且不重叠的目录/账本，所有工具正文要求活跃准入。复用 A0 文件/计算/图片注册函数，原 A0 入口和白名单不变；政策卸载后仍存在的 A1 工具拒绝执行。A1 构建输出在独立 `cuagent-a1-plugins`，未覆盖当前 A0 构建或改运行 App 配置。
+- 新官方注册集成测试覆盖双会话目录、外会话/父路径/停止拒绝、实际工具与政策卸载重载、并发 31 请求只准入 30、私有配置改写拒绝和请求侧额外工具拒绝；总计 **19/19**，核心仍 **51/51**。首次重载测试期望 3 次但实际 4 次，检查确认卸载工具的失败请求也占预算；测试明确核对 4 次派发、4 个结果及其中 1 个失败，不删除失败记录、不改策略忽略请求。此为实际官方注册表测试，不是实际模型调用。
+- 新增 A1 配置模板、独立构建、离线预检和 `start-a1-desktop.sh`。`node agent/harness/build-desktop-plugins.mjs --a1` 构建 4 插件通过；配置工具对运行中的 App 拒绝切换至 A1。尚未执行真实配置切换/启动，启动预检、真实三文本/CSV、重启/压缩/preset 等仍待验证。
+- 本地实施进展：新增 `a1-csv-tools.ts`，使用官方 Desktop 同版工具注册表验证完整统计、输入哈希、13 类违规输入、预取消及 A0 白名单不可绕过。新增 `test-desktop-adapters.mjs` 只运行显式测试清单，不读取账号、不修改 App/profile。
+- CSV 核心补齐三个实测边界：有限单元格求和溢出返回 `NUMERIC_OVERFLOW`，`__proto__`/`constructor` 列名仍作为普通数据输出，末尾空引号字段不丢失。新增独立 `a1-csv-verifier.mjs`，逐字段核对 JSON、完整 Markdown、来源字节/哈希和两份完整读回；故意错误统计、假表格、陈旧哈希、截断读回均拒绝。内容正确不自动标记任务 SUCCEEDED，仍需官方实际执行轨迹。
+- 新增框架无关 `a1-policy.mjs`：固定授权 session/root/capabilities 身份，30 次写前持久计数，重启/失败不清零，重复 call、停止、会话串扰、权限变化、竞争实例、日志篡改及未完成旧派发拒绝；脱敏参数摘要、结果耗时、产物哈希和拒绝记录。8 项无凭证策略测试通过；尚未接入 App，不将该结果冒充实际插件生命周期/会话验证。
+- 当前命令：`node --test agent/tests/*.test.mjs` **51/51**；`node agent/harness/test-desktop-adapters.mjs a1-csv-tools.integration.test.ts a0-policy.test.ts a0-policy.integration.test.ts a0-file-tools.integration.test.ts c0-vm-tools.test.ts` **15/15**；`git diff --check` 通过。均为无模型本地测试，不替代真实三文本/CSV、官方会话/配置生命周期、第二人扩展和实际 A0/C0 回归。
+- 原执行层回归：`python3 -m unittest discover -s tools/mac_vm/tests` **103/103**，无实际 VM 桌面动作；不将单元/mock 通过算作重跑 C0–C2 真实任务。
+- 下一步接入 A1 专用策略/文件工具与配置启动入口，再准备新三文本任务、真实业务执行及严格轨迹验证；A0 五工具白名单、原 App/VM/端口/凭证/旧账本不变。改动尚未提交或推送，A1 未完成。
+- 从干净的 `7e7d42a` 建立 `a1-agent-expansion`，实施前写 `docs/stages/a1-design.md`，逐项保留主计划第 8 节要求，包括插件/会话回归和第二位开发者独立扩展。
+- 只读核对 App 仍为 0.2.0-rc.2；源码 CSV 核心已迁移但尚无 Harness CSV 适配。A0 白名单和请求审计仅允许五工具，不能直接开放 CSV 或用旧 Pi 成绩替代。
+- 先做新 A1 配置、适配与无凭证测试，再使用新的项目测试目录调用真实模型；原 VM/端口/凭证/会话/耗尽账本保留。不提交或推送，C3 未开始，A1 不提前登记完成。
 
 ## 2026-10-02：文档收尾与默认分支同步
 

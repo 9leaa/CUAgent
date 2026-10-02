@@ -144,6 +144,10 @@ function answerRecordLocation(ctx: Context): { directory: string, path: string }
 }
 
 export function apply(ctx: Context): void {
+  registerImageProbe(ctx)
+}
+
+export function registerImageProbe(ctx: Context, requireAdmission?: (exec: ToolExecution) => void): void {
   ctx.tools.register(defineTool({
     name: 'workspace_image_probe',
     description:
@@ -160,10 +164,14 @@ export function apply(ctx: Context): void {
     // Each call draws an independent assignment, so concurrent calls cannot conflict.
     isConcurrencySafe: () => true,
     async execute(_args, exec) {
+      exec.signal.throwIfAborted()
+      requireAdmission?.(exec)
       // Every gate runs before the attachment write, so a refusal never leaves a committed object.
       const attachments = ctx.get('attachments')
       if (attachments === undefined) throw new Error('cannot return the probe image: no attachment service is mounted')
       await assertImageCapableRoute(ctx, exec)
+      exec.signal.throwIfAborted()
+      requireAdmission?.(exec)
 
       // A fresh random placement per call: a memorised mapping cannot answer it.
       const assignment = createRandomImageProbeAssignment()
