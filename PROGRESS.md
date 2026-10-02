@@ -26,6 +26,10 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+2026-10-03 00:27（北京时间）1小时门槛真实通过：原观察器89219正常退出0，`.runtime/backend/soak-1h-002/verification.json`独立SUCCEEDED，实际3659.079962秒、243采样、最大间隔15.169904秒；等待JSON/账本不变，原session `session-448f5520-d1f2-431b-95a4-e3098da29ff2`，6→10/30，18011 token，Flash/off。API同任务SUCCEEDED；两attempt且到期后领取，renderer真实派发符合不可变期限，文件/读回/来源均核对。API两PID、Worker多PID重启均有采样。首个草稿失败继续保留，不能称所有长测尝试均成功。
+
+随后启动8小时：新任务 `9295c25e-a411-4d6e-9d39-2992fe6a089b` / session `session-0459ea6c-ed62-45ef-9180-2d7489203a1b`，草稿正确，6/30、9853 token，WAITING_RELEASE；期限UTC2026-10-03 00:28:20.572520（北京时间08:28:20）。观察器18636输出`.runtime/backend/soak-8h-001`，要求28800秒，不重启计时。初始采样捕获旧Worker48418/API46195后，核对无在途任务、资源已释放及基础配置恢复，再实际停止并重启为新API49955/新Worker；API新句柄84479、Worker33427。8小时未完成，P3不收口不推送。
+
 2026-10-03生命周期补测：新增 `backend/tests/test_worker_lifecycle.py` 10项execute整流程测试（RPC/DB为mock，非真实模型），覆盖原会话缺失/请求接受未知拒绝重发、已有continuation意图只poll、已创建未发送仅start-existing一次、五类已有工作现场拒绝、restore失败记录pending/日志且不伪记恢复成功。后端71/71，已知TestClient弃用警告不变；补充backend/README操作指引及验收清单。生产代码未改，API清理告警尚不单独展示，不能把业务成功等同环境恢复。原1h观察器仍存活。
 
 2026-10-03 00:04（北京时间）只读RPC故障集成通过：独立inspect进程用私有fetch包装，前两次真正收到官方session/modelCatalog响应后在本地抛传输错误，第三次正常读取原session `session-4753d133-4482-4372-9bb4-95c1bbc95ec1`。生产Worker.rpc_process完成1/2秒退避、共3次尝试/3.632548秒，terminal及原request匹配；原session/prompt/audit/两产物SHA逐一不变，零新增推理。证据`.runtime/backend/p3-readonly-response-fault.jsonl`及`p3-readonly-response-verification.json` PASS；不是共享网络断网、不证明副作用请求可重放。写操作超时不重试仍由现有反例覆盖。普通Worker48418和1h观察器46135实际存活，长测仍未到期限。
