@@ -192,7 +192,7 @@ def prepare(spec_path, run_dir, renderer=True):
     return {'runId': run_dir.name, 'state': 'PREPARED', 'inputs': len(inputs), 'model': MODEL}
 
 
-def verify(run_dir):
+def verify(run_dir, *, continuation=False):
     root = Path(run_dir)
     task = json.loads((root / 'approval.json').read_text())
     renderer = 'workspace_daily_report' in task['allowedTools']
@@ -207,16 +207,36 @@ def verify(run_dir):
     md_bytes, md_text = text_file(workspace / 'report.md')
     require(same(report_json(json_text), expected), 'report JSON content/provenance differs')
     require(md_text == markdown(expected), 'report Markdown differs')
-    raw = (root / 'session.jsonl').read_bytes()
+    raw = (root / ('session-continuation.jsonl' if continuation else 'session.jsonl')).read_bytes()
     rows = [json.loads(line) for line in raw.splitlines() if line]
     ends = [r for r in rows if r['type'] == 'turn/end']
-    require(len(ends) == 1 and ends[0]['data']['reason']['kind'] == 'completed', 'one completed original turn required')
+    if continuation:
+        original = (root / 'session.jsonl').read_bytes()
+        plan = json.loads((root / 'continuation-plan.json').read_text())
+        request = json.loads((root / 'continuation-request.json').read_text())['request']
+        require(plan['sessionId'] == task['sessionId'] == request['sessionId'] and plan['runId'] == task['runId'], 'continuation identity changed')
+        require(sha(original) == plan['sourceSessionSha256'] and raw.startswith(original), 'original session prefix changed')
+        first_reason = ends[0]['data']['reason'] if ends else {}
+        policy_stop = first_reason == {'kind': 'error', 'error': {'message': 'A1 request policy unavailable', 'code': 'UNKNOWN'}}
+        require(len(ends) == 2 and (first_reason.get('kind') in ('aborted', 'completed') or policy_stop) and
+                ends[1]['data']['reason']['kind'] == 'completed', 'one bounded continuation required')
+        messages = [r for r in rows if r['type'] == 'user/message']
+        require(len(messages) == 2 and messages[-1]['data']['source'].get('rpcId') == request['requestId'], 'continuation prompt identity mismatch')
+        for name, value in plan['evidence']['artifacts'].items():
+            current = (workspace / name).read_bytes()
+            require(value == {'bytes': len(current), 'sha256': sha(current)}, 'existing artifact changed during continuation')
+    else:
+        require(len(ends) == 1 and ends[0]['data']['reason']['kind'] == 'completed', 'one completed original turn required')
     headers = [r['data']['header'] for r in rows if r['type'] == 'request/header']
     require(headers and all(all(h['config'].get(k) == v for k, v in MODEL.items()) for h in headers), 'model/thinking policy mismatch')
     require(all(sorted(t['name'] for t in h['tools']) == sorted(allowed) for h in headers), 'unexpected model tools')
     calls = [r for r in rows if r['type'] == 'tool/call']
     results = [r for r in rows if r['type'] == 'tool/result']
     audit_raw = Path(task['ledgerPath']).read_bytes()
+    if continuation:
+        checkpoint = plan['evidence']
+        require(len(audit_raw) >= checkpoint['auditBytes'] and
+                sha(audit_raw[:checkpoint['auditBytes']]) == checkpoint['auditSha256'], 'original audit prefix changed')
     audit = [json.loads(line) for line in audit_raw.splitlines() if line]
     dispatch = [a for a in audit if a['event'] == 'dispatch']
     returned = [a for a in audit if a['event'] == 'result']

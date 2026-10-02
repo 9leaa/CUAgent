@@ -15,6 +15,8 @@ from backend.models import Task
 from backend.service import TaskService
 from backend.observability import session_usage
 from backend.checkpoint import snapshot
+from backend.recovery import partial_report_plan
+from agent.daily_report import sha
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -118,6 +120,26 @@ class Worker:
                 if not state['running'] and not state['promptObserved']:
                     # Disk absence cannot rule out a lost live-inbox request.
                     raise RuntimeError('PROMPT_ACCEPTANCE_UNKNOWN_NO_REPLAY')
+                if state['terminal'] and not (run / 'continuation-request.json').exists() and not stopping.is_set():
+                    self.rpc_process('poll', run)
+                    try:
+                        verify(run)
+                    except (ValueError, KeyError, OSError, TypeError, IndexError):
+                        plan = partial_report_plan(run, previous_evidence)
+                        plan['sourceSessionSha256'] = sha((run / 'session.jsonl').read_bytes())
+                        plan_path = run / 'continuation-plan.json'
+                        if plan_path.exists():
+                            if json.loads(plan_path.read_text()) != plan:
+                                raise RuntimeError('CONTINUATION_PLAN_CHANGED')
+                        else:
+                            dump(plan_path, plan)
+                        self.rpc_process('rebind', self.settings.base_tasks, run)
+                        activated = True
+                        if lost.is_set() or self.service.heartbeat(task.id, self.owner, task.epoch):
+                            stopping.set()
+                        else:
+                            checkpoint('starting')
+                            self.rpc_process('continue', run)
             if created and not (run / 'prompt-request.json').exists() and not stopping.is_set():
                 state = self.rpc_process('inspect', run)
                 if not state['exists'] or state['running'] or state['userMessages'] or state['calls'] or state['terminal']:
@@ -176,13 +198,14 @@ class Worker:
                 time.sleep(1)
             if lost.is_set():
                 raise RuntimeError('LEASE_LOST_ORIGINAL_SESSION_NEEDS_REVIEW')
-            usage = session_usage(run / 'session.jsonl')
+            continuing = (run / 'continuation-request.json').exists()
+            usage = session_usage(run / ('session-continuation.jsonl' if continuing else 'session.jsonl'))
             if cancel_sent:
                 self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage}, error_code='CANCELLED_VERIFY_BEFORE_RESUME')
             else:
                 try:
                     checkpoint('verifying')
-                    result = verify(run)
+                    result = verify(run, continuation=continuing)
                 except (ValueError, KeyError, OSError, TypeError, IndexError) as error:
                     # Private report preserves diagnostic detail; public event is a code.
                     dump(run / ('backend-verification-' + uuid.uuid4().hex + '.json'), {'status': 'UNVERIFIED', 'reason': str(error)})

@@ -67,6 +67,50 @@ class DailyTests(unittest.TestCase):
         (self.run / 'session.jsonl').write_text('\n'.join(map(json.dumps, self.rows)) + '\n')
         (self.run / 'audit/calls.jsonl').write_text('\n'.join(map(json.dumps, self.audit)) + '\n')
 
+    def test_opt_in_continuation_preserves_prefix_and_existing_output(self):
+        self.evidence()
+        approval = json.loads((self.run / 'approval.json').read_text())
+        before = [{'type': 'user/message', 'data': {'source': {'kind': 'user', 'rpcId': 'initial'}}},
+                  *self.rows[:7], {'type': 'turn/end', 'data': {'reason': {'kind': 'aborted'}}}]
+        after = [{'type': 'user/message', 'data': {'source': {'kind': 'user', 'rpcId': 'resume'}}}, *self.rows[7:]]
+        combined = before + after
+        for seq, row in enumerate(combined):
+            row['seq'] = seq
+        original = ('\n'.join(map(json.dumps, before)) + '\n').encode()
+        final = ('\n'.join(map(json.dumps, combined)) + '\n').encode()
+        (self.run / 'session.jsonl').write_bytes(original)
+        (self.run / 'session-continuation.jsonl').write_bytes(final)
+        old_audit = ('\n'.join(map(json.dumps, self.audit[:6])) + '\n').encode()
+        output = (self.run / 'workspace/report.json').read_bytes()
+        plan = {'sessionId': approval['sessionId'], 'runId': approval['runId'],
+                'sourceSessionSha256': daily.sha(original), 'evidence': {'auditBytes': len(old_audit),
+                'auditSha256': daily.sha(old_audit), 'artifacts': {'report.json': {'bytes': len(output), 'sha256': daily.sha(output)}}}}
+        (self.run / 'continuation-plan.json').write_text(json.dumps(plan))
+        (self.run / 'continuation-request.json').write_text(json.dumps({'request': {'sessionId': approval['sessionId'], 'requestId': 'resume'}}))
+        self.assertEqual(daily.verify(self.run, continuation=True)['status'], 'SUCCEEDED')
+        with self.assertRaises(ValueError):
+            daily.verify(self.run)
+        before[-1]['data']['reason'] = {'kind': 'error', 'error': {'message': 'A1 request policy unavailable', 'code': 'UNKNOWN'}}
+        original = ('\n'.join(map(json.dumps, before)) + '\n').encode()
+        final = ('\n'.join(map(json.dumps, combined)) + '\n').encode()
+        (self.run / 'session.jsonl').write_bytes(original)
+        (self.run / 'session-continuation.jsonl').write_bytes(final)
+        plan['sourceSessionSha256'] = daily.sha(original)
+        (self.run / 'continuation-plan.json').write_text(json.dumps(plan))
+        self.assertEqual(daily.verify(self.run, continuation=True)['status'], 'SUCCEEDED')
+        before[-1]['data']['reason']['error']['message'] = 'unrelated failure'
+        original = ('\n'.join(map(json.dumps, before)) + '\n').encode()
+        (self.run / 'session.jsonl').write_bytes(original)
+        (self.run / 'session-continuation.jsonl').write_text('\n'.join(map(json.dumps, combined)) + '\n')
+        plan['sourceSessionSha256'] = daily.sha(original)
+        (self.run / 'continuation-plan.json').write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ValueError, 'bounded continuation'):
+            daily.verify(self.run, continuation=True)
+        plan['sourceSessionSha256'] = '0' * 64
+        (self.run / 'continuation-plan.json').write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ValueError, 'prefix changed'):
+            daily.verify(self.run, continuation=True)
+
     def test_prepare_no_execution_outputs_and_private_oracle(self):
         self.prepare()
         self.assertFalse((self.run / 'workspace/report.json').exists())

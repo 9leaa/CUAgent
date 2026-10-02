@@ -50,7 +50,7 @@ report.json 顶层恰好 date、notes、csv。date 来自 task.json。notes 按�
 
 export async function main(argv) {
   const [mode, ...paths] = argv;
-  assert.ok(['activate', 'rebind', 'create-only', 'start-existing', 'start', 'poll', 'inspect', 'cancel', 'restore'].includes(mode), 'invalid runner mode');
+  assert.ok(['activate', 'rebind', 'create-only', 'start-existing', 'start', 'continue', 'poll', 'inspect', 'cancel', 'restore'].includes(mode), 'invalid runner mode');
   assert.ok(paths.length && paths.every(isAbsolute), 'all paths must be absolute');
   const cookiePath = process.env.CUAGENT_DSH_COOKIE_FILE;
   assert.ok(cookiePath && isAbsolute(cookiePath), 'CUAGENT_DSH_COOKIE_FILE required');
@@ -142,6 +142,28 @@ export async function main(argv) {
     const response = await rpc('session/prompt', { request: prompt });
     save(root + '/prompt-response.json', response);
     console.log(JSON.stringify({ sessionId, model: selected.selected, accepted: response.accepted }));
+  } else if (mode === 'continue') {
+    assert.ok(!existsSync(root + '/continuation-request.json'), 'continuation already attempted; inspect instead of repeating');
+    const plan = load(root + '/continuation-plan.json');
+    assert.equal(plan.sessionId, sessionId);
+    assert.equal(plan.runId, approval.runId);
+    const inventory = await ready();
+    assert.ok(inventory.items.every(s => !s.running), 'continuation requires idle App');
+    const original = readFileSync(root + '/session.jsonl', 'utf8');
+    assert.equal(sha(original), plan.sourceSessionSha256);
+    const current = persistedSession(sessionId);
+    assert.ok(current.raw.startsWith(original), 'original history changed');
+    assert.equal(current.rows.filter(r => r.type === 'turn/end').length, 1);
+    const ledger = readFileSync(approval.ledgerPath);
+    assert.equal(ledger.length, plan.evidence.auditBytes);
+    assert.equal(sha(ledger), plan.evidence.auditSha256);
+    const selected = await rpc('session/selectModel', { request: { sessionId, ...DAILY_MODEL } });
+    assert.deepEqual(selected.selected, DAILY_MODEL);
+    const prompt = { sessionId, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: plan.instructions }] };
+    save(root + '/continuation-request.json', { at: new Date().toISOString(), request: prompt });
+    const response = await rpc('session/prompt', { request: prompt });
+    save(root + '/continuation-response.json', response);
+    console.log(JSON.stringify({ sessionId, accepted: response.accepted, model: selected.selected }));
   } else if (mode === 'cancel') {
     const result = await rpc('session/cancel', { request: { sessionId } });
     save(root + '/cancel-' + Date.now() + '.json', result);
@@ -157,9 +179,16 @@ export async function main(argv) {
     const { raw, rows } = persistedSession(sessionId);
     const requestId = existsSync(root + '/prompt-request.json') ? load(root + '/prompt-request.json').request.requestId : undefined;
     const observed = observedSession(sessionId, session.running, rows, requestId);
+    const continuing = existsSync(root + '/continuation-request.json');
+    if (continuing) {
+      const nextId = load(root + '/continuation-request.json').request.requestId;
+      observed.continuationObserved = observedSession(sessionId, session.running, rows, nextId).promptObserved;
+      observed.terminal = observed.terminal && observed.continuationObserved && rows.filter(r => r.type === 'turn/end').length === 2;
+    }
     if (observed.terminal && mode === 'poll') {
-      if (existsSync(root + '/session.jsonl')) assert.equal(readFileSync(root + '/session.jsonl', 'utf8'), raw, 'terminal evidence changed');
-      else writeFileSync(root + '/session.jsonl', raw, { flag: 'wx', mode: 0o600 });
+      const output = root + (continuing ? '/session-continuation.jsonl' : '/session.jsonl');
+      if (existsSync(output)) assert.equal(readFileSync(output, 'utf8'), raw, 'terminal evidence changed');
+      else writeFileSync(output, raw, { flag: 'wx', mode: 0o600 });
     }
     console.log(JSON.stringify(observed));
   }
