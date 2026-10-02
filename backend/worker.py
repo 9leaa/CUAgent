@@ -103,6 +103,9 @@ class Worker:
             previous_evidence = evidence
         try:
             run = self.prepare_task(task)
+            # A previous Worker can die after activating this task's profile.
+            # Recovery owns the same project-wide lock and must also restore it.
+            activated = (run / 'active-tasks.json').exists()
             checkpoint('prepared')
             if self.service.heartbeat(task.id, self.owner, task.epoch):
                 stopping.set()
@@ -175,8 +178,11 @@ class Worker:
             thread.join(timeout=5)
             if activated:
                 try:
-                    self.rpc_process('restore', self.settings.base_tasks)
+                    restored = self.rpc_process('restore', self.settings.base_tasks)
+                    dump(run / ('backend-restored-' + uuid.uuid4().hex + '.json'), restored)
                 except Exception:
+                    dump(run / ('backend-restore-pending-' + uuid.uuid4().hex + '.json'),
+                         {'error_code': 'RESTORE_PENDING_REQUIRES_IDLE_APP'})
                     print(json.dumps({'task_id': task.id, 'error_code': 'RESTORE_PENDING_REQUIRES_IDLE_APP'}), flush=True)
 
     def run(self, once=False):
