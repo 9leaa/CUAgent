@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+激活断点补充：先提交方案 `bb862ba`，再实现 `recover_activation`，替代active-tasks存在时无条件BLOCKED。执行意图/响应、已有审计或产物均拒绝；inspect须明确同一session不存在，rebind只执行一次，之后再核对现场及证据完全不变，才交给已有start唯一创建流程。新增17项无模型反例/正常路径，后端61/61（保留一项已知TestClient弃用警告）、diff检查通过。当前运行Worker未热更新；新增路径尚无真实断点验收，1h原观察器及Worker均继续存活，不重启计时。
+
 新完整停滞轮次独立核对通过：任务 `118200a0-928a-42a6-a06d-8ca215f89f77` / session `session-444a1919-09db-4f82-9c4c-4efbcd8ac048`。真实模型完成后冻结poll观测，业务进度时间15:41:28.749783，fresh inspect前实测停滞302.374186秒；控制文件已stopped，现场terminal，因此没有cancel或新prompt。API为STOPPED/NO_BUSINESS_PROGRESS、10/30、仅一条用户消息、11986 token、Flash/off；产物清单为空、下载404。私有原run内 `stale-observation-final-proof.json`、backend-stop-inspected及backend-restored记录保留。普通Worker PID47081已恢复，1h观察器PID46135仍实际运行，原长任务WAITING_RELEASE、6/30。该故障只证明旧观测下安全停止，不声称真实模型挂起；1/8小时仍未验收。最新套餐已用34%，积分62494.026057未变，重置卡未用。
 
 真实停滞故障：`f4b458cb-0bbc-4317-af1e-e82f63897530` / session `session-53090580-18ee-4f64-93ae-c9664a83e045`，实际模型已完成，私有适配器冻结观测并隐藏terminal（不冒充模型挂起）。最后真实进展15:30:21.967，15:35:22.075检测stalled并stop；第一测试脚本错误使用晚1.2秒的冻结起点断言，故BLOCKED，历史保留。修正测试后原任务再次恢复，持久停滞时间未重置；发现基础profile恢复后盲目cancel旧idle会话失败，保留DESKTOP_CANCEL_FAILED。新增stop_remote先fresh inspect，已结束则不cancel；第三次原任务STOPPED/NO_BUSINESS_PROGRESS，实际idle531.987秒、control在新查询前已停止、同一条prompt、原10/30/12406token不变，未再推理。三次attempt/错误均保留，不能把这项说成初次无缺陷通过。正在用新任务完整重测300秒。独立1h观察器46135始终运行、原任务仍WAITING_RELEASE 6/30；期间普通Worker在该业务等待窗口让出给故障专用Worker，到点前恢复。新增revoke_local立即关闭失联owner许可，不能覆盖新epoch；API可读business_progress，后端44/44。

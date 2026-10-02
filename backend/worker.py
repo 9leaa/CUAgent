@@ -71,6 +71,29 @@ class Worker:
              {'observation': state, 'cancelIssued': issued})
         return issued
 
+    def recover_activation(self, run, previous_evidence):
+        # No creation intent means this Worker never entered create RPC. A
+        # missing response alone is deliberately not sufficient for replay.
+        intents = ('create-request.json', 'session-created.json', 'model-selected.json',
+                   'prompt-request.json', 'prompt-response.json', 'continuation-request.json')
+        if any((run / name).exists() for name in intents):
+            raise RuntimeError('ACTIVATION_HAS_EXECUTION_INTENT')
+        evidence = snapshot(run, previous_evidence)
+        if evidence['auditBytes'] or evidence['used'] or evidence['pending'] or evidence['artifacts']:
+            raise RuntimeError('ACTIVATION_HAS_EXECUTION_EVIDENCE')
+        def absent():
+            state = self.rpc_process('inspect', run)
+            if state.get('sessionId') != evidence['sessionId'] or state.get('exists') is not False:
+                raise RuntimeError('ACTIVATION_SESSION_ABSENCE_UNPROVEN')
+            return state
+        before = absent()
+        self.rpc_process('rebind', self.settings.base_tasks, run)
+        after = absent()
+        if snapshot(run, evidence) != evidence or any((run / name).exists() for name in intents):
+            raise RuntimeError('ACTIVATION_EVIDENCE_CHANGED_DURING_REBIND')
+        dump(run / ('backend-activation-reconciled-' + uuid.uuid4().hex + '.json'),
+             {'before': before, 'after': after, 'evidence': evidence})
+
     def prepare_task(self, task):
         root = self.settings.root / 'jobs' / task.id
         root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -198,10 +221,10 @@ class Worker:
                 # Config activation is exclusive, with original approved tasks retained.
                 config = run / 'active-tasks.json'
                 if config.exists():
-                    # A prior activation attempt is not repeated blindly.
-                    raise RuntimeError('ACTIVATION_ATTEMPT_NEEDS_REVIEW')
-                checkpoint('activating')
-                self.rpc_process('activate', self.settings.base_tasks, run)
+                    self.recover_activation(run, previous_evidence)
+                else:
+                    checkpoint('activating')
+                    self.rpc_process('activate', self.settings.base_tasks, run)
                 activated = True
                 checkpoint('activated')
                 if lost.is_set() or self.service.heartbeat(task.id, self.owner, task.epoch):
