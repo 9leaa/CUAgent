@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+2026-10-03 00:04（北京时间）只读RPC故障集成通过：独立inspect进程用私有fetch包装，前两次真正收到官方session/modelCatalog响应后在本地抛传输错误，第三次正常读取原session `session-4753d133-4482-4372-9bb4-95c1bbc95ec1`。生产Worker.rpc_process完成1/2秒退避、共3次尝试/3.632548秒，terminal及原request匹配；原session/prompt/audit/两产物SHA逐一不变，零新增推理。证据`.runtime/backend/p3-readonly-response-fault.jsonl`及`p3-readonly-response-verification.json` PASS；不是共享网络断网、不证明副作用请求可重放。写操作超时不重试仍由现有反例覆盖。普通Worker48418和1h观察器46135实际存活，长测仍未到期限。
+
 2026-10-03 00:01（北京时间）激活断点新完整闭环通过：先提交CSV字段提示方案 `9948c73`，确认统计工具实际含path，再为新任务显式列出七个必需字段；不补写模型JSON、不改验收器、不覆盖首试或已派发长测。任务 `2c74c877-8f43-436d-a3a8-6b59df89669d` / session `session-4753d133-4482-4372-9bb4-95c1bbc95ec1`，真实activate后退出90，原租约自然到期后恢复，epoch24→25、两attempt、只一条用户提示，原激活配置SHA不变；新核对前后session不存在后创建发送一次，最终SUCCEEDED/10次/15775 token/Flash-off。独立verify及API下载588字节SHA `eb8c062e09cbb93b366be176fdc3c4862f2794f0244a8b971c9aae1fd5c7c5c9` 一致，私有run内activation-recovery-verification.json PASS。首轮UNVERIFIED及36836 token保留，不宣称提示修正已证明普遍可靠性。核心64/64、Python日报13/13，后端上轮61/61；原1h观察器仍运行，普通Worker已恢复。套餐34%，积分62494.026057未变、重置卡未用。
 
 激活断点首个真实故障：`80b1b8d8-c768-419c-897a-d9e753405ed0`，实际activate成功、inspect确认session不存在后Worker退出90；保留原配置SHA、空账本及无产物快照。原租约自然到期后resume，同task/session `session-662283d0-373b-4904-8fbf-e0492d9f1fe2`，epoch22→23、两attempt，rebind前后均确认不存在，原active-tasks SHA未改，只发送一次prompt。恢复流程有效，但模型JSON漏CSV path，renderer三次失败、覆盖已有JSON被拒；最终UNVERIFIED/INDEPENDENT_VERIFICATION_FAILED，17/30、36836 token、Flash/off、下载404，基础配置恢复。原失败不修改、不以恢复成功冒充业务成功；私有run内activation-fault-before/backend-activation-reconciled/backend-verification均保留，完整成功闭环仍待测。普通Worker已恢复持续运行，1h观察器未停止。
