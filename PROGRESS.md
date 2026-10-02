@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+1小时实测启动：首个 `80a01bd0-e8eb-4045-b733-0e255a71fbd0` / session-415b0408 在草稿漏CSV path，BLOCKED/PARTIAL_JSON_INCORRECT，7/30；未进入长等待，费用9818 token保存在原run/failed-draft-usage.json。观察器一次误指该旧失败任务也立即退出，保留soak-1h-do-not-run，仅观察故障不增加模型调用。相同输入新 `6757af50-e903-467b-aea1-e4ada4be5fcf` / session `session-448f5520-d1f2-431b-95a4-e3098da29ff2` 草稿正确，6/30、9139 token，UTC15:25:55进入WAITING_RELEASE，16:26:45.888758到期。观察器 backend.soak 于15:26:03开始单调时钟采样，证据 `.runtime/backend/soak-1h-002/`。等待中已实际退出Worker45808/API45314，重新启动API46195及新Worker；观察器必须采到两组真实PID并持续至少3600秒才可能PASS。尚未有最终验收；8小时未开始。新增异常路径保存已有官方usage，后续草稿失败不再只显示空用量，不修改已保留旧失败状态。
+
 发布时间完整短测通过：迁移0004已应用，本项目API正常重启加载releaseAt（带时区且旧请求幂等不变）；审批绑定不可变publishNotBefore及受限write路径，工具guard/body均检查，deadline进入账本identity不能恢复时改变。官方注册拒绝提前renderer/直接写Markdown，到点renderer内部读写各扣一次。新任务 `3bb7a347-931b-469d-9160-c7977450c2f6` / session `session-17dc6fbd-159a-40d6-8ae5-0138b5cf7ccb`，6次草稿→WAITING_RELEASE；另一个提前Worker--once未领取。UTC15:20:29.130698到期，15:20:29.871772再领取，同session6→10/30成功，总97.066秒/19228 token，Flash/off；原session前缀、账本、两份产物及实际渲染派发时间独立PASS。私有release-short-submission/verification.json。后端40/40、核心63/63、官方注册31/31、Python验收13/13。1/8小时尚未完成。
 
 长运行方案细化先提交 `5b66061`：同一日报先草稿，到业务发布时间再最终发布；明确只证明定时业务等待期间的持久任务，不声称模型连续推理8小时。新增迁移0004/release_at，WAITING_RELEASE释放资源、未到时不领取、stop→resume不绕过时间、到期保持原session与预算；真实隔离PostgreSQL反例后端39/39。此时生产尚未迁移0004、API和工具门禁未开放releaseAt，等待真实计时未开始。额度核对已用33%，积分62494.026057未变、未用重置卡。

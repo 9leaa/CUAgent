@@ -43,4 +43,6 @@ API 127.0.0.1:18089；独立数据库 127.0.0.1:55432，不改现有 5432/Redis�
 
 P3 开发版可在输入 spec 加 `releaseAt`（必须带时区，例如 `2026-10-03T09:00:00+08:00`）。第一轮只生成 JSON 草稿，状态转为 WAITING_RELEASE 并释放资源；到点由持续运行的 Worker 领取同一任务完成 Markdown。等待中停止后再恢复不会提前发布，工具端也拒绝提前渲染/普通写入绕过。数据库需迁移至0004。短时间真实闭环已通过，1/8小时仍待证据，不承诺未启动 Worker 时自行唤醒机器。
 
+只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
+
 测试：`.runtime/backend-venv/bin/python -m backend.manage test`，为每项创建并删除独立临时测试数据库。生产任务保留。实际证据及未测范围见 [P2 总结](../docs/stages/p2-summary.md)。此阶段没有开机自启、关闭 App 后执行、数小时持久性或多用户验收。

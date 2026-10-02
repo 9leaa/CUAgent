@@ -245,7 +245,15 @@ class Worker:
             code = str(error) if str(error).isupper() and len(str(error)) <= 80 else 'WORKER_OPERATION_FAILED'
             if not lost.is_set():
                 try:
-                    self.service.finish(task.id, self.owner, task.epoch, 'BLOCKED', error_code=code)
+                    failed_usage = None
+                    if run:
+                        source = run / ('session-continuation.jsonl' if (run / 'session-continuation.jsonl').exists() else 'session.jsonl')
+                        if source.exists():
+                            try:
+                                failed_usage = {'usage': session_usage(source)}
+                            except (OSError, ValueError, KeyError, TypeError):
+                                pass
+                    self.service.finish(task.id, self.owner, task.epoch, 'BLOCKED', error_code=code, result=failed_usage)
                 except Exception:
                     pass  # lease expiry remains authoritative; no false terminal claim
             print(json.dumps({'task_id': task.id, 'error_code': code}), flush=True)
