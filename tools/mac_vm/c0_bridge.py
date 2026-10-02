@@ -108,7 +108,7 @@ class Task:
         self.inflight.add(call_id)
         return call_id
 
-    def raw(self, tool, args):
+    def validate_raw(self, tool, args):
         if tool not in self.RAW_TOOLS:
             raise StopRun('BLOCKED', 'Raw tool not permitted')
         if tool=='press_key' and (self.case_id!='document' or not self.save_confirmation_pending
@@ -123,6 +123,9 @@ class Task:
         if tool in ('get_window_state', 'click', 'type_text', 'scroll', 'press_key','set_value') and args.get('window_id') != self.window:
             raise StopRun('BLOCKED', 'Window not permitted')
         if self.pid: self.identity(self.pid)
+
+    def raw(self, tool, args):
+        self.validate_raw(tool, args)
         with self.dispatch_lock:
             call_id = self.admit(tool)
         # Calls admitted before stop are in-flight, not cancelled side effects.
@@ -474,6 +477,7 @@ def main(task_class=Task, registry=TASKS, stage='C0'):
                     prior_used=task.used
                     if op=='observe' and payload=={}: result=task.observe()
                     elif op=='click': result=task.click(payload)
+                    elif op=='save' and hasattr(task,'save'): result=task.save(payload)
                     elif op=='type_text': result=task.type_text(payload)
                     elif op=='scroll': result=task.scroll(payload)
                     elif op=='select_target' and hasattr(task,'select_target'): result=task.select_target(payload)
@@ -483,7 +487,7 @@ def main(task_class=Task, registry=TASKS, stage='C0'):
                     else: raise ValueError('Operation not permitted')
                     self.reply(200,result)
             except Exception as exc:
-                if prior_used is not None and op in ('observe','click','type_text','scroll','write_result','read_result','select_target'):
+                if prior_used is not None and op in ('observe','click','save','type_text','scroll','write_result','read_result','select_target'):
                     with task.lock:task.charge_rejection(op,prior_used,str(exc))
                 task.record({'event':'denied','error':str(exc)})
                 self.reply(409,{'error':str(exc),'used':task.used})

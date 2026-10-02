@@ -1,0 +1,52 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: real-app }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-real-app
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: real-app
+        name: CUAgent VM TextEdit trial
+        description: One approved document, native GUI input and Save, independent verification.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Work only in the approved VM TextEdit document using the vm tools.
+                Observe before each single action and afterward. Each observation is valid for one action.
+                Use fresh AX indices/tokens for native body input; vm_save attempts Command-S only.
+                A Save response is not proof. Observe the saved body, write its complete value to result.txt, then read back.
+                Never use shell, clipboard, other files, network, subagents, or another app.
+                Never blindly repeat an input or save after uncertainty.
+                Report UNVERIFIED at completion; only the independent verifier decides success.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

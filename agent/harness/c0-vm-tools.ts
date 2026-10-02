@@ -18,7 +18,9 @@ export function apply(ctx: Context): void {
   if (connection.url !== URL || typeof connection.token !== 'string' || !/^[\w-]{40,60}$/.test(connection.token)) {
     throw new Error('Invalid fixed VM connection')
   }
-  const allowed = [...BASE_TOOLS,
+  const realApp = connection.caseId === 'real_textedit'
+  const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
+    ...(realApp ? ['vm_type', 'vm_save'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
     ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
     ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -128,19 +130,28 @@ export function apply(ctx: Context): void {
     } },
     { name: 'vm_read_result', op: 'read_result', description: 'Read back this VM task result.txt. No arbitrary path.', parameters: {} },
   ] as const
-  for (const spec of specifications) ctx.tools.register(defineTool({
+  for (const spec of specifications.filter(spec => allowed.includes(spec.name))) ctx.tools.register(defineTool({
     name: spec.name, description: spec.description, parameters: spec.parameters,
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request(spec.op, args, exec.signal)) } },
   }))
   if (allowed.includes('vm_type')) ctx.tools.register(defineTool({
-    name: 'vm_type', description: 'Type the reviewed task text into an approved field from a fresh observation. Only this task field/text pair is permitted; no arbitrary input.',
+    name: 'vm_type', description: realApp
+      ? 'Insert the task document text (UTF-8 <=4 KiB, no NUL) into the approved TextEdit body from a fresh AX observation. Only this task document is writable. Observe the effect; input does not imply saving.'
+      : 'Type the reviewed task text into an approved field from a fresh observation. Only this task field/text pair is permitted; no arbitrary input.',
     parameters: { snapshot_id: { type: 'string', required: true }, element_index: { type: 'integer', required: true },
       element_token: { type: 'string', required: true }, text: { type: 'string', required: true } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request('type_text', args, exec.signal)) } },
+  }))
+  if (realApp) ctx.tools.register(defineTool({
+    name: 'vm_save', description: 'Send Command-S to the approved TextEdit document window after a fresh observation. This only attempts saving; observe afterward and verify actual saved body before writing result.txt. No Save As or arbitrary keyboard shortcut.',
+    parameters: { snapshot_id: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } }, render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('save', args, exec.signal)) } },
   }))
   if (allowed.includes('vm_scroll')) ctx.tools.register(defineTool({
     name: 'vm_scroll', description: 'Scroll at x/y screenshot pixels inside the approved task viewport from a fresh screenshot. AX containers are not indexed by this Driver. Read coordinates from the screenshot, never from desktop points. Direction up/down, amount 1–10. Observe effect before another action.',

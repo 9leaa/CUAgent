@@ -144,6 +144,7 @@ Pi工具层的导入、注册、写入队列和 `details/content`结构需要重
 - [Cua native provider](https://github.com/deepseek-ai/deepseek-harness/blob/00102833dfaee1da9f48a3a8eae9d34005a75218/packages/experimental/computer-use-cua-driver-native/README.md)
 ## A1 当前入口（本地验收完成，第二人暂缓）
 
+单人真实 TextEdit 扩展已另行核对，见 [结果与限制](../../docs/stages/real-app-summary.md)。`configure-desktop.mjs --real-app` 是临时专用配置；仅 caseId=real_textedit 显式开放五个 VM 工具，固定 Command-S 不开放通用键盘。运行中禁止切换配置，原 C0 registry 不扩权。任务后已恢复 A1，旧预算不变。最新官方注册集成 26/26；下方 A1 历史验收仍保留 25/25。
 
 专业解释：根 Cordis 策略服务绑定 session/run/授权根及持久账本，模型请求清单和工具正文都受约束。直白说：每个会话只能处理批准的目录，重启不增加次数，卸载策略也不能让剩余工具偷跑。以下入口复用官方 App，不增加 Agent 主循环。
 

@@ -58,6 +58,28 @@ test('C0 fixed tools, ownership, fresh image attachment, cancellation and no ret
   assert.equal(calls.filter(c => c === 'observe').length, 1)
 })
 
+test('Real TextEdit is opt-in and registers only five narrow tools', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'cuagent-real-app-'))
+  const oldConnection = process.env.CUAGENT_C0_CONNECTION, oldAudit = process.env.CUAGENT_C0_AUDIT_PATH
+  t.after(() => {
+    if (oldConnection === undefined) delete process.env.CUAGENT_C0_CONNECTION; else process.env.CUAGENT_C0_CONNECTION = oldConnection
+    if (oldAudit === undefined) delete process.env.CUAGENT_C0_AUDIT_PATH; else process.env.CUAGENT_C0_AUDIT_PATH = oldAudit
+    rmSync(dir, { recursive: true, force: true })
+  })
+  process.env.CUAGENT_C0_CONNECTION = join(dir, 'connection.json')
+  process.env.CUAGENT_C0_AUDIT_PATH = join(dir, 'audit.jsonl')
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify({ url: 'http://192.168.64.3:8766', token: 'x'.repeat(43), caseId: 'real_textedit' }), { mode: 0o600 })
+  const registered: any[] = [], handlers = new Map(); let guard: any
+  const ctx: any = { inject() {}, on: (name: string, fn: any) => handlers.set(name, fn), logger: { error() {} },
+    tools: { register: (tool: any) => registered.push(tool), guard: (fn: any) => { guard = fn } } }
+  apply(ctx)
+  assert.deepEqual(registered.map(tool => tool.name), ['vm_observe', 'vm_write_result', 'vm_read_result', 'vm_type', 'vm_save'])
+  const agent: any = { session: { id: 'real-owner' } }, signal = new AbortController().signal
+  await handlers.get('agent/pre-step')({ agent, signal }, async () => ({}))
+  for (const name of ['vm_click', 'vm_scroll', 'vm_select_target', 'shell', 'control', 'verify']) assert.match(guard({ name, agent, signal }), /not allowed/)
+  assert.equal(guard({ name: 'vm_save', agent, signal }), undefined)
+})
+
 test('C1 cases add only reviewed target selection and necessary typing', async t => {
   const dir=mkdtempSync(join(tmpdir(),'cuagent-c1-tools-'))
   const previous={connection:process.env.CUAGENT_C0_CONNECTION,audit:process.env.CUAGENT_C0_AUDIT_PATH,fetch:globalThis.fetch}
