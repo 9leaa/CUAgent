@@ -239,6 +239,7 @@ class TaskService:
                     'session_id': task.session_id, 'budget': {'used': task.calls, 'limit': 30},
                     'release_at': task.release_at.isoformat() if task.release_at else None,
                     'checkpoint': {k: task.checkpoint[k] for k in ('phase', 'epoch', 'at')} if task.checkpoint else None,
+                    'business_progress': task.checkpoint.get('businessProgress') if task.checkpoint else None,
                     'created_at': task.created_at.isoformat(), 'updated_at': task.updated_at.isoformat(),
                     'usage': usage.data if usage else None,
                     'artifacts': [{'name': a.name, 'sha256': a.sha256, 'bytes': a.bytes} for a in db.scalars(select(Artifact).where(Artifact.task_id == task_id))]}

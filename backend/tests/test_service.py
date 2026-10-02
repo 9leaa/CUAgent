@@ -114,6 +114,7 @@ def test_checkpoint_survives_service_recreation_and_rejects_stale_owner(service,
     fresh = TaskService(service.sessions, service.settings)
     assert fresh.view(task_id)['checkpoint']['phase'] == 'observing'
     assert fresh.view(task_id)['budget']['used'] == 7
+    assert fresh.view(task_id)['business_progress'] == progress
     with fresh.sessions() as db:
         assert db.get(Task, task_id).checkpoint['evidence'] == evidence
         assert db.get(Task, task_id).checkpoint['businessProgress'] == progress

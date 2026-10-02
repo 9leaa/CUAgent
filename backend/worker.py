@@ -18,6 +18,7 @@ from backend.checkpoint import snapshot
 from backend.recovery import partial_report_plan
 from agent.daily_report import sha
 from backend.watchdog import observe
+from backend.control import write_control
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +29,17 @@ class Worker:
         self.engine, sessions = database(settings.database_url)
         self.service = TaskService(sessions, settings)
         self.owner = str(uuid.uuid4())
+
+    def revoke_local(self, task):
+        # Losing DB connectivity must not leave the last local permit usable
+        # until its expiry. Monotonic epoch/owner checks protect a newer Worker.
+        try:
+            write_control(self.settings.root / 'controls' / (task.id + '.json'),
+                          run_id='p2-' + task.id, epoch=task.epoch, owner=self.owner,
+                          expires_at=0, stopped=True)
+            return True
+        except (OSError, ValueError, KeyError):
+            return False
 
     def rpc_process(self, mode, *paths):
         command = ['node', str(PROJECT / 'agent/harness/daily-report-runner.mjs'), mode, *map(str, paths)]
@@ -45,6 +57,19 @@ class Worker:
                 time.sleep(2 ** attempt)
         # Do not leak raw provider failures or credentials to event logs.
         raise RuntimeError('DESKTOP_' + mode.upper() + '_FAILED')
+
+    def stop_remote(self, run):
+        # A stale poll may hide an already completed turn. Fresh inspection is
+        # authoritative; don't resolve/cancel an idle unloaded Agent blindly.
+        state = self.rpc_process('inspect', run)
+        if not state.get('exists'):
+            raise RuntimeError('STOP_SESSION_MISSING_NO_REPLAY')
+        issued = not state['terminal']
+        if issued:
+            self.rpc_process('cancel', run)
+        dump(run / ('backend-stop-inspected-' + uuid.uuid4().hex + '.json'),
+             {'observation': state, 'cancelIssued': issued})
+        return issued
 
     def prepare_task(self, task):
         root = self.settings.root / 'jobs' / task.id
@@ -95,6 +120,7 @@ class Worker:
                         stopping.set()
                 except Exception:
                     heartbeat_errors.append('LEASE_HEARTBEAT_FAILED')
+                    self.revoke_local(task)
                     lost.set()
                     return
         thread = threading.Thread(target=keep_alive, daemon=True)
@@ -191,7 +217,7 @@ class Worker:
             cancellation_reason = 'CANCELLED_VERIFY_BEFORE_RESUME'
             while True:
                 if (stopping.is_set() or lost.is_set()) and not cancel_sent:
-                    self.rpc_process('cancel', run)
+                    self.stop_remote(run)
                     cancel_sent = True
                     cancellation_deadline = time.monotonic() + 30
                 state = self.rpc_process('poll', run)
@@ -242,6 +268,7 @@ class Worker:
                     self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result=result)
         except Exception as error:
             # Never issue another prompt on an ambiguous RPC failure.
+            self.revoke_local(task)
             code = str(error) if str(error).isupper() and len(str(error)) <= 80 else 'WORKER_OPERATION_FAILED'
             if not lost.is_set():
                 try:
