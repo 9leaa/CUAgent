@@ -4,6 +4,8 @@
 
 ## 1. 目标、基点与现状
 
+2026-10-02 后续执行补充：[个人任务服务路线](docs/product-roadmap.md) 为当前 P1–P5 顺序；既有 A/C 证据保留，C3/第二人继续暂缓。每阶段新分支、方案先行、实现验证并同步 README 后推送，此次用户授权覆盖后续阶段提交推送。
+
 产品目标是通用且更强的 Computer Use Agent。先用 DeepSeek Harness 跑通**最小可用 Agent**（模型、会话、真实工具调用、图片和最低安全控制），随即进入 Computer Use；三份文本、CSV和完整通用插件体验不是进入 Computer Use 的前置门槛。OS 原生接口属于后续 O0。2026-09-30 起交互入口改为官方 macOS Desktop App，第一套真实桌面使用现有 macOS 测试 VM；不自行开发桌面壳。此前 A0 Web 验收作为历史保留，Desktop 的插件配置、模型、工具和停止/预算需重新核验。
 
 当前验收版本为官方 Desktop App `0.2.0-rc.2` / 内置 Node `24.18.1`，同版源码参考 `639ed015`；模型 `deepseek-account/deepseek-flash`、Driver `0.28.2`、guest Python `3.12.14`，每任务 30 次实际请求。初始 Web 源码 `00102833dfaee1da9f48a3a8eae9d34005a75218` / `0.1.7-alpha.2`、本地 Node `24.9.0` 和 pnpm `11.7.0` 仅对应历史安装，不混用其 API 与当前 Desktop。证据及限制见 [PROGRESS](PROGRESS.md)。

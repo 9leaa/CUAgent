@@ -24,6 +24,8 @@
 
 ## 协作
 
+2026-10-02 用户最新授权：按 docs/product-roadmap.md 逐阶段新分支，先技术方案、再代码、验证、更新 README/PROGRESS 后提交推送 GitHub。此次明确授权覆盖本路线阶段，不需再次索取提交/推送许可。C3/第二人暂缓；下方旧默认约定仅在没有新授权时适用。
+
 遵循 COLLABORATION.md。阶段分支不使用 codex/ 前缀。默认由用户 commit、push 和决定是否开 PR；助手不得自行提交、推送、创建 PR 或合并。例外：用户已单独授权本次在 `harness-migration` 完成首次提交并直接推送至 `9leaa/CUAgent`，不创建 PR；此授权不延伸至后续发布。
 
 保留用户未提交改动、历史实现来源和上游许可证。未经用户明确要求，不删除工作区、VM、镜像、凭证或不可复现的历史证据。旧Pi安装及源码已按用户2026-09-23的明确要求移至废纸篓；VM与镜像仍保留。下游修改历史 VM 实现前阅读 tools/mac_vm/README.md、patches/cua/README.md 和 MIGRATION.md 的来源；UFO 固定参考 be75a7ded2ad98d97819e15ff1b39d4202ac3ac5，仅为历史设计参考。
