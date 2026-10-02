@@ -1,12 +1,12 @@
 # CUAgent 实际进度
 
-更新：2026-10-02。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)。下方“当前交付”及最新收尾记录代表当前状态；各日期过程中的未提交/未完成描述保留当时事实，不代表目前状态。
+更新：2026-10-03。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)，当前按[个人任务服务P1–P5路线](docs/product-roadmap.md)推进。下方“当前交付”及最新收尾记录代表当前状态；各日期过程中的未提交/未完成描述保留当时事实，不代表目前状态。
 
 ## 当前交付
 
-P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前新分支 `p3-durable-execution`，已依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。套餐最新已用 32%，积分 62494.026057 与本轮核对相同，未使用重置卡。P3/P4/P5 尚未完成。
+P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前分支 `p3-durable-execution`，依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。P3已过1小时，8小时正在运行；P3/P4/P5仍未完成。最近套餐核对已用35%，积分62494.026057未变，未使用重置卡。
 
-P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先于代码提交；P1 首轮 17/20、修正后新完整轮次 20/20。A1 `9e18f70`、TextEdit `a49c236` 已分别推送其阶段分支。
+P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先于代码提交，首轮17/20、修正后新完整轮次20/20。A1 `9e18f70`、TextEdit `a49c236` 已分别推送其阶段分支。
 
 2026-10-02 新授权：后续逐阶段新分支、先技术方案再代码、验证并更新 README 后推送。已补齐 A1 独立分支提交 `9e18f70`，本次 TextEdit 单独分支 `real-app-textedit`；下文未提交/未推送描述属于原执行时点。
 
@@ -16,7 +16,7 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
-| 工具核心测试 | 最新核心 59/59、官方 Desktop 同版注册集成 29/29、P1 Python 12/12；属于无模型测试 |
+| 工具与后端测试 | 核心64/64、官方Desktop同版注册31/31、Python日报13/13、后端71/71；属于无模型测试 |
 | 本轮VM工具测试 | 最新 Python 123/123 执行层/mock/反例通过；不替代真实 VM 证据 |
 | Harness版本 | 当前官方 Desktop App 0.2.0-rc.2 / 内置 Node 24.18.1，同版源码参考639ed015；初始 Web 固定源码00102833d / 0.1.7-alpha.2仅历史 |
 | Harness A0最小底座 | 最新 Desktop 真会话/文件/直接与工具图片/标准取消/30 次持久预算回归通过；重启首回复错误和后续澄清保留，Web记录仅历史 |
