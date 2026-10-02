@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+真实故障三：任务 `1275d4fd-1dff-4ea2-b657-9bb5946cdbe7`，通过私有 fetch 包装在真实 session/prompt accepted 返回后、runner 保存响应前退出 Node 和 Worker（88）；不删改旧响应伪造故障。无 prompt-response.json，原请求及 session `session-9289ff8c-f00a-4524-b759-ca263c5fe3b7` 保留。原 Desktop 在租约到期前完成，恢复时 inspect 匹配原 rpcId，attempt 1→2、epoch 8→9；SUCCEEDED，9/30、Flash/off、12188 token。前后原 session SHA、prompt SHA、账本及两产物完全一致，仅一条 user/message，无新增推理；基础配置已恢复。私有 p3-lost-response-before/after.json PASS。新增恢复核对记录；找不到原会话或闲置会话无原请求证据则 BLOCKED，不能因确认缺失重发。取消后观察加 30 秒上限，超时记 UNKNOWN，不无期限等待或重放。后端回归 26/26。部分产物续接、无进展和长时间门槛仍未完成。
+
 真实故障二：新任务 `b50a0cf4-9245-4511-98dd-90006bfae1eb`，session `session-058d39f6-5d4a-4314-8a44-30de44947004`，在 create-only 返回后 os._exit(87)。原日志 4 events、0 userMessages/工具调用、无 prompt 意图。租约自然到期后 resume；inspect 核对原会话，rebind 用新 epoch 重新加载审批，start-existing 拒绝任何已有 prompt 意图或工作事件，再显式 Flash/off 发送一次。原创建请求 SHA/session 保持，attempt 1→2、epoch 6→7；SUCCEEDED、10/30、12593 token，仅 1 条 user/message，基础配置恢复。私有 p3-created-recovery-before/after.json PASS。后端 26/26、核心 62/62。未把“无历史消息”独自作为无待处理请求证明：还要求本地从未记录 prompt 派发意图，并在空闲配置重新加载后再次核对。
 
 真实故障一：新任务 `f5888cb3-a73b-41f6-8108-0bd13fb45082` 在独立核验成功、数据库 finish 前由私有测试注入 os._exit(86)。进程退出已确认，数据库仍 RUNNING，未错误发放成功产物。等原租约自然到期后 API resume，新的 Worker 在原 session `session-7bf7badf-1a60-4733-99f1-a8b86a967164` 核验并登记 SUCCEEDED；attempt 1→2、epoch 4→5，但预算仍 10/30，原账本/产物摘要和整个 session.jsonl SHA 完全一致，零新增推理。原任务 Flash/off、14045 token。恢复基础 A1 配置的结果另存私有 backend-restored 记录；修正了旧 Worker 死亡后新 Worker 没恢复基础配置的遗漏。证据 `.runtime/backend/p3-finished-recovery-before.json` / `p3-finished-recovery-after.json`，PASS；后端回归 23/23。其余三个故障窗口及 1/8 小时未完成。

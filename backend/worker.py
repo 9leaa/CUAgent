@@ -110,6 +110,14 @@ class Worker:
             if self.service.heartbeat(task.id, self.owner, task.epoch):
                 stopping.set()
             created = (run / 'create-request.json').exists()
+            if created and (run / 'prompt-request.json').exists():
+                state = self.rpc_process('inspect', run)
+                dump(run / ('backend-reconciled-' + uuid.uuid4().hex + '.json'), state)
+                if not state['exists']:
+                    raise RuntimeError('ORIGINAL_SESSION_MISSING_NO_REPLAY')
+                if not state['running'] and not state['promptObserved']:
+                    # Disk absence cannot rule out a lost live-inbox request.
+                    raise RuntimeError('PROMPT_ACCEPTANCE_UNKNOWN_NO_REPLAY')
             if created and not (run / 'prompt-request.json').exists() and not stopping.is_set():
                 state = self.rpc_process('inspect', run)
                 if not state['exists'] or state['running'] or state['userMessages'] or state['calls'] or state['terminal']:
@@ -145,10 +153,12 @@ class Worker:
                 self.service.finish(task.id, self.owner, task.epoch, 'STOPPED')
                 return
             deadline = time.monotonic() + 300
+            cancellation_deadline = None
             while True:
                 if (stopping.is_set() or lost.is_set() or time.monotonic() > deadline) and not cancel_sent:
                     self.rpc_process('cancel', run)
                     cancel_sent = True
+                    cancellation_deadline = time.monotonic() + 30
                 state = self.rpc_process('poll', run)
                 ledger = run / 'audit/calls.jsonl'
                 audit = [json.loads(line) for line in ledger.read_text().splitlines()] if ledger.exists() else []
@@ -159,6 +169,8 @@ class Worker:
                     checkpoint('observing')
                 if state['terminal']:
                     break
+                if cancellation_deadline is not None and time.monotonic() > cancellation_deadline:
+                    raise RuntimeError('CANCEL_TERMINATION_UNKNOWN_NO_REPLAY')
                 if lost.is_set():
                     raise RuntimeError('LEASE_LOST_ORIGINAL_SESSION_NEEDS_REVIEW')
                 time.sleep(1)
