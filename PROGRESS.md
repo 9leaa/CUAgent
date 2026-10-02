@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+真实故障二：新任务 `b50a0cf4-9245-4511-98dd-90006bfae1eb`，session `session-058d39f6-5d4a-4314-8a44-30de44947004`，在 create-only 返回后 os._exit(87)。原日志 4 events、0 userMessages/工具调用、无 prompt 意图。租约自然到期后 resume；inspect 核对原会话，rebind 用新 epoch 重新加载审批，start-existing 拒绝任何已有 prompt 意图或工作事件，再显式 Flash/off 发送一次。原创建请求 SHA/session 保持，attempt 1→2、epoch 6→7；SUCCEEDED、10/30、12593 token，仅 1 条 user/message，基础配置恢复。私有 p3-created-recovery-before/after.json PASS。后端 26/26、核心 62/62。未把“无历史消息”独自作为无待处理请求证明：还要求本地从未记录 prompt 派发意图，并在空闲配置重新加载后再次核对。
+
 真实故障一：新任务 `f5888cb3-a73b-41f6-8108-0bd13fb45082` 在独立核验成功、数据库 finish 前由私有测试注入 os._exit(86)。进程退出已确认，数据库仍 RUNNING，未错误发放成功产物。等原租约自然到期后 API resume，新的 Worker 在原 session `session-7bf7badf-1a60-4733-99f1-a8b86a967164` 核验并登记 SUCCEEDED；attempt 1→2、epoch 4→5，但预算仍 10/30，原账本/产物摘要和整个 session.jsonl SHA 完全一致，零新增推理。原任务 Flash/off、14045 token。恢复基础 A1 配置的结果另存私有 backend-restored 记录；修正了旧 Worker 死亡后新 Worker 没恢复基础配置的遗漏。证据 `.runtime/backend/p3-finished-recovery-before.json` / `p3-finished-recovery-after.json`，PASS；后端回归 23/23。其余三个故障窗口及 1/8 小时未完成。
 
 恢复观察追加：核对同版官方 commands.ts 的 hasPromptRequest，新增只读 inspect，使用原 user/message.source.rpcId 证明原请求已入库；日志缺失不能证明请求没进入实时队列。真实原 session-f833ddc7 再查存在/原请求匹配/terminal，60 events、10 模型工具调用（原 raw 11 含 renderer 内部读取），没有重新推理。修正 terminal 为最后 turn/end 晚于最后 turn/start，避免旧结束事件掩盖新轮次。Worker 只对 inspect/poll 最多三次观察重试，start/activate/cancel/restore 超时不重发。新增两项观察单测及六项重试单测；尚未完成现场恢复与时间门槛。

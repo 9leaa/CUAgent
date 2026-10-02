@@ -110,6 +110,21 @@ class Worker:
             if self.service.heartbeat(task.id, self.owner, task.epoch):
                 stopping.set()
             created = (run / 'create-request.json').exists()
+            if created and not (run / 'prompt-request.json').exists() and not stopping.is_set():
+                state = self.rpc_process('inspect', run)
+                if not state['exists'] or state['running'] or state['userMessages'] or state['calls'] or state['terminal']:
+                    raise RuntimeError('ORIGINAL_SESSION_NOT_PROVEN_UNSTARTED')
+                # Load the newly acquired epoch before permitting the first prompt.
+                self.rpc_process('rebind', self.settings.base_tasks, run)
+                activated = True
+                if lost.is_set() or self.service.heartbeat(task.id, self.owner, task.epoch):
+                    stopping.set()
+                else:
+                    checkpoint('starting')
+                    self.rpc_process('start-existing', run)
+                if stopping.is_set():
+                    self.service.finish(task.id, self.owner, task.epoch, 'STOPPED')
+                    return
             if not created and not stopping.is_set():
                 # Config activation is exclusive, with original approved tasks retained.
                 config = run / 'active-tasks.json'

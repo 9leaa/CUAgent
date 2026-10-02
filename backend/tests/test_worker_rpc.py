@@ -21,7 +21,7 @@ def test_readonly_rpc_retries_same_original_identity():
         assert run.call_args_list[0] == run.call_args_list[1]
 
 
-@pytest.mark.parametrize('mode', ['start', 'activate', 'cancel', 'restore'])
+@pytest.mark.parametrize('mode', ['start', 'start-existing', 'create-only', 'activate', 'rebind', 'cancel', 'restore'])
 def test_effectful_rpc_timeout_never_replays(mode):
     with patch('backend.worker.subprocess.run', side_effect=subprocess.TimeoutExpired('private-command', 55)) as run:
         with pytest.raises(RuntimeError, match='^DESKTOP_' + mode.upper() + '_FAILED$'):

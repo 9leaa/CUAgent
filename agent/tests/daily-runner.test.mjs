@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { observedSession } from '../harness/daily-report-runner.mjs';
+import { observedSession, assertUnstarted } from '../harness/daily-report-runner.mjs';
+
+test('first prompt recovery requires no local intent and no official work', () => {
+  assert.doesNotThrow(() => assertUnstarted([{ type: 'session/header' }], false));
+  assert.throws(() => assertUnstarted([], true), /already recorded/);
+  for (const type of ['user/message', 'turn/start', 'tool/call', 'request/header']) {
+    assert.throws(() => assertUnstarted([{ type }], false), /already contains work/);
+  }
+});
 
 test('recovery observation matches exact official prompt identity without echoing content', () => {
   const rows = [{ type: 'turn/start', data: {} },
