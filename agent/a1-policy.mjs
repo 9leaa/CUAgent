@@ -15,7 +15,8 @@ export class A1Policy {
 	#ledger; #run; #session; #root; #rootIdentity; #allowed; #identity;
 	#snapshot;
 	#controlPath; #controlEpoch;
-	constructor({ ledgerPath, runId, sessionId, workspaceRoot, allowedTools, controlPath, controlEpoch }) {
+	#publishNotBefore;
+	constructor({ ledgerPath, runId, sessionId, workspaceRoot, allowedTools, controlPath, controlEpoch, publishNotBefore }) {
 		if (!/^[A-Za-z0-9_-]{1,80}$/.test(runId ?? '') || typeof sessionId !== 'string' || !sessionId || sessionId.length > 160) throw new Error('invalid A1 task identity');
 		if (!isAbsolute(ledgerPath ?? '') || !isAbsolute(workspaceRoot ?? '')) throw new Error('A1 paths must be absolute');
 		const root = realpathSync(workspaceRoot);
@@ -37,7 +38,12 @@ export class A1Policy {
 			if (inside(root, canonicalControl) || (lstatSync(parent).mode & 0o077) !== 0) throw new Error('invalid backend control binding');
 			this.#controlPath = canonicalControl; this.#controlEpoch = controlEpoch;
 		}
+		if (publishNotBefore !== undefined) {
+			if (!Number.isSafeInteger(publishNotBefore) || publishNotBefore < 1 || publishNotBefore > 8640000000000000) throw new Error('invalid publication deadline');
+			this.#publishNotBefore = publishNotBefore;
+		}
 		this.#identity = sha(JSON.stringify({ runId, sessionId, root, rootIdentity: this.#rootIdentity, allowedTools: [...allowedTools].sort(), limit: 30,
+			...(this.#publishNotBefore ? { publishNotBefore: this.#publishNotBefore } : {}),
 			...(this.#controlPath ? { controlPath: this.#controlPath } : {}) }));
 		const initial = existsSync(this.#ledger) ? readFileSync(this.#ledger, 'utf8') : '';
 		this.#snapshot = sha(initial);
@@ -67,7 +73,7 @@ export class A1Policy {
 	}
 	assertAdmitted(call) {
 		const pending = this.#pending.get(call.callId);
-		if (this.#failed || call.aborted || call.sessionId !== this.#session || pending?.name !== call.name || pending.started === undefined || !this.#rootUnchanged() || !this.#controlActive()) throw new Error('A1 execution lacks active admission');
+		if (this.#failed || call.aborted || call.sessionId !== this.#session || pending?.name !== call.name || pending.started === undefined || !this.#rootUnchanged() || !this.#controlActive() || !this.#publicationAllowed(call)) throw new Error('A1 execution lacks active admission');
 	}
 	workspaceFor(sessionId) {
 		if (sessionId !== this.#session || !this.#rootUnchanged()) throw new Error('A1 task root or session mismatch');
@@ -87,11 +93,17 @@ export class A1Policy {
 				&& value.expiresAt > Date.now() && value.expiresAt <= Date.now() + 60000;
 		} catch { return false; }
 	}
+	#publicationAllowed(call) {
+		if (!this.#publishNotBefore) return true;
+		if (call.name === 'workspace_write') return call.arguments?.path === 'report.json';
+		return call.name !== 'workspace_daily_report' || Date.now() >= this.#publishNotBefore;
+	}
 	guard(call) {
 		return this.#failed ? 'A1: audit unavailable or unresolved dispatch'
 			: call.sessionId !== this.#session ? 'A1: session not approved'
 			: !this.#rootUnchanged() ? 'A1: approved root changed'
 			: !this.#controlActive() ? 'A1: backend execution lease stopped, stale or unavailable'
+			: !this.#publicationAllowed(call) ? 'A1: publication deadline or output restriction'
 			: call.aborted ? 'A1: turn stopped'
 			: typeof call.callId !== 'string' || !call.callId || call.callId.length > 160 ? 'A1: invalid call identity'
 			: this.#seen.has(call.callId) ? 'A1: call identity already used'

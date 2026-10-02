@@ -37,6 +37,19 @@ def test_new_api_instance_reads_persisted_task(service, payload):
         assert after.post('/tasks', json=payload, headers=headers).json()['created'] is False
 
 
+def test_publication_requires_timezone_and_preserves_legacy_idempotency(service, payload):
+    task_id, _ = service.submit(payload, 'legacy')
+    with TestClient(create_app(service.settings)) as client:
+        client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
+        assert client.post('/tasks', json=payload, headers={'Idempotency-Key': 'legacy'}).json()['id'] == task_id
+        invalid = client.post('/tasks', json={**payload, 'releaseAt': '2026-10-03T12:00:00'}, headers={'Idempotency-Key': 'naive'})
+        assert invalid.status_code == 422
+        created = client.post('/tasks', json={**payload, 'releaseAt': '2026-10-03T12:00:00+08:00'}, headers={'Idempotency-Key': 'timed'})
+        assert created.status_code == 201
+        status = client.get('/tasks/' + created.json()['id']).json()
+        assert status['release_at'].startswith('2026-10-03T04:00:00')
+
+
 def test_artifact_gate_rejects_changed_bytes_and_escape(service, payload):
     # Storage unit fixture, not a claimed real model success.
     task_id, _ = service.submit(payload, 'artifact-storage')

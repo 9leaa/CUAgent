@@ -210,7 +210,7 @@ class TaskService:
                 attempt.finished_at = utcnow()
             resource.owner, resource.task_id, resource.expires_at = None, None, None
 
-    def wait_for_release(self, task_id, owner, epoch):
+    def wait_for_release(self, task_id, owner, epoch, *, usage=None):
         with self.sessions.begin() as db:
             resource = db.get(Resource, 'desktop', with_for_update=True)
             task = db.get(Task, task_id, with_for_update=True)
@@ -220,6 +220,8 @@ class TaskService:
             if not task.release_at or not task.checkpoint or task.checkpoint['evidence']['pending']:
                 raise Conflict('VERIFIED_RELEASE_CHECKPOINT_REQUIRED')
             task.status = 'WAITING_RELEASE'
+            if usage:
+                db.merge(Usage(task_id=task_id, data=usage))
             self.control(task, stopped=True)
             self.event(db, task, 'waiting_release', release_at=task.release_at.isoformat())
             attempt = db.scalar(select(Attempt).where(Attempt.task_id == task_id, Attempt.epoch == epoch))

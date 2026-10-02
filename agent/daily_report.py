@@ -7,7 +7,7 @@ import json
 import math
 import re
 import uuid
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 TOOLS = ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read',
@@ -239,6 +239,12 @@ def verify(run_dir, *, continuation=False):
                 sha(audit_raw[:checkpoint['auditBytes']]) == checkpoint['auditSha256'], 'original audit prefix changed')
     audit = [json.loads(line) for line in audit_raw.splitlines() if line]
     dispatch = [a for a in audit if a['event'] == 'dispatch']
+    if task.get('publishNotBefore'):
+        require(continuation, 'scheduled report requires draft and continuation')
+        publications = [a for a in dispatch if a['name'] == 'workspace_daily_report']
+        require(len(publications) == 1 and
+                datetime.fromisoformat(publications[0]['at'].replace('Z', '+00:00')).timestamp() * 1000 >= task['publishNotBefore'],
+                'publication preceded approved deadline')
     returned = [a for a in audit if a['event'] == 'result']
     render_calls = [c for c in calls if c['data']['name'] == 'workspace_daily_report']
     require((len(render_calls) == 1 if renderer else not render_calls), 'one renderer call required')

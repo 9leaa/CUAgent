@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+发布时间完整短测通过：迁移0004已应用，本项目API正常重启加载releaseAt（带时区且旧请求幂等不变）；审批绑定不可变publishNotBefore及受限write路径，工具guard/body均检查，deadline进入账本identity不能恢复时改变。官方注册拒绝提前renderer/直接写Markdown，到点renderer内部读写各扣一次。新任务 `3bb7a347-931b-469d-9160-c7977450c2f6` / session `session-17dc6fbd-159a-40d6-8ae5-0138b5cf7ccb`，6次草稿→WAITING_RELEASE；另一个提前Worker--once未领取。UTC15:20:29.130698到期，15:20:29.871772再领取，同session6→10/30成功，总97.066秒/19228 token，Flash/off；原session前缀、账本、两份产物及实际渲染派发时间独立PASS。私有release-short-submission/verification.json。后端40/40、核心63/63、官方注册31/31、Python验收13/13。1/8小时尚未完成。
+
 长运行方案细化先提交 `5b66061`：同一日报先草稿，到业务发布时间再最终发布；明确只证明定时业务等待期间的持久任务，不声称模型连续推理8小时。新增迁移0004/release_at，WAITING_RELEASE释放资源、未到时不领取、stop→resume不绕过时间、到期保持原session与预算；真实隔离PostgreSQL反例后端39/39。此时生产尚未迁移0004、API和工具门禁未开放releaseAt，等待真实计时未开始。额度核对已用33%，积分62494.026057未变、未用重置卡。
 
 部分产物新完整轮次通过：任务 `d37923a6-68fc-4b2b-ab6e-48c228494767` / session `session-84c60e66-714e-462a-b8d7-1c7fe7587c99`。真实 JSON 写入后停止、原 Worker 退出89；原5次派发，恢复同session/原账本，attempt 1→2、epoch12→13，补renderer内部读写及两读回共4次，最终9/30、API SUCCEEDED；原JSON与首轮会话SHA不变、完整独立验收PASS、CLI下载588字节SHA一致。Flash/off，两轮总12283 token。私有 `.runtime/backend/p3-partial-002-before.json` / `p3-partial-002-after.json`；首试仍UNVERIFIED未改。无进展检测新增持久businessProgress，提示数/派发/返回未推进300秒则先持久stop关闭工具派发，再cancel；心跳/重复checkpoint不刷新进展时间，重启读取原时间。时间回退/计数回退拒绝。后端37/37，真实新续接也经过该路径；尚未通过真实300秒卡住故障及1/8小时长运行门槛。

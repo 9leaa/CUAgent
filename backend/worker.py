@@ -11,7 +11,7 @@ import uuid
 from agent.daily_report import dump, prepare, verify
 from backend.config import Settings
 from backend.db import database
-from backend.models import Task
+from backend.models import Task, utcnow
 from backend.service import TaskService
 from backend.observability import session_usage
 from backend.checkpoint import snapshot
@@ -75,6 +75,8 @@ class Worker:
             raise RuntimeError('PARTIAL_PREPARATION_NEEDS_REVIEW')
         approval = json.loads(approval_path.read_text())
         approval.update(controlPath=str(self.settings.root / 'controls' / (task.id + '.json')), controlEpoch=task.epoch)
+        if task.release_at:
+            approval['publishNotBefore'] = int(task.release_at.timestamp() * 1000)
         # Approval is developer-owned. Epoch changes never alter ledger identity,
         # session, root, permitted tools or persisted budget.
         temporary = run / ('approval-' + str(task.epoch) + '.tmp')
@@ -128,6 +130,10 @@ class Worker:
                         verify(run)
                     except (ValueError, KeyError, OSError, TypeError, IndexError):
                         plan = partial_report_plan(run, previous_evidence)
+                        if task.release_at and task.release_at > utcnow():
+                            checkpoint('verifying')
+                            self.service.wait_for_release(task.id, self.owner, task.epoch, usage=session_usage(run / 'session.jsonl'))
+                            return
                         plan['sourceSessionSha256'] = sha((run / 'session.jsonl').read_bytes())
                         plan_path = run / 'continuation-plan.json'
                         if plan_path.exists():
@@ -141,7 +147,12 @@ class Worker:
                             stopping.set()
                         else:
                             checkpoint('starting')
-                            self.rpc_process('continue', run)
+                            accepted = self.rpc_process('continue', run)
+                            if not accepted.get('accepted'):
+                                raise RuntimeError('CONTINUATION_NOT_ACCEPTED')
+                            # A confirmed new business step ends the deliberate
+                            # release wait; an unchanged heartbeat never does.
+                            business_progress = None
             if created and not (run / 'prompt-request.json').exists() and not stopping.is_set():
                 state = self.rpc_process('inspect', run)
                 if not state['exists'] or state['running'] or state['userMessages'] or state['calls'] or state['terminal']:
@@ -208,6 +219,13 @@ class Worker:
                 raise RuntimeError('LEASE_LOST_ORIGINAL_SESSION_NEEDS_REVIEW')
             continuing = (run / 'continuation-request.json').exists()
             usage = session_usage(run / ('session-continuation.jsonl' if continuing else 'session.jsonl'))
+            if task.release_at and not continuing and not cancel_sent:
+                plan = partial_report_plan(run, previous_evidence)
+                if plan['missing'] != ['report.md']:
+                    raise RuntimeError('SCHEDULED_DRAFT_PUBLISHED_UNEXPECTEDLY')
+                checkpoint('verifying')
+                self.service.wait_for_release(task.id, self.owner, task.epoch, usage=usage)
+                return
             if cancel_sent:
                 self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage}, error_code=cancellation_reason)
             else:

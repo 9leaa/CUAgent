@@ -14,7 +14,7 @@ import * as policyPlugin from './a1-policy-plugin.ts'
 import * as toolsPlugin from './a1-tools.ts'
 import * as fingerprintPlugin from './a1-example-fingerprint.ts'
 
-async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, controlled?: boolean, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
+async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, controlled?: boolean, publishNotBefore?: number, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-a1-registry-'))
   const previous = process.env.CUAGENT_A1_TASKS_PATH
   const tasks = ['one', 'two'].map(id => {
@@ -26,6 +26,7 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
     if (options.controlled) writeFileSync(controlPath, JSON.stringify({ version: 1, runId: `run-${id}`, epoch: 1, stopped: false, expiresAt: Date.now() + 30000 }), { mode: 0o600 })
     return { workspaceRoot, ledgerPath: join(audit, 'calls.jsonl'), runId: `run-${id}`, sessionId: `session-${id}`,
       ...(options.controlled ? { controlPath, controlEpoch: 1 } : {}),
+      ...(options.publishNotBefore ? { publishNotBefore: options.publishNotBefore } : {}),
       allowedTools: options.dailyReport ? ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report']
         : options.readOnly ? ['calculate', 'workspace_list', 'workspace_read', 'workspace_csv_stats']
         : ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', ...(options.example ? ['workspace_text_fingerprint'] : [])] }
@@ -59,6 +60,20 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
 const daily = { date: '2026-10-02', notes: [{ path: 'inputs/n.md', sha256: 'a'.repeat(64), title: 'A', progress: 'Done', blockers: 'None', next: 'Review' }],
   csv: [{ path: 'inputs/m.csv', sha256: 'b'.repeat(64), rowCount: 1, columnCount: 1, columns: ['n'], bytes: 4,
     numeric: { n: { count: 1, missing: 0, sum: 2, min: 2, max: 2, mean: 2 } } }] }
+
+test('P3 actual registry rejects early publication and ordinary-write bypass', async t => {
+  let now = Date.now()
+  t.mock.method(Date, 'now', () => now)
+  const { call, tasks, ledger } = await fixture(t, { dailyReport: true, publishNotBefore: now + 60000 })
+  assert.equal((await call('workspace_write', { path: 'report.json', content: JSON.stringify(daily) })).isError, false)
+  assert.equal((await call('workspace_daily_report', {})).isError, true)
+  assert.equal((await call('workspace_write', { path: 'report.md', content: 'bypass' })).isError, true)
+  assert.equal(existsSync(join(tasks[0].workspaceRoot, 'report.md')), false)
+  assert.equal(ledger().filter(row => row.event === 'dispatch').length, 1)
+  now += 60000
+  assert.equal((await call('workspace_daily_report', {})).isError, false)
+  assert.equal(ledger().filter(row => row.event === 'dispatch').length, 3)
+})
 
 test('P2 official registry denies stopped, expired and stale-epoch leases before dispatch', async t => {
   const { call, ledger, tasks, ctx } = await fixture(t, { controlled: true, dailyReport: true })

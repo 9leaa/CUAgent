@@ -15,6 +15,27 @@ function fixture(t) {
 	return { options, call, policy: new A1Policy(options) };
 }
 
+test('scheduled report binds its deadline, rejects early renderer and direct Markdown writes', t => {
+	const { options, call } = fixture(t);
+	let now = Date.now();
+	t.mock.method(Date, 'now', () => now);
+	const bound = { ...options, allowedTools: [...options.allowedTools, 'workspace_daily_report'], publishNotBefore: now + 60000 };
+	const policy = new A1Policy(bound);
+	for (const path of ['report.md', '@report.md', './report.md', 'other.md']) {
+		assert.match(policy.dispatch({ ...call(path), name: 'workspace_write', arguments: { path } }), /publication/);
+	}
+	assert.match(policy.dispatch({ ...call('render'), name: 'workspace_daily_report', arguments: {} }), /publication/);
+	const draft = { ...call('draft'), name: 'workspace_write', arguments: { path: 'report.json' } };
+	assert.equal(policy.dispatch(draft), undefined); policy.assertAdmitted(draft); policy.result(draft);
+	assert.equal(policy.count(), 1);
+	assert.throws(() => new A1Policy({ ...bound, publishNotBefore: now }), /identity/);
+	now += 60000;
+	const render = { ...call('render-on-time'), name: 'workspace_daily_report', arguments: {} };
+	assert.equal(policy.dispatch(render), undefined);
+	now -= 1;
+	assert.throws(() => policy.assertAdmitted(render), /admission/);
+});
+
 test('A1 fixed 30-call budget persists across completed calls and restart', t => {
 	const { options, call, policy } = fixture(t);
 	for (let i = 0; i < 29; i++) { assert.equal(policy.dispatch(call(i)), undefined); policy.result(call(i), i % 2 ? { errorCode: 'UNAVAILABLE' } : {}); }

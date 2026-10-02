@@ -1,6 +1,6 @@
 from datetime import date
 import csv
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Note(BaseModel):
@@ -33,6 +33,7 @@ class Csv(BaseModel):
 class Submission(BaseModel):
     model_config = ConfigDict(extra='forbid')
     date: date
+    releaseAt: AwareDatetime | None = None
     notes: list[Note] = Field(min_length=1, max_length=3)
     csv: list[Csv] = Field(min_length=1, max_length=2)
 

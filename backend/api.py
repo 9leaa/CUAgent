@@ -53,7 +53,7 @@ def create_app(settings):
     def submit(body: Submission, idempotency_key: str = Header()):
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
             raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
-        task_id, created = service.submit(body.model_dump(mode='json'), idempotency_key)
+        task_id, created = service.submit(body.model_dump(mode='json', exclude_none=True), idempotency_key)
         return JSONResponse({'id': task_id, 'created': created}, status_code=201 if created else 200)
 
     @app.get('/tasks', dependencies=[Depends(authenticated)])

@@ -48,6 +48,12 @@ report.json 顶层恰好 date、notes、csv。date 来自 task.json。notes 按�
 所有 CSV numeric 键按 task.json 的 numericColumns 顺序保留，渲染工具会依次生成表格。`;
 }
 
+export function draftReportPrompt() {
+  return reportPrompt().replace('随后调用 workspace_daily_report 自动生成 report.md，不自行排版 Markdown',
+    '本轮只完成草稿，禁止生成 report.md，也不要调用 workspace_daily_report；最终发布由到期后的续接完成')
+    .replace('最后完整读回两份产物', '最后完整读回 report.json');
+}
+
 export async function main(argv) {
   const [mode, ...paths] = argv;
   assert.ok(['activate', 'rebind', 'create-only', 'start-existing', 'start', 'continue', 'poll', 'inspect', 'cancel', 'restore'].includes(mode), 'invalid runner mode');
@@ -137,7 +143,7 @@ export async function main(argv) {
     assert.deepEqual(selected.selected, DAILY_MODEL, 'model/thinking selection mismatch');
     if (existsSync(root + '/model-selected.json')) assert.deepEqual(load(root + '/model-selected.json').selected, DAILY_MODEL);
     else save(root + '/model-selected.json', selected);
-    const prompt = { sessionId, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: reportPrompt() }] };
+    const prompt = { sessionId, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: approval.publishNotBefore ? draftReportPrompt() : reportPrompt() }] };
     save(root + '/prompt-request.json', { at: new Date().toISOString(), request: prompt });
     const response = await rpc('session/prompt', { request: prompt });
     save(root + '/prompt-response.json', response);
