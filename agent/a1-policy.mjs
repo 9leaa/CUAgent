@@ -14,7 +14,8 @@ export class A1Policy {
 	#used = 0; #pending = new Map(); #seen = new Set(); #failed = false;
 	#ledger; #run; #session; #root; #rootIdentity; #allowed; #identity;
 	#snapshot;
-	constructor({ ledgerPath, runId, sessionId, workspaceRoot, allowedTools }) {
+	#controlPath; #controlEpoch;
+	constructor({ ledgerPath, runId, sessionId, workspaceRoot, allowedTools, controlPath, controlEpoch }) {
 		if (!/^[A-Za-z0-9_-]{1,80}$/.test(runId ?? '') || typeof sessionId !== 'string' || !sessionId || sessionId.length > 160) throw new Error('invalid A1 task identity');
 		if (!isAbsolute(ledgerPath ?? '') || !isAbsolute(workspaceRoot ?? '')) throw new Error('A1 paths must be absolute');
 		const root = realpathSync(workspaceRoot);
@@ -29,7 +30,15 @@ export class A1Policy {
 		this.#ledger = join(auditParent, basename(ledgerPath)); this.#run = runId; this.#session = sessionId; this.#root = root;
 		this.#rootIdentity = `${rootStat.dev}:${rootStat.ino}`;
 		this.#allowed = new Set(allowedTools);
-		this.#identity = sha(JSON.stringify({ runId, sessionId, root, rootIdentity: this.#rootIdentity, allowedTools: [...allowedTools].sort(), limit: 30 }));
+		if (controlPath !== undefined || controlEpoch !== undefined) {
+			if (!isAbsolute(controlPath ?? '') || !Number.isSafeInteger(controlEpoch) || controlEpoch < 1) throw new Error('invalid backend control binding');
+			const parent = realpathSync(dirname(controlPath));
+			const canonicalControl = join(parent, basename(controlPath));
+			if (inside(root, canonicalControl) || (lstatSync(parent).mode & 0o077) !== 0) throw new Error('invalid backend control binding');
+			this.#controlPath = canonicalControl; this.#controlEpoch = controlEpoch;
+		}
+		this.#identity = sha(JSON.stringify({ runId, sessionId, root, rootIdentity: this.#rootIdentity, allowedTools: [...allowedTools].sort(), limit: 30,
+			...(this.#controlPath ? { controlPath: this.#controlPath } : {}) }));
 		const initial = existsSync(this.#ledger) ? readFileSync(this.#ledger, 'utf8') : '';
 		this.#snapshot = sha(initial);
 		for (const line of initial.split('\n')) {
@@ -49,7 +58,7 @@ export class A1Policy {
 	}
 	count() { return this.#used; }
 	request({ toolNames, provider, model, imageBlocks = 0 }) {
-		if (this.#failed || !this.#rootUnchanged()) throw new Error('A1 request policy unavailable');
+		if (this.#failed || !this.#rootUnchanged() || !this.#controlActive()) throw new Error('A1 request policy unavailable');
 		if (!Array.isArray(toolNames) || toolNames.some(name => !this.#allowed.has(name))) throw new Error('A1 request contains an unapproved tool');
 		try { this.#append({ event: 'request', toolNames: [...toolNames].sort(),
 			providerSha256: sha(String(provider ?? '')), modelSha256: sha(String(model ?? '')),
@@ -58,7 +67,7 @@ export class A1Policy {
 	}
 	assertAdmitted(call) {
 		const pending = this.#pending.get(call.callId);
-		if (this.#failed || call.aborted || call.sessionId !== this.#session || pending?.name !== call.name || pending.started === undefined || !this.#rootUnchanged()) throw new Error('A1 execution lacks active admission');
+		if (this.#failed || call.aborted || call.sessionId !== this.#session || pending?.name !== call.name || pending.started === undefined || !this.#rootUnchanged() || !this.#controlActive()) throw new Error('A1 execution lacks active admission');
 	}
 	workspaceFor(sessionId) {
 		if (sessionId !== this.#session || !this.#rootUnchanged()) throw new Error('A1 task root or session mismatch');
@@ -67,10 +76,22 @@ export class A1Policy {
 	#rootUnchanged() {
 		try { const stat = lstatSync(this.#root); return stat.isDirectory() && `${stat.dev}:${stat.ino}` === this.#rootIdentity && realpathSync(this.#root) === this.#root; } catch { return false; }
 	}
+	#controlActive() {
+		if (!this.#controlPath) return true;
+		try {
+			const stat = lstatSync(this.#controlPath);
+			if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) !== 0 || stat.size > 4096 || realpathSync(this.#controlPath) !== this.#controlPath) return false;
+			const value = JSON.parse(readFileSync(this.#controlPath, 'utf8'));
+			return value.version === 1 && value.runId === this.#run && value.epoch === this.#controlEpoch
+				&& value.stopped === false && Number.isSafeInteger(value.expiresAt)
+				&& value.expiresAt > Date.now() && value.expiresAt <= Date.now() + 60000;
+		} catch { return false; }
+	}
 	guard(call) {
 		return this.#failed ? 'A1: audit unavailable or unresolved dispatch'
 			: call.sessionId !== this.#session ? 'A1: session not approved'
 			: !this.#rootUnchanged() ? 'A1: approved root changed'
+			: !this.#controlActive() ? 'A1: backend execution lease stopped, stale or unavailable'
 			: call.aborted ? 'A1: turn stopped'
 			: typeof call.callId !== 'string' || !call.callId || call.callId.length > 160 ? 'A1: invalid call identity'
 			: this.#seen.has(call.callId) ? 'A1: call identity already used'

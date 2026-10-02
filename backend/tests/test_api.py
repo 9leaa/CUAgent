@@ -1,0 +1,66 @@
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from backend.api import create_app
+from backend.models import Task
+from backend.models import Artifact
+from pathlib import Path
+import hashlib
+
+
+def test_auth_input_contract_idempotency_and_cursor(service, payload):
+    app = create_app(service.settings)
+    with TestClient(app) as client:
+        assert client.get('/tasks').status_code == 401
+        client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
+        response = client.post('/tasks', json=payload, headers={'Idempotency-Key': 'api-one'})
+        assert response.status_code == 201, response.text
+        task_id = response.json()['id']
+        assert client.post('/tasks', json=payload, headers={'Idempotency-Key': 'api-one'}).json() == {'id': task_id, 'created': False}
+        assert client.get('/tasks/' + task_id).json()['status'] == 'QUEUED'
+        events = client.get('/tasks/' + task_id + '/events').json()
+        assert len(events['items']) == 1
+        assert client.get('/tasks/' + task_id + '/events', params={'after': events['next_cursor']}).json()['items'] == []
+        assert client.get('/tasks/' + task_id + '/artifacts/report.md').status_code == 404
+        assert client.post('/tasks/' + task_id + '/stop').json()['status'] == 'STOPPED'
+        assert client.post('/tasks/' + task_id + '/resume').json()['status'] == 'QUEUED'
+        bad = {**payload, 'notes': [{'name': '../secret.md', 'content': 'bad'}]}
+        assert client.post('/tasks', json=bad, headers={'Idempotency-Key': 'escape'}).status_code == 422
+        assert client.post('/tasks', content=b'x' * 262145, headers={'Idempotency-Key': 'large'}).status_code == 413
+
+
+def test_new_api_instance_reads_persisted_task(service, payload):
+    headers = {'Authorization': 'Bearer ' + service.settings.api_token, 'Idempotency-Key': 'restart'}
+    with TestClient(create_app(service.settings)) as before:
+        task_id = before.post('/tasks', json=payload, headers=headers).json()['id']
+    with TestClient(create_app(service.settings)) as after:
+        assert after.get('/tasks/' + task_id, headers=headers).json()['status'] == 'QUEUED'
+        assert after.post('/tasks', json=payload, headers=headers).json()['created'] is False
+
+
+def test_artifact_gate_rejects_changed_bytes_and_escape(service, payload):
+    # Storage unit fixture, not a claimed real model success.
+    task_id, _ = service.submit(payload, 'artifact-storage')
+    run = service.settings.root / 'unit-run'
+    (run / 'workspace').mkdir(parents=True)
+    path = run / 'workspace/report.md'
+    path.write_bytes(b'original\n')
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    with service.sessions.begin() as db:
+        task = db.get(Task, task_id)
+        task.status, task.run_dir = 'SUCCEEDED', str(run)
+        db.add(Artifact(task_id=task_id, name='report.md', sha256=digest, bytes=9))
+    with TestClient(create_app(service.settings)) as client:
+        client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
+        url = '/tasks/' + task_id + '/artifacts/report.md'
+        assert client.get(url).content == b'original\n'
+        path.write_bytes(b'changed!\n')
+        assert client.get(url).status_code == 409
+        assert client.get('/tasks/' + task_id + '/artifacts/secret.txt').status_code == 404
+
+
+def test_malformed_csv_and_nul_are_input_errors(service, payload):
+    with TestClient(create_app(service.settings)) as client:
+        client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
+        for content in ['units\n"unclosed', 'units\n2\x00']:
+            invalid = {**payload, 'csv': [{'name': 'metrics.csv', 'content': content, 'numericColumns': ['units']}]}
+            assert client.post('/tasks', json=invalid, headers={'Idempotency-Key': 'invalid'}).status_code == 422

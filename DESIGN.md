@@ -4,7 +4,7 @@
 
 ## 1. 产品目标与职责
 
-当前后续路线见 [P1–P5](docs/product-roadmap.md)。P1 已提供可复用的资料/CSV 日报任务：模型负责提取和工具选择，代码负责确定性排版，独立验证器核对原始来源与执行轨迹。P2 将以独立任务后端/Worker 调用这一入口，继续复用 Harness 主循环。
+当前后续路线见 [P1–P5](docs/product-roadmap.md)。P1 提供资料/CSV 日报：模型负责提取和工具选择，代码负责确定性排版，独立验证器核对来源与执行轨迹。P2 已由 FastAPI→PostgreSQL 队列→独立 Worker 调用此入口，复用 Harness 唯一主循环；数据库 owner/epoch、项目文件锁和工具端租约共同限制执行权。API 不持有模型循环，SUCCEEDED 只来自独立核对。当前恢复仅查询原会话，完整故障恢复留 P3，见 [方案](docs/stages/p2-design.md) 与 [验收](docs/stages/p2-summary.md)。
 
 目标是通用且更强的 Computer Use Agent。2026-09-30 起用官方 macOS Desktop App 交付能对话、续接、真实调工具和处理图片的**最小可用Harness底座**，随后优先接入屏幕观察、目标定位、执行动作和独立验证；完整文件/CSV业务流程及通用插件体验不挡在首个Computer Use闭环前。macOS 是第一套桌面测试后端，跨 OS 不作为已有能力。
 

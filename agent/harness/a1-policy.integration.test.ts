@@ -14,7 +14,7 @@ import * as policyPlugin from './a1-policy-plugin.ts'
 import * as toolsPlugin from './a1-tools.ts'
 import * as fingerprintPlugin from './a1-example-fingerprint.ts'
 
-async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
+async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, controlled?: boolean, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-a1-registry-'))
   const previous = process.env.CUAGENT_A1_TASKS_PATH
   const tasks = ['one', 'two'].map(id => {
@@ -22,7 +22,10 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
     mkdirSync(workspaceRoot); mkdirSync(audit, { mode: 0o700 })
     writeFileSync(join(workspaceRoot, 'source.txt'), `ONLY_${id}`)
     writeFileSync(join(workspaceRoot, 'sales.csv'), 'units\n2\n4\n')
+    const controlPath = join(audit, 'control.json')
+    if (options.controlled) writeFileSync(controlPath, JSON.stringify({ version: 1, runId: `run-${id}`, epoch: 1, stopped: false, expiresAt: Date.now() + 30000 }), { mode: 0o600 })
     return { workspaceRoot, ledgerPath: join(audit, 'calls.jsonl'), runId: `run-${id}`, sessionId: `session-${id}`,
+      ...(options.controlled ? { controlPath, controlEpoch: 1 } : {}),
       allowedTools: options.dailyReport ? ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report']
         : options.readOnly ? ['calculate', 'workspace_list', 'workspace_read', 'workspace_csv_stats']
         : ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', ...(options.example ? ['workspace_text_fingerprint'] : [])] }
@@ -56,6 +59,22 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
 const daily = { date: '2026-10-02', notes: [{ path: 'inputs/n.md', sha256: 'a'.repeat(64), title: 'A', progress: 'Done', blockers: 'None', next: 'Review' }],
   csv: [{ path: 'inputs/m.csv', sha256: 'b'.repeat(64), rowCount: 1, columnCount: 1, columns: ['n'], bytes: 4,
     numeric: { n: { count: 1, missing: 0, sum: 2, min: 2, max: 2, mean: 2 } } }] }
+
+test('P2 official registry denies stopped, expired and stale-epoch leases before dispatch', async t => {
+  const { call, ledger, tasks, ctx } = await fixture(t, { controlled: true, dailyReport: true })
+  assert.equal((await call('workspace_read', { path: 'source.txt' })).isError, false)
+  const path = tasks[0].controlPath!
+  const original = JSON.parse(readFileSync(path, 'utf8'))
+  for (const change of [{ stopped: true }, { expiresAt: Date.now() - 1 }, { epoch: 2 }, { runId: 'other' }]) {
+    writeFileSync(path, JSON.stringify({ ...original, ...change }))
+    assert.equal((await call('workspace_write', { path: 'must-not-exist.txt', content: 'no' })).isError, true)
+    assert.throws(() => ctx.get('cuagentA1Policy')!.request({ sessionId: 'session-one', tools: [{ name: 'workspace_read' }], messages: [] }))
+  }
+  writeFileSync(path, JSON.stringify(original)); chmodSync(path, 0o644)
+  assert.equal((await call('workspace_daily_report', {})).isError, true)
+  assert.equal(ledger().filter(row => row.event === 'dispatch').length, 1)
+  assert.equal(existsSync(join(tasks[0].workspaceRoot, 'must-not-exist.txt')), false)
+})
 
 test('P1 renderer uses actual registry and counts internal read plus write; never overwrites', async t => {
   const { call, ledger, tasks } = await fixture(t, { dailyReport: true })

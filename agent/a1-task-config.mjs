@@ -29,5 +29,6 @@ export function loadA1TaskConfig(configured) {
     ledgers.add(ledger); policies.set(task.sessionId, policy);
   }
   for (const ledger of ledgers) if (roots.some(root => inside(root, ledger))) throw new Error('audit inside another A1 workspace');
+  for (const task of config.tasks) if (task.controlPath && roots.some(root => inside(root, join(realpathSync(dirname(task.controlPath)), basename(task.controlPath))))) throw new Error('control inside an A1 workspace');
   return { path, digest: createHash('sha256').update(text).digest('hex'), policies };
 }

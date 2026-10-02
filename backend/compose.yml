@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector@sha256:073acab878025cadf03fe6fed01babaaa285b8d09ddc9c43882cf02d409546d7
+    container_name: cuagent-p2-postgres
+    environment:
+      POSTGRES_USER: cuagent
+      POSTGRES_DB: cuagent
+      POSTGRES_PASSWORD: ${CUAGENT_DB_PASSWORD:?private database password required}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - cuagent-p2-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cuagent -d cuagent"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+volumes:
+  cuagent-p2-data:
+    name: cuagent-p2-data
