@@ -137,7 +137,7 @@ class TaskService:
                 task.calls = calls
                 self.event(db, task, 'progress', raw_calls=calls)
 
-    def checkpoint(self, task_id, owner, epoch, phase, evidence):
+    def checkpoint(self, task_id, owner, epoch, phase, evidence, *, business_progress=None):
         if phase not in ('prepared', 'activating', 'activated', 'starting', 'observing', 'verifying'):
             raise ValueError('INVALID_CHECKPOINT_PHASE')
         with self.sessions.begin() as db:
@@ -155,6 +155,10 @@ class TaskService:
                 raise Conflict('CHECKPOINT_BUDGET_OR_AUDIT_REGRESSED')
             task.calls = evidence['used']
             task.checkpoint = {'phase': phase, 'epoch': epoch, 'at': utcnow().isoformat(), 'evidence': evidence}
+            if business_progress is not None:
+                task.checkpoint = {**task.checkpoint, 'businessProgress': business_progress}
+            elif old and 'businessProgress' in old:
+                task.checkpoint = {**task.checkpoint, 'businessProgress': old['businessProgress']}
             self.event(db, task, 'checkpoint', phase=phase, raw_calls=task.calls,
                        unresolved_calls=len(evidence['pending']))
 

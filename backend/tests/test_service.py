@@ -109,12 +109,17 @@ def test_checkpoint_survives_service_recreation_and_rejects_stale_owner(service,
     evidence = {'runId': 'p2-' + task_id, 'sessionId': 'same-session',
                 'used': 7, 'auditBytes': 100, 'auditSha256': 'a' * 64,
                 'pending': {'unknown-call': 'workspace_write'}, 'artifacts': {}}
-    service.checkpoint(task_id, task.owner, task.epoch, 'observing', evidence)
+    progress = {'marker': [1, 7, 6], 'lastProgressAt': utcnow().isoformat(), 'stalled': False}
+    service.checkpoint(task_id, task.owner, task.epoch, 'observing', evidence, business_progress=progress)
     fresh = TaskService(service.sessions, service.settings)
     assert fresh.view(task_id)['checkpoint']['phase'] == 'observing'
     assert fresh.view(task_id)['budget']['used'] == 7
     with fresh.sessions() as db:
         assert db.get(Task, task_id).checkpoint['evidence'] == evidence
+        assert db.get(Task, task_id).checkpoint['businessProgress'] == progress
+    fresh.checkpoint(task_id, task.owner, task.epoch, 'prepared', evidence)
+    with fresh.sessions() as db:
+        assert db.get(Task, task_id).checkpoint['businessProgress'] == progress
     with pytest.raises(Conflict, match='REGRESSED'):
         fresh.checkpoint(task_id, task.owner, task.epoch, 'observing', {**evidence, 'used': 6})
     with pytest.raises(Conflict, match='REGRESSED'):

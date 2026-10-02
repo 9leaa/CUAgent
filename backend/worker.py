@@ -17,6 +17,7 @@ from backend.observability import session_usage
 from backend.checkpoint import snapshot
 from backend.recovery import partial_report_plan
 from agent.daily_report import sha
+from backend.watchdog import observe
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -98,10 +99,11 @@ class Worker:
         thread.start()
         run, activated, cancel_sent = None, False, False
         previous_evidence = task.checkpoint['evidence'] if task.checkpoint else None
+        business_progress = task.checkpoint.get('businessProgress') if task.checkpoint else None
         def checkpoint(phase):
             nonlocal previous_evidence
             evidence = snapshot(run, previous_evidence)
-            self.service.checkpoint(task.id, self.owner, task.epoch, phase, evidence)
+            self.service.checkpoint(task.id, self.owner, task.epoch, phase, evidence, business_progress=business_progress)
             previous_evidence = evidence
         try:
             run = self.prepare_task(task)
@@ -174,10 +176,10 @@ class Worker:
             if not created:
                 self.service.finish(task.id, self.owner, task.epoch, 'STOPPED')
                 return
-            deadline = time.monotonic() + 300
             cancellation_deadline = None
+            cancellation_reason = 'CANCELLED_VERIFY_BEFORE_RESUME'
             while True:
-                if (stopping.is_set() or lost.is_set() or time.monotonic() > deadline) and not cancel_sent:
+                if (stopping.is_set() or lost.is_set()) and not cancel_sent:
                     self.rpc_process('cancel', run)
                     cancel_sent = True
                     cancellation_deadline = time.monotonic() + 30
@@ -185,12 +187,18 @@ class Worker:
                 ledger = run / 'audit/calls.jsonl'
                 audit = [json.loads(line) for line in ledger.read_text().splitlines()] if ledger.exists() else []
                 calls = sum(row['event'] == 'dispatch' for row in audit)
+                business_progress = observe(business_progress, [state['userMessages'], calls,
+                    sum(row['event'] == 'result' for row in audit)])
                 if not lost.is_set():
                     self.service.progress(task.id, self.owner, task.epoch, calls)
                     self.service.import_audit(task.id, self.owner, task.epoch, audit)
                     checkpoint('observing')
                 if state['terminal']:
                     break
+                if business_progress['stalled'] and not cancel_sent and not lost.is_set():
+                    self.service.stop(task.id)
+                    cancellation_reason = 'NO_BUSINESS_PROGRESS'
+                    stopping.set()
                 if cancellation_deadline is not None and time.monotonic() > cancellation_deadline:
                     raise RuntimeError('CANCEL_TERMINATION_UNKNOWN_NO_REPLAY')
                 if lost.is_set():
@@ -201,7 +209,7 @@ class Worker:
             continuing = (run / 'continuation-request.json').exists()
             usage = session_usage(run / ('session-continuation.jsonl' if continuing else 'session.jsonl'))
             if cancel_sent:
-                self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage}, error_code='CANCELLED_VERIFY_BEFORE_RESUME')
+                self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage}, error_code=cancellation_reason)
             else:
                 try:
                     checkpoint('verifying')

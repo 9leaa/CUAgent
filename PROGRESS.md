@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+部分产物新完整轮次通过：任务 `d37923a6-68fc-4b2b-ab6e-48c228494767` / session `session-84c60e66-714e-462a-b8d7-1c7fe7587c99`。真实 JSON 写入后停止、原 Worker 退出89；原5次派发，恢复同session/原账本，attempt 1→2、epoch12→13，补renderer内部读写及两读回共4次，最终9/30、API SUCCEEDED；原JSON与首轮会话SHA不变、完整独立验收PASS、CLI下载588字节SHA一致。Flash/off，两轮总12283 token。私有 `.runtime/backend/p3-partial-002-before.json` / `p3-partial-002-after.json`；首试仍UNVERIFIED未改。无进展检测新增持久businessProgress，提示数/派发/返回未推进300秒则先持久stop关闭工具派发，再cancel；心跳/重复checkpoint不刷新进展时间，重启读取原时间。时间回退/计数回退拒绝。后端37/37，真实新续接也经过该路径；尚未通过真实300秒卡住故障及1/8小时长运行门槛。
+
 部分产物真实首试：任务 `8259a18c-a798-471e-9738-3344c2837fc3`，session `session-d1ed3905-365a-4da8-87ab-43cf28fe0283`。JSON 成功返回后私有故障控制器停止派发、cancel并确认终止，再退出 Worker(89)；原6次、无pending、无Markdown。恢复同session/原预算，以continuation-plan绑定原sessionSHA和账本前缀，第二轮仅renderer及两读回，累计10/30；原JSON未变。首轮结束实为精确 A1 policy unavailable 错误，初版验收只认aborted/completed，故任务保留 UNVERIFIED及原失败报告。先补方案 cd418d7，再精确增加该停止边界，所有工具完整关联/两次唯一写入/来源与读回规则不变；对原始证据重新独立verify通过（13959 token，Flash/off），没有更改DB成功状态或重写历史报告。需新任务验证修正后API完整闭环，不能把离线重核对当API已成功。Python验收13/13、后端35/35、核心62/62；继续保持P3未完成。
 
 部分产物恢复预检：新增 backend/recovery.py，仅核对并返回缺失动作计划，不生成业务文件。JSON/Markdown 必须与原 oracle 一致，输入 SHA 未变、所有派发已返回、每个已有产物有唯一成功写入及相符 SHA；已有 renderer 还需内部读取按原账本计数且顺序正确。缺 Markdown 最少保留四次请求（内部读/写与两产物读回），都存在则只读回两次；余额不足拒绝。八项单测覆盖正常计划、UNKNOWN、错误文件、伪造/缺失写入、输入变更、预算不足及只读收尾；后端 34/34。此为预检，不是完整原会话续接或真实故障四验收。
