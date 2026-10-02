@@ -1,9 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
 import uuid
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
 from backend.models import Artifact, Attempt, Event, Resource, Task, Usage, utcnow
@@ -39,6 +39,7 @@ class TaskService:
             task_id = str(uuid.uuid4())
             created = db.execute(insert(Task).values(id=task_id, idempotency_key=key,
                 request_sha256=digest, payload=payload, status='QUEUED', epoch=0, calls=0,
+                release_at=datetime.fromisoformat(payload['releaseAt']) if payload.get('releaseAt') else None,
                 created_at=utcnow(), updated_at=utcnow()).on_conflict_do_nothing(index_elements=['idempotency_key']).returning(Task.id)).scalar_one_or_none()
             task = db.scalar(select(Task).where(Task.idempotency_key == key))
             if task.request_sha256 != digest:
@@ -61,7 +62,9 @@ class TaskService:
                     self.control(old, stopped=True)
                     self.event(db, old, 'owner_expired')
                 resource.owner, resource.task_id, resource.expires_at = None, None, None
-            task = db.scalar(select(Task).where(Task.status == 'QUEUED').order_by(Task.created_at).with_for_update(skip_locked=True).limit(1))
+            task = db.scalar(select(Task).where(or_(Task.status == 'QUEUED',
+                and_(Task.status == 'WAITING_RELEASE', Task.release_at <= utcnow())))
+                .order_by(Task.created_at).with_for_update(skip_locked=True).limit(1))
             if task is None:
                 return None
             resource.epoch += 1
@@ -94,7 +97,7 @@ class TaskService:
                 raise NotFound('TASK_NOT_FOUND')
             if task.status in ('SUCCEEDED', 'FAILED', 'UNVERIFIED', 'STOPPED'):
                 return task.status
-            task.status = 'STOPPED' if task.status == 'QUEUED' else 'STOP_REQUESTED'
+            task.status = 'STOPPED' if task.status in ('QUEUED', 'WAITING_RELEASE') else 'STOP_REQUESTED'
             self.control(task, stopped=True)
             self.event(db, task, 'stop_requested')
             return task.status
@@ -110,7 +113,8 @@ class TaskService:
             if task.status not in ('STOPPED', 'BLOCKED', 'RUNNING', 'STOP_REQUESTED'):
                 raise Conflict('TASK_NOT_RESUMABLE')
             # Same ID/session/ledger; worker reconciles any previous dispatch.
-            task.status, task.error_code = 'QUEUED', None
+            task.status = 'WAITING_RELEASE' if task.release_at and task.release_at > utcnow() and task.checkpoint else 'QUEUED'
+            task.error_code = None
             if resource.task_id == task_id:
                 resource.owner, resource.task_id, resource.expires_at = None, None, None
             self.event(db, task, 'resume_requested', mode='reconcile_original_session')
@@ -206,6 +210,23 @@ class TaskService:
                 attempt.finished_at = utcnow()
             resource.owner, resource.task_id, resource.expires_at = None, None, None
 
+    def wait_for_release(self, task_id, owner, epoch):
+        with self.sessions.begin() as db:
+            resource = db.get(Resource, 'desktop', with_for_update=True)
+            task = db.get(Task, task_id, with_for_update=True)
+            if (not task or resource.owner != owner or resource.task_id != task_id or resource.epoch != epoch
+                    or not resource.expires_at or resource.expires_at <= utcnow() or task.status != 'RUNNING'):
+                raise Conflict('STALE_EXECUTION_OWNER')
+            if not task.release_at or not task.checkpoint or task.checkpoint['evidence']['pending']:
+                raise Conflict('VERIFIED_RELEASE_CHECKPOINT_REQUIRED')
+            task.status = 'WAITING_RELEASE'
+            self.control(task, stopped=True)
+            self.event(db, task, 'waiting_release', release_at=task.release_at.isoformat())
+            attempt = db.scalar(select(Attempt).where(Attempt.task_id == task_id, Attempt.epoch == epoch))
+            if attempt:
+                attempt.finished_at = utcnow()
+            resource.owner, resource.task_id, resource.expires_at = None, None, None
+
     def view(self, task_id):
         with self.sessions() as db:
             task = db.get(Task, task_id)
@@ -214,6 +235,7 @@ class TaskService:
             usage = db.get(Usage, task_id)
             return {'id': task.id, 'status': task.status, 'error_code': task.error_code,
                     'session_id': task.session_id, 'budget': {'used': task.calls, 'limit': 30},
+                    'release_at': task.release_at.isoformat() if task.release_at else None,
                     'checkpoint': {k: task.checkpoint[k] for k in ('phase', 'epoch', 'at')} if task.checkpoint else None,
                     'created_at': task.created_at.isoformat(), 'updated_at': task.updated_at.isoformat(),
                     'usage': usage.data if usage else None,

@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+长运行方案细化先提交 `5b66061`：同一日报先草稿，到业务发布时间再最终发布；明确只证明定时业务等待期间的持久任务，不声称模型连续推理8小时。新增迁移0004/release_at，WAITING_RELEASE释放资源、未到时不领取、stop→resume不绕过时间、到期保持原session与预算；真实隔离PostgreSQL反例后端39/39。此时生产尚未迁移0004、API和工具门禁未开放releaseAt，等待真实计时未开始。额度核对已用33%，积分62494.026057未变、未用重置卡。
+
 部分产物新完整轮次通过：任务 `d37923a6-68fc-4b2b-ab6e-48c228494767` / session `session-84c60e66-714e-462a-b8d7-1c7fe7587c99`。真实 JSON 写入后停止、原 Worker 退出89；原5次派发，恢复同session/原账本，attempt 1→2、epoch12→13，补renderer内部读写及两读回共4次，最终9/30、API SUCCEEDED；原JSON与首轮会话SHA不变、完整独立验收PASS、CLI下载588字节SHA一致。Flash/off，两轮总12283 token。私有 `.runtime/backend/p3-partial-002-before.json` / `p3-partial-002-after.json`；首试仍UNVERIFIED未改。无进展检测新增持久businessProgress，提示数/派发/返回未推进300秒则先持久stop关闭工具派发，再cancel；心跳/重复checkpoint不刷新进展时间，重启读取原时间。时间回退/计数回退拒绝。后端37/37，真实新续接也经过该路径；尚未通过真实300秒卡住故障及1/8小时长运行门槛。
 
 部分产物真实首试：任务 `8259a18c-a798-471e-9738-3344c2837fc3`，session `session-d1ed3905-365a-4da8-87ab-43cf28fe0283`。JSON 成功返回后私有故障控制器停止派发、cancel并确认终止，再退出 Worker(89)；原6次、无pending、无Markdown。恢复同session/原预算，以continuation-plan绑定原sessionSHA和账本前缀，第二轮仅renderer及两读回，累计10/30；原JSON未变。首轮结束实为精确 A1 policy unavailable 错误，初版验收只认aborted/completed，故任务保留 UNVERIFIED及原失败报告。先补方案 cd418d7，再精确增加该停止边界，所有工具完整关联/两次唯一写入/来源与读回规则不变；对原始证据重新独立verify通过（13959 token，Flash/off），没有更改DB成功状态或重写历史报告。需新任务验证修正后API完整闭环，不能把离线重核对当API已成功。Python验收13/13、后端35/35、核心62/62；继续保持P3未完成。
