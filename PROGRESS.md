@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+激活断点首个真实故障：`80b1b8d8-c768-419c-897a-d9e753405ed0`，实际activate成功、inspect确认session不存在后Worker退出90；保留原配置SHA、空账本及无产物快照。原租约自然到期后resume，同task/session `session-662283d0-373b-4904-8fbf-e0492d9f1fe2`，epoch22→23、两attempt，rebind前后均确认不存在，原active-tasks SHA未改，只发送一次prompt。恢复流程有效，但模型JSON漏CSV path，renderer三次失败、覆盖已有JSON被拒；最终UNVERIFIED/INDEPENDENT_VERIFICATION_FAILED，17/30、36836 token、Flash/off、下载404，基础配置恢复。原失败不修改、不以恢复成功冒充业务成功；私有run内activation-fault-before/backend-activation-reconciled/backend-verification均保留，完整成功闭环仍待测。普通Worker已恢复持续运行，1h观察器未停止。
+
 激活断点补充：先提交方案 `bb862ba`，再实现 `recover_activation`，替代active-tasks存在时无条件BLOCKED。执行意图/响应、已有审计或产物均拒绝；inspect须明确同一session不存在，rebind只执行一次，之后再核对现场及证据完全不变，才交给已有start唯一创建流程。新增17项无模型反例/正常路径，后端61/61（保留一项已知TestClient弃用警告）、diff检查通过。当前运行Worker未热更新；新增路径尚无真实断点验收，1h原观察器及Worker均继续存活，不重启计时。
 
 新完整停滞轮次独立核对通过：任务 `118200a0-928a-42a6-a06d-8ca215f89f77` / session `session-444a1919-09db-4f82-9c4c-4efbcd8ac048`。真实模型完成后冻结poll观测，业务进度时间15:41:28.749783，fresh inspect前实测停滞302.374186秒；控制文件已stopped，现场terminal，因此没有cancel或新prompt。API为STOPPED/NO_BUSINESS_PROGRESS、10/30、仅一条用户消息、11986 token、Flash/off；产物清单为空、下载404。私有原run内 `stale-observation-final-proof.json`、backend-stop-inspected及backend-restored记录保留。普通Worker PID47081已恢复，1h观察器PID46135仍实际运行，原长任务WAITING_RELEASE、6/30。该故障只证明旧观测下安全停止，不声称真实模型挂起；1/8小时仍未验收。最新套餐已用34%，积分62494.026057未变，重置卡未用。
