@@ -10,7 +10,7 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 后续 DSH 推理按用户指定固定 **DeepSeek 4.1 Flash，思考关闭**：当前 App 路由 `deepseek-account/deepseek-flash`、`reasoningEffort=off`。旧阶段 high 的记录保留为历史，不再沿用。
 
-当前开发分支 `p2-task-service`：先写 [后端技术方案](docs/stages/p2-design.md)，现已通过 API→数据库→独立 Worker→真实 Flash/off→核对→下载闭环。提供任务提交、查询、停止、有限恢复、工具日志和用量；见 [启动与使用](backend/README.md)、[验证结果与限制](docs/stages/p2-summary.md)。下一阶段 P3 将根据这些证据重新制定恢复与长运行方案。
+P2 `6bd8c4a` 已推送阶段和默认分支：先写 [后端技术方案](docs/stages/p2-design.md)，通过 API→数据库→独立 Worker→真实 Flash/off→核对→下载闭环。提供提交、查询、停止、有限恢复、工具日志和用量；见 [使用](backend/README.md)、[验证与限制](docs/stages/p2-summary.md)。当前新分支 `p3-durable-execution`，已根据 P2 实际断点重写 [P3 恢复与长运行方案](docs/stages/p3-design.md)，尚未验收。
 
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
