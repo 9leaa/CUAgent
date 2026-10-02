@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { observedSession, assertUnstarted } from '../harness/daily-report-runner.mjs';
+import { observedSession, assertUnstarted, reportPrompt, draftReportPrompt } from '../harness/daily-report-runner.mjs';
+
+test('normal and scheduled prompts preserve the full CSV contract and write-once rule', () => {
+  for (const prompt of [reportPrompt(), draftReportPrompt()]) {
+    assert.ok(prompt.includes('path、rowCount、columnCount、columns、numeric、bytes、sha256'));
+    assert.ok(prompt.includes('字段和值均来自对应真实工具返回'));
+    assert.ok(prompt.includes('不覆盖任何文件'));
+    assert.ok(prompt.includes('最多30次实际请求'));
+  }
+  assert.ok(draftReportPrompt().includes('禁止生成 report.md'));
+  assert.ok(draftReportPrompt().includes('最后完整读回 report.json'));
+  assert.ok(!draftReportPrompt().includes('随后调用 workspace_daily_report'));
+});
 
 test('first prompt recovery requires no local intent and no official work', () => {
   assert.doesNotThrow(() => assertUnstarted([{ type: 'session/header' }], false));

@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+2026-10-03 00:01（北京时间）激活断点新完整闭环通过：先提交CSV字段提示方案 `9948c73`，确认统计工具实际含path，再为新任务显式列出七个必需字段；不补写模型JSON、不改验收器、不覆盖首试或已派发长测。任务 `2c74c877-8f43-436d-a3a8-6b59df89669d` / session `session-4753d133-4482-4372-9bb4-95c1bbc95ec1`，真实activate后退出90，原租约自然到期后恢复，epoch24→25、两attempt、只一条用户提示，原激活配置SHA不变；新核对前后session不存在后创建发送一次，最终SUCCEEDED/10次/15775 token/Flash-off。独立verify及API下载588字节SHA `eb8c062e09cbb93b366be176fdc3c4862f2794f0244a8b971c9aae1fd5c7c5c9` 一致，私有run内activation-recovery-verification.json PASS。首轮UNVERIFIED及36836 token保留，不宣称提示修正已证明普遍可靠性。核心64/64、Python日报13/13，后端上轮61/61；原1h观察器仍运行，普通Worker已恢复。套餐34%，积分62494.026057未变、重置卡未用。
+
 激活断点首个真实故障：`80b1b8d8-c768-419c-897a-d9e753405ed0`，实际activate成功、inspect确认session不存在后Worker退出90；保留原配置SHA、空账本及无产物快照。原租约自然到期后resume，同task/session `session-662283d0-373b-4904-8fbf-e0492d9f1fe2`，epoch22→23、两attempt，rebind前后均确认不存在，原active-tasks SHA未改，只发送一次prompt。恢复流程有效，但模型JSON漏CSV path，renderer三次失败、覆盖已有JSON被拒；最终UNVERIFIED/INDEPENDENT_VERIFICATION_FAILED，17/30、36836 token、Flash/off、下载404，基础配置恢复。原失败不修改、不以恢复成功冒充业务成功；私有run内activation-fault-before/backend-activation-reconciled/backend-verification均保留，完整成功闭环仍待测。普通Worker已恢复持续运行，1h观察器未停止。
 
 激活断点补充：先提交方案 `bb862ba`，再实现 `recover_activation`，替代active-tasks存在时无条件BLOCKED。执行意图/响应、已有审计或产物均拒绝；inspect须明确同一session不存在，rebind只执行一次，之后再核对现场及证据完全不变，才交给已有start唯一创建流程。新增17项无模型反例/正常路径，后端61/61（保留一项已知TestClient弃用警告）、diff检查通过。当前运行Worker未热更新；新增路径尚无真实断点验收，1h原观察器及Worker均继续存活，不重启计时。
