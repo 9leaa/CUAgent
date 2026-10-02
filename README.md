@@ -10,6 +10,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 后续 DSH 推理按用户指定固定 **DeepSeek 4.1 Flash，思考关闭**：当前 App 路由 `deepseek-account/deepseek-flash`、`reasoningEffort=off`。旧阶段 high 的记录保留为历史，不再沿用。
 
+当前开发分支 `p2-task-service`，已先写 [后端技术方案](docs/stages/p2-design.md)；尚未把 API/数据库/Worker 标为可用。
+
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。
