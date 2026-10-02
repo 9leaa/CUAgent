@@ -28,12 +28,20 @@ class Worker:
 
     def rpc_process(self, mode, *paths):
         command = ['node', str(PROJECT / 'agent/harness/daily-report-runner.mjs'), mode, *map(str, paths)]
-        result = subprocess.run(command, cwd=PROJECT, env={**os.environ, 'CUAGENT_DSH_COOKIE_FILE': str(self.settings.cookie_file)},
-                                text=True, capture_output=True, timeout=55)
-        if result.returncode:
-            # Do not leak raw provider failures or credentials to event logs.
-            raise RuntimeError('DESKTOP_' + mode.upper() + '_FAILED')
-        return json.loads(result.stdout.strip().splitlines()[-1])
+        # Only observation is retried. Unknown writes/start/activation are never replayed.
+        attempts = 3 if mode in ('inspect', 'poll') else 1
+        for attempt in range(attempts):
+            try:
+                result = subprocess.run(command, cwd=PROJECT, env={**os.environ, 'CUAGENT_DSH_COOKIE_FILE': str(self.settings.cookie_file)},
+                                        text=True, capture_output=True, timeout=55)
+                if result.returncode == 0:
+                    return json.loads(result.stdout.strip().splitlines()[-1])
+            except (subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):
+                pass
+            if attempt + 1 < attempts:
+                time.sleep(2 ** attempt)
+        # Do not leak raw provider failures or credentials to event logs.
+        raise RuntimeError('DESKTOP_' + mode.upper() + '_FAILED')
 
     def prepare_task(self, task):
         root = self.settings.root / 'jobs' / task.id

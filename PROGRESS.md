@@ -26,6 +26,8 @@ P1–P5 新路线已落盘，当前分支 `p1-daily-report`，P1 技术方案先
 
 ## 2026-10-02：P3 检查点实现中
 
+恢复观察追加：核对同版官方 commands.ts 的 hasPromptRequest，新增只读 inspect，使用原 user/message.source.rpcId 证明原请求已入库；日志缺失不能证明请求没进入实时队列。真实原 session-f833ddc7 再查存在/原请求匹配/terminal，60 events、10 模型工具调用（原 raw 11 含 renderer 内部读取），没有重新推理。修正 terminal 为最后 turn/end 晚于最后 turn/start，避免旧结束事件掩盖新轮次。Worker 只对 inspect/poll 最多三次观察重试，start/activate/cancel/restore 超时不重发。新增两项观察单测及六项重试单测；尚未完成现场恢复与时间门槛。
+
 检查点已接入 PostgreSQL（迁移 0003）及 Worker 准备/激活/发送/观察/核验阶段，旧执行者、预算回退和审计长度回退拒绝。后端 17/17。新真实任务 `2f2e7edc-26e3-4561-af1e-bcee472c3bf6`、session `session-f833ddc7-c056-4203-8965-3d45ecf0afa5`：SUCCEEDED，Flash/off，11/30、17723 token；数据库检查点与结束后的原始账本/两产物独立重算一致、无未返回调用。尚未做故障恢复与长时间验收，P3 未完成；默认分支保持已验收 P2。
 
 补充当前 P3 开发记录：方案 `8268dc1` 已先提交。新增只读检查点证据模块，检查原账本前缀、连续预算、未返回调用和已有产物 SHA；文件存在不能自行解除 UNKNOWN。新增六项反例/连续性测试，后端合计 16/16。该模块尚未接入 Worker 持久恢复，未做进程故障或 1/8 小时验收，不算 P3 完成。当前 API/数据库在线，单次验证 Worker 已退出，没有后台持续模型任务。

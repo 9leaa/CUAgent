@@ -8,6 +8,22 @@ import { fileURLToPath } from 'node:url';
 import { loadA1TaskConfig } from '../a1-task-config.mjs';
 
 export const DAILY_MODEL = Object.freeze({ provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'off' });
+
+// Persistence proves presence, never absence from the live Agent inbox.
+export function observedSession(sessionId, running, rows, requestId) {
+  let start = -1, end = -1;
+  for (let index = 0; index < rows.length; index++) {
+    if (rows[index].type === 'turn/start') start = index;
+    if (rows[index].type === 'turn/end') end = index;
+  }
+  return { sessionId, exists: true, running: !!running,
+    terminal: !running && end >= 0 && end > start,
+    events: rows.length, calls: rows.filter(row => row.type === 'tool/call').length,
+    userMessages: rows.filter(row => row.type === 'user/message').length,
+    promptObserved: !!requestId && rows.some(row => row.type === 'user/message'
+      && row.data?.source?.kind === 'user' && row.data.source.rpcId === requestId),
+    reason: end >= 0 ? rows[end].data.reason : undefined };
+}
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sha = text => createHash('sha256').update(text).digest('hex');
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -21,7 +37,7 @@ report.json 顶层恰好 date、notes、csv。date 来自 task.json。notes 按�
 
 export async function main(argv) {
   const [mode, ...paths] = argv;
-  assert.ok(['activate', 'start', 'poll', 'cancel', 'restore'].includes(mode), 'usage: runner activate <base-config> <run-dir>... | start/poll/cancel <run-dir> | restore <base-config>');
+  assert.ok(['activate', 'start', 'poll', 'inspect', 'cancel', 'restore'].includes(mode), 'usage: runner activate <base-config> <run-dir>... | start/poll/inspect/cancel <run-dir> | restore <base-config>');
   assert.ok(paths.length && paths.every(isAbsolute), 'all paths must be absolute');
   const cookiePath = process.env.CUAGENT_DSH_COOKIE_FILE;
   assert.ok(cookiePath && isAbsolute(cookiePath), 'CUAGENT_DSH_COOKIE_FILE required');
@@ -109,20 +125,23 @@ export async function main(argv) {
   } else {
     const inventory = await ready();
     const session = inventory.items.find(s => s.sessionId === sessionId);
+    if (!session && mode === 'inspect') {
+      console.log(JSON.stringify({ sessionId, exists: false, terminal: false, promptObserved: false }));
+      return;
+    }
     assert.ok(session, 'session missing; inspect before recreating');
     const files = readdirSync(project + '/.runtime/desktop-home/sessions').map(group =>
       `${project}/.runtime/desktop-home/sessions/${group}/${sessionId}/session.v4.jsonl.zstd`).filter(existsSync);
     assert.equal(files.length, 1, 'unique official session persistence required');
     const raw = execFileSync('/opt/homebrew/bin/zstd', ['-dc', files[0]], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
     const rows = raw.trim().split('\n').map(JSON.parse);
-    const ends = rows.filter(r => r.type === 'turn/end');
-    const terminal = !session.running && ends.length > 0;
-    if (terminal) {
+    const requestId = existsSync(root + '/prompt-request.json') ? load(root + '/prompt-request.json').request.requestId : undefined;
+    const observed = observedSession(sessionId, session.running, rows, requestId);
+    if (observed.terminal && mode === 'poll') {
       if (existsSync(root + '/session.jsonl')) assert.equal(readFileSync(root + '/session.jsonl', 'utf8'), raw, 'terminal evidence changed');
       else writeFileSync(root + '/session.jsonl', raw, { flag: 'wx', mode: 0o600 });
     }
-    console.log(JSON.stringify({ sessionId, running: !!session.running, terminal,
-      calls: rows.filter(r => r.type === 'tool/call').length, reason: ends.at(-1)?.data.reason }));
+    console.log(JSON.stringify(observed));
   }
 }
 
