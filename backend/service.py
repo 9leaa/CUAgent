@@ -137,6 +137,27 @@ class TaskService:
                 task.calls = calls
                 self.event(db, task, 'progress', raw_calls=calls)
 
+    def checkpoint(self, task_id, owner, epoch, phase, evidence):
+        if phase not in ('prepared', 'activating', 'activated', 'starting', 'observing', 'verifying'):
+            raise ValueError('INVALID_CHECKPOINT_PHASE')
+        with self.sessions.begin() as db:
+            resource = db.get(Resource, 'desktop', with_for_update=True)
+            task = db.get(Task, task_id, with_for_update=True)
+            if (not task or resource.owner != owner or resource.task_id != task_id
+                    or resource.epoch != epoch or not resource.expires_at or resource.expires_at <= utcnow()
+                    or task.status not in ('RUNNING', 'STOP_REQUESTED')):
+                raise Conflict('STALE_EXECUTION_OWNER')
+            if evidence['runId'] != 'p2-' + task_id or evidence['sessionId'] != task.session_id:
+                raise Conflict('CHECKPOINT_IDENTITY_CHANGED')
+            old = task.checkpoint
+            if (type(evidence['used']) is not int or not task.calls <= evidence['used'] <= 30
+                    or (old and evidence['auditBytes'] < old['evidence']['auditBytes'])):
+                raise Conflict('CHECKPOINT_BUDGET_OR_AUDIT_REGRESSED')
+            task.calls = evidence['used']
+            task.checkpoint = {'phase': phase, 'epoch': epoch, 'at': utcnow().isoformat(), 'evidence': evidence}
+            self.event(db, task, 'checkpoint', phase=phase, raw_calls=task.calls,
+                       unresolved_calls=len(evidence['pending']))
+
     def import_audit(self, task_id, owner, epoch, rows):
         with self.sessions.begin() as db:
             task = db.get(Task, task_id, with_for_update=True)
@@ -189,6 +210,7 @@ class TaskService:
             usage = db.get(Usage, task_id)
             return {'id': task.id, 'status': task.status, 'error_code': task.error_code,
                     'session_id': task.session_id, 'budget': {'used': task.calls, 'limit': 30},
+                    'checkpoint': {k: task.checkpoint[k] for k in ('phase', 'epoch', 'at')} if task.checkpoint else None,
                     'created_at': task.created_at.isoformat(), 'updated_at': task.updated_at.isoformat(),
                     'usage': usage.data if usage else None,
                     'artifacts': [{'name': a.name, 'sha256': a.sha256, 'bytes': a.bytes} for a in db.scalars(select(Artifact).where(Artifact.task_id == task_id))]}

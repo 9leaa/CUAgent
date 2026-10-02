@@ -12,6 +12,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 P2 `6bd8c4a` 已推送阶段和默认分支：先写 [后端技术方案](docs/stages/p2-design.md)，通过 API→数据库→独立 Worker→真实 Flash/off→核对→下载闭环。提供提交、查询、停止、有限恢复、工具日志和用量；见 [使用](backend/README.md)、[验证与限制](docs/stages/p2-summary.md)。当前新分支 `p3-durable-execution`，已根据 P2 实际断点重写 [P3 恢复与长运行方案](docs/stages/p3-design.md)，尚未验收。
 
+P3 开发中：检查点已接入数据库和 Worker；17 项后端测试及一次新真实日报通过，11/30，原账本/产物与持久检查点独立一致。尚未完成故障恢复、1/8 小时验收，不能据此宣称长任务已可用。
+
 - [x] 切换主基座为 DeepSeek Harness；创建公开仓库 `9leaa/CUAgent`。
 - [x] 迁移工具核心、测试、CSV fixture、图片探针和历史 VM 回归资产。
 - [x] 重写整体设计与阶段计划；开发顺序调整为最小底座→Computer Use主线。

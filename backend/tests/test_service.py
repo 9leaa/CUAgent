@@ -99,3 +99,29 @@ def test_audit_import_is_idempotent_private_and_identity_bound(service, payload)
         service.import_audit(task_id, task.owner, task.epoch, [{**row, 'sessionId': 'different'}])
     with pytest.raises(Conflict, match='STALE'):
         service.import_audit(task_id, str(uuid.uuid4()), task.epoch, [row])
+
+
+def test_checkpoint_survives_service_recreation_and_rejects_stale_owner(service, payload):
+    from backend.service import TaskService
+    task_id, _ = service.submit(payload, 'checkpoint')
+    task = service.claim(str(uuid.uuid4()))
+    service.record_prepared(task_id, task.owner, task.epoch, '/unused/run', 'same-session')
+    evidence = {'runId': 'p2-' + task_id, 'sessionId': 'same-session',
+                'used': 7, 'auditBytes': 100, 'auditSha256': 'a' * 64,
+                'pending': {'unknown-call': 'workspace_write'}, 'artifacts': {}}
+    service.checkpoint(task_id, task.owner, task.epoch, 'observing', evidence)
+    fresh = TaskService(service.sessions, service.settings)
+    assert fresh.view(task_id)['checkpoint']['phase'] == 'observing'
+    assert fresh.view(task_id)['budget']['used'] == 7
+    with fresh.sessions() as db:
+        assert db.get(Task, task_id).checkpoint['evidence'] == evidence
+    with pytest.raises(Conflict, match='REGRESSED'):
+        fresh.checkpoint(task_id, task.owner, task.epoch, 'observing', {**evidence, 'used': 6})
+    with pytest.raises(Conflict, match='REGRESSED'):
+        fresh.checkpoint(task_id, task.owner, task.epoch, 'observing', {**evidence, 'auditBytes': 99})
+    with pytest.raises(Conflict, match='IDENTITY_CHANGED'):
+        fresh.checkpoint(task_id, task.owner, task.epoch, 'observing', {**evidence, 'sessionId': 'other'})
+    with fresh.sessions.begin() as db:
+        db.get(Resource, 'desktop').expires_at = utcnow() - timedelta(seconds=1)
+    with pytest.raises(Conflict, match='STALE'):
+        fresh.checkpoint(task_id, task.owner, task.epoch, 'verifying', evidence)

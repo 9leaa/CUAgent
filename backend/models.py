@@ -26,6 +26,7 @@ class Task(Base):
     owner: Mapped[str | None] = mapped_column(String(36))
     epoch: Mapped[int] = mapped_column(Integer, default=0)
     calls: Mapped[int] = mapped_column(Integer, default=0)
+    checkpoint: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

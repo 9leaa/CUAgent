@@ -14,6 +14,7 @@ from backend.db import database
 from backend.models import Task
 from backend.service import TaskService
 from backend.observability import session_usage
+from backend.checkpoint import snapshot
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -86,8 +87,15 @@ class Worker:
         thread = threading.Thread(target=keep_alive, daemon=True)
         thread.start()
         run, activated, cancel_sent = None, False, False
+        previous_evidence = task.checkpoint['evidence'] if task.checkpoint else None
+        def checkpoint(phase):
+            nonlocal previous_evidence
+            evidence = snapshot(run, previous_evidence)
+            self.service.checkpoint(task.id, self.owner, task.epoch, phase, evidence)
+            previous_evidence = evidence
         try:
             run = self.prepare_task(task)
+            checkpoint('prepared')
             if self.service.heartbeat(task.id, self.owner, task.epoch):
                 stopping.set()
             created = (run / 'create-request.json').exists()
@@ -97,11 +105,14 @@ class Worker:
                 if config.exists():
                     # A prior activation attempt is not repeated blindly.
                     raise RuntimeError('ACTIVATION_ATTEMPT_NEEDS_REVIEW')
+                checkpoint('activating')
                 self.rpc_process('activate', self.settings.base_tasks, run)
                 activated = True
+                checkpoint('activated')
                 if lost.is_set() or self.service.heartbeat(task.id, self.owner, task.epoch):
                     stopping.set()
                 else:
+                    checkpoint('starting')
                     self.rpc_process('start', run)
                     created = True
             if not created:
@@ -119,6 +130,7 @@ class Worker:
                 if not lost.is_set():
                     self.service.progress(task.id, self.owner, task.epoch, calls)
                     self.service.import_audit(task.id, self.owner, task.epoch, audit)
+                    checkpoint('observing')
                 if state['terminal']:
                     break
                 if lost.is_set():
@@ -131,6 +143,7 @@ class Worker:
                 self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage}, error_code='CANCELLED_VERIFY_BEFORE_RESUME')
             else:
                 try:
+                    checkpoint('verifying')
                     result = verify(run)
                 except (ValueError, KeyError, OSError, TypeError, IndexError) as error:
                     # Private report preserves diagnostic detail; public event is a code.
