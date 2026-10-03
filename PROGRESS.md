@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6官方会话证据与命令入口（2026-10-03）：先提交方案33bd977，再新增desktop-session-evidence/command。显式私有home与受控sessionId定位唯一原compressed文件，拒绝链接/重复/越界、只读有界读取≤64MiB，固定zstd 1.5.7解压≤64MiB/10秒，原JSONL字节保留；原prompt匹配且唯一用户消息/terminal才独占归档，已存证据变化拒绝覆盖。start/inspect/cancel CLI只调用已有官方会话模块，不部署/激活/授权VM；错误仅固定代码，不泄漏凭证。新增5项Node测试使用真实zstd压缩/解压合成事件，验证原字节、拒绝路径、非终态/错请求、旧证据不覆盖及命令参数；无新模型或真实App调用。后续Python adapter需接此命令、VM证据及配置激活，P6仍未验收；P5未改。
+
 P6官方会话协议模块（2026-10-03）：方案15d6f97先于实现，新增agent/harness/desktop-session.mjs，复用日报runner的模型常量和observedSession解析，不改日报执行器。RPC固定127.0.0.1:19387、显式私有cookie、禁止重定向与副作用重试；start要求空闲App、唯一real-app preset、目录支持Flash/off，固定run/session/cwd和输入，create/model-select/prompt各先独占写意图再调用，响应另存。inspect核对原session/cwd及prompt request；cancel只针对running会话且单次意图，idle不取消。6项新增协议模拟覆盖成功/取消、create确认丢失、选模不符、prompt确认丢失、preset不符及越界输入，Node全77/77通过。没有HTTP实际连接到官方App、没有模型费用、没有profile切换；真实会话证据读取及VM/Worker适配仍待接入。P5源码和运行环境未改。
 
 P6桌面Worker编排（2026-10-03）：先提交方案cdb814c及未知状态隔离细则70fa665，再新增独立desktop_worker。必须显式指定共享锁，锁后才领取desktop类型；准备run/session/control绑定，初次许可后独占写入并fsync启动意图，start只一次。3秒独立心跳，poll检查terminal/rawCalls/pending，最多300秒观察，停止/失权拒绝成功。终态且无在途、许可撤销确认后才独立verify并登记产物；取消前先关闭许可。未知状态不finish释放资源，写共享锁旁quarantine并阻止后续P6领取；配置恢复失败独立告警并隔离，不把业务成功当环境恢复成功。10项模拟adapter+隔离PG测试覆盖完整编排、准备/启动/撤销/在途/预算/停止六故障、验收失败、恢复失败及锁争用；全后端258/258通过（1项既有弃用提示）。追加启动意图持久写入后单独重跑Worker测试。尚无真实adapter、VM隧道或模型执行，不能声称生产可用；旧P5 Worker不识别新quarantine，真实切换仍必须停旧领取者，P5环境未改。
