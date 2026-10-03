@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+P5真实通知通过（2026-10-03）：额度实时剩余92%、积分62494.026057未变、重置卡未用；空队列下停本项目服务后迁移0006，八张旧表逐行内容SHA及行数一致。先只启动API，排队task `8cbbb153-d365-4d5a-87ce-bf43fabfd826`真实停止、无session/0raw，产生唯一STOPPED通知；重复停止不重复通知、两次已读返回同时间。实际API79232→79252重启后读取原通知/已读状态一致，再启动普通Worker/session13469。新task `3d151535-33d1-44d5-9651-b96c63e407f1` / session `session-703c489c-af8a-4b65-9c63-be1ba01ed4fa`，Flash/off、5模型工具调用/9raw/12583 token；独立验收及通过真实通知链接下载两产物SHA一致。成功通知2保持未读，诊断通知1的程序已读不冒充用户使用反馈。基础配置恢复无告警、无待执行任务；后端115/115。私有证据`.runtime/p5_notification_20261003_001`。P5累计六次模型开发验证85358 token，另排队停止0调用，均不算一周。周期调度及真实一周仍待完成，P5未验收/未推送。
+
 P5通知开发：方案先补终态事务契约，0006新增notifications表；TaskService在finished/stop_requested/owner_expired的实际终态事件同事务写入通知，event_id唯一，不追补历史。API/CLI支持游标列表、未读筛选、幂等已读；同时显示历史终态和当前状态，仅当前仍成功提供原下载入口。8项新增独立PG/API测试（并发已读、事务回滚、失败/阻塞/待核验、恢复后的历史提示、重建App持久性）及全后端115/115通过。没有外部邮件/聊天/系统弹窗；生产迁移与新真实通知待验证。
 
 P5真实批次通过：0005仅新增batches/batch_items，停止空闲本项目API/Worker后，迁移前后tasks/attempts/events/artifacts/usage/resources六表行数及逐行内容SHA一致。新API78694/session3060、Worker78698/session43087；不改PG/VM/SSH。真实batch `ef18d713-c46b-4534-9668-24b1d8c3f151`关联两任务`d0c1e805-0d59-47c4-a7f4-a5a7a8684c45`、`7cc894db-4996-4adb-ac3c-0fcf87cb4b24`，同键重复POST返回created=false、原批次；两任务各5模型调用，raw9/10、token12572/15948，Flash/off、独立verify及四次API下载SHA/ETag核对通过。恢复配置无告警、无待执行任务。全后端107/107；私有证据`.runtime/p5_batch_20261003_001/independent-verification.json`，批次这两次新增28520 token，P5至此开发验证五次共72775 token（含旧版和返工，不计一周）。周期调度、通知及一周验收仍待完成，P5未推送/未验收。

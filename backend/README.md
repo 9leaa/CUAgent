@@ -55,7 +55,19 @@ P5开发版可在spec/API正文显式加入`"inputMode":"aggregate"`，使用P4�
 .runtime/backend-venv/bin/python -m backend.client batch-stop --batch BATCH_UUID
 ```
 
-批次JSON中的tasks是内联任务正文，不是任意文件引用。停止按现有单任务边界逐项持久执行，保留已完成项；中途失败可用原batch再次stop完成剩余项，不承诺跨任务的原子停止、不新建任务。下载沿用各任务的原下载入口。真实两任务批次及重复请求已通过；周期计划和本地通知尚未交付。
+批次JSON中的tasks是内联任务正文，不是任意文件引用。停止按现有单任务边界逐项持久执行，保留已完成项；中途失败可用原batch再次stop完成剩余项，不承诺跨任务的原子停止、不新建任务。下载沿用各任务的原下载入口。真实两任务批次及重复请求已通过；周期计划尚未交付。
+
+### 本地通知（P5开发版）
+
+迁移至0006后，新任务的成功、失败、阻塞、待核验或停止终态事件与通知同事务保存，不追补历史记录、不复制输入/提示。`GET /notifications?after=0&limit=100&unread_only=true`按游标查询；`POST /notifications/通知ID/read`幂等标为已读。两个接口沿用认证。发生时状态与当前状态分开，恢复后的历史通知不能当成当前成功；下载仍受原状态和SHA检查，不因通知而绕过。
+
+```bash
+.runtime/backend-venv/bin/python -m backend.client notifications --unread-only
+.runtime/backend-venv/bin/python -m backend.client notifications --after 0
+.runtime/backend-venv/bin/python -m backend.client notification-read --notification 2
+```
+
+只在你确实要确认该通知时执行已读命令。真实停止通知在API重启后保留，重复确认不改变首次已读时间；新真实成功通知及其两产物链接核验通过。这里是本服务内收件箱，不是邮件、聊天消息或系统推送；读取接口不会暗中标记已读，也不等于用户已采用报告。
 
 只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
 
