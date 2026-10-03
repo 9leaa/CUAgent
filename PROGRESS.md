@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P5七日观察准备（2026-10-03）：先提交回执契约9a99914，再新增workflow_preview/week_observer及14项反例，完整后端155/155。来源预览真实运行零提交；初次人工填错完整Git SHA被拒，读取真实rev-parse后采集成功，没有改Git或放宽校验。新观察器首次误用整个usage对象比较，API额外models/monetaryCost导致CHECK_FAILED，保留diagnostic-001；修为逐项核对原token、模型和预算，diagnostic-003原短测两任务VERIFIED、四下载SHA一致，七日结论仍INCOMPLETE。回执位于私有.runtime/backend/p5-observer-diagnostic-20261003-003，预览位于.runtime/p5-preview-20261003-001；无新增模型调用/服务重启。正式七日尚未启用，P5未验收。
+
 更新：2026-10-03。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)，当前按[个人任务服务P1–P5路线](docs/product-roadmap.md)推进。下方“当前交付”及最新收尾记录代表当前状态；各日期过程中的未提交/未完成描述保留当时事实，不代表目前状态。
 
 ## 当前交付

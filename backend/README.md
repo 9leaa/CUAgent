@@ -91,6 +91,12 @@ API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使�
 
 只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
 
+### 来源预览与七日回执（P5开发版）
+
+`python -m backend.workflow_preview --branch p5-personal-workflows --baseline 完整起始SHA --cutoff 带时区截止时刻 --output 新目录`仅采集本项目Git和截止前24h元数据，保存两份来源及batch.json，不调用模型。复核后用batch-submit提交batch.json，复用稳定key；来源目录不允许覆盖。应在后端虚拟环境中执行，不把预览当真实模型报告。
+
+`python -m backend.week_observer --schedule SCHEDULE_UUID --output /绝对路径/.runtime/backend/新回执目录`只读检查原计划、来源、任务、会话审计、用量、通知及产物下载，写新回执、不确认已读。它不派发、不授予额度，也不补跑失败；原来失败的回执保留。完整运行观察必须真实满168h、7个连续应执行日、14个唯一任务/会话且逐项验收通过；用户采用情况另记NOT_ASSESSED，不承诺连续在线168h。首次真实回执因API额外usage元数据比较过严失败，已修正并保留原失败；随后原短测两报告核对通过，但七日判定仍INCOMPLETE。
+
 ### 基础配置恢复失败
 
 报告SUCCEEDED只表示业务核验通过，不代表Desktop配置恢复成功。若Worker输出 `RESTORE_PENDING_REQUIRES_IDLE_APP`，对应run会保留 `backend-restore-pending-*.json`；目前API任务状态不单独展示此告警。不要为恢复配置而resume已成功任务，也不要删除提示/账本或重复业务。先确认没有在途任务及其他App会话运行，再停止空闲Worker，由维护者使用原批准基础tasks执行现有runner的restore；它会再次检查App空闲且核对旧账本不变。配置恢复失败不得循环强制重试；保留失败记录，完成后另记成功，不覆盖原证据。新任务继续前应核对实际配置，不能仅以API /health判断。
