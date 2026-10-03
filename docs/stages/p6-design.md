@@ -28,6 +28,8 @@
 
 ### VM最终派发门禁（实现前补充）
 
+数据库authority与生命周期适配：在短事务内锁定同一desktop资源和task，核对desktop-textedit、RUNNING、owner/epoch/task绑定及未到期；用数据库当前时间计算剩余租约，保守映射到查询前host monotonic起点。不得持DB事务做HTTP。独立DesktopExecutionControl协调既有heartbeat→guest查询→新查authority→单次renew；停止/失权/DB或HTTP失败后实例锁止、关闭host控制文件并尝试guest revoke。分别返回本地/远端撤销确认，失败不伪称已停掉在途动作；不删除任务、不重放模型、不自动释放未知副作用资源。重启不沿用该对象续期，未来必须按已有桌面禁止自动resume规则处理。先以隔离PG+真实loopback HTTP验证，旧日报Worker与P5不改。
+
 延迟授权细则：GET /lease另返回guest当前clockMs；网络renew必须携带notAfterMs（guest时域的绝对截止），到达时已过期直接拒绝，实际expiresAt取本地短TTL与notAfter的较早者。重复sequence必须绑定原ttl/notAfter，不能改变请求后重放延长期限。后端客户端先查guest时钟、再调用可信authority回调拿当前固定run/owner/epoch的monotonic截止（未来Worker从数据库执行权剩余时间换算，不接受模型提供）；扣除自查询起耗时和500ms余量后计算guest notAfter。请求只发一次、响应严格校验原身份/序号/期限；异常记录为未确认，不以HTTP成功猜正确，也不重放新序号。撤销独立执行且必须返回stopped=true，失败保留待核对。
 
 此计算依赖host/guest时钟正常前进，不声称覆盖任意虚拟机冻结/时钟跳跃。guest现有倒退/过期拒绝仍保留。客户端先用本机实际HTTP和受控时钟验证，再接Worker真实数据库authority和VM隧道；后者未完成时禁止生产启用。
