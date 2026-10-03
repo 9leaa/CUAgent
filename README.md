@@ -6,7 +6,7 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
-按 [个人任务服务路线](docs/product-roadmap.md) 推进：P1 日报 → P2 后端/日志 → P3 长任务 → P4 效率 → P5 日常用途。P1、P2 已完成并推送，P3 本地验收完成、准备阶段交付，P4/P5 尚未开始。P1 先写 [技术方案](docs/stages/p1-design.md)，两轮真实模型对照首轮17/20、修正后新轮次20/20，失败保留；见 [使用方法](docs/stages/p1-usage.md) 和 [结果](docs/stages/p1-summary.md)。
+按 [个人任务服务路线](docs/product-roadmap.md) 推进：P1 日报 → P2 后端/日志 → P3 长任务 → P4 效率 → P5 日常用途。P1、P2、P3 已完成声明范围验收并推送，P3 `b6e7f7d` 已核对阶段和默认分支一致；P4/P5 尚未开始。P1 先写 [技术方案](docs/stages/p1-design.md)，两轮真实模型对照首轮17/20、修正后新轮次20/20，失败保留；见 [使用方法](docs/stages/p1-usage.md) 和 [结果](docs/stages/p1-summary.md)。
 
 后续 DSH 推理按用户指定固定 **DeepSeek 4.1 Flash，思考关闭**：当前 App 路由 `deepseek-account/deepseek-flash`、`reasoningEffort=off`。旧阶段 high 的记录保留为历史，不再沿用。
 
