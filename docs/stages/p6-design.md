@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 类型化产物交付（实施前补充）
+
+现有finish/下载/通知硬编码report.json与report.md，必须先补交付契约再接桌面Worker。旧日报映射不变；desktop-textedit仅允许document.txt、result.txt，必须两项齐全、验证结果kind/session与原任务绑定，并再次逐字节核对document为冻结lines正文、result为正文加原桥接末尾LF。文件为后续独立收集器从VM复制的只读验收快照，不在host生成业务结果。未知类型或跨类型文件拒绝，通知仅列已登记且符合类型的产物。API按类型返回text/plain或旧媒体类型，保留原SHA/状态门禁；停止/未验/篡改无下载。此服务层反例只证明交付规则，不替代GUI轨迹/截图/Save/读回独立验收。
+
 ### VM最终派发门禁（实现前补充）
 
 数据库authority与生命周期适配：在短事务内锁定同一desktop资源和task，核对desktop-textedit、RUNNING、owner/epoch/task绑定及未到期；用数据库当前时间计算剩余租约，保守映射到查询前host monotonic起点。不得持DB事务做HTTP。独立DesktopExecutionControl协调既有heartbeat→guest查询→新查authority→单次renew；停止/失权/DB或HTTP失败后实例锁止、关闭host控制文件并尝试guest revoke。分别返回本地/远端撤销确认，失败不伪称已停掉在途动作；不删除任务、不重放模型、不自动释放未知副作用资源。重启不沿用该对象续期，未来必须按已有桌面禁止自动resume规则处理。先以隔离PG+真实loopback HTTP验证，旧日报Worker与P5不改。
