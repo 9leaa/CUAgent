@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### VM模型工具HTTP接口（实现前补充）
+
+新增独立服务工厂，接收已由可信端在初次许可后创建的DesktopTask，不修改旧C0/TextEdit桥接；本步不提供生产launcher。复用现有插件的POST /、{op,args}协议，只允许observe/type_text/save/write_result/read_result/stop，所有动作走原Task与最终许可门禁，不开放verify、renew、任意Driver方法或路径。模型token与控制token强制不同；部署模式固定绑定192.168.64.3，仅接受192.168.64.1，测试模式显式仅loopback。请求限32KiB（覆盖4096字节正文JSON转义），拒绝重复JSON字段、额外字段、分块及歧义长度；2秒读超时。stop不等待模型串行锁，停止后排队请求仍由Task拒绝；已在途不承诺回滚。认证后的无效工具请求沿用原失败预算与审计，错误仅返回固定代码，不暴露私有路径/凭证。先用真实本机HTTP加模拟Driver验证许可撤销、预算、停止并发与协议兼容；不视为VM运行、部署或P6验收。
+
 ### 官方会话适配（实现前补充）
 
 原会话读取补充：使用显式配置的私有official home，只读其sessions下一层分组中唯一匹配sessionId的session.v4.jsonl.zstd；拒绝符号链接/越界/重复匹配，压缩与解压数据各限64MiB，固定zstd解压命令、10秒超时、不执行shell。保留原JSONL字节，不重排或伪造官方事件。仅原请求已观察、唯一用户提示且当前明确terminal时独占保存session.jsonl；已存在时必须逐字节一致，不能覆盖旧记录。该读取器接入inspect adapter，不启动模型；真实压缩文件测试使用合成事件，后续仍须核对实际官方会话。
