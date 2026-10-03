@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 固定版本VM源码部署（实现前补充）
+
+仅打包14个已核对依赖文件及来源许可证，内容从显式40位Git commit读取而非脏工作树；包含逐文件SHA/base64，包≤1MiB。独立安装器不导入待安装代码，先核对普通mvpagent/VirtualMac，再完整验证文件白名单、编码/大小/SHA与Python语法，最后独占创建home/CUAgent-p6-commit并0600写入及fsync，生成部署清单；已有目录一律拒绝，失败保留残留供审查，不覆盖/自动清理旧版本。宿主先保存部署意图，再通过固定SSH/Python单次发送安装器与包，限时/限输出，核对回执路径和清单SHA；未知响应不重试。通用有界进程输入默认32KiB不变，仅部署显式允许≤1MiB。不启动VM/Driver/App/guest服务、不授权GUI；测试在临时目录及模拟SSH中验证，真实部署受P5隔离门槛约束。
+
 ### 可信SSH证据采集（实现前补充）
 
 新增后端采集器，固定现有guest Python路径、/Users/mvpagent/CUAgent-p6-<40位commit>部署目录和desktop_export.py；任务只提供已验证lines，run/owner/epoch来自绑定控制客户端，不接受任意远端命令。采集前后检查guest停止、零在途、调用数不变及持久许可已撤销；先独占写采集意图，单次SSH，无自动重试。子进程无shell，remote argv逐项quote，禁继承SSH配置和额外转发；stdin有界JSON、stdout选择器流式限65MiB/45秒，stderr不公开，超限/超时只终止自有句柄。完整成功传输先以0600独占保存原tar，再走既有内存接收核验；核验失败保留原包，不生成业务产物或登记成功。测试使用真实本机小进程验证有界I/O、模拟SSH结果验证集成，不连接VM。部署源码哈希、实际SSH和官方会话仍为后续必验项。
