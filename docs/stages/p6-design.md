@@ -28,6 +28,10 @@
 
 ## 验收和证据
 
+### 操作者桌面提交入口（实现前）
+
+现有client仅能提交日报，桌面提交依赖开发脚本。先增加desktop-submit --spec --key，spec仅允许既有DesktopSubmission的kind/lines，不把命令或路径当任务权限；有界读取普通UTF-8 JSON，拒绝重复字段、未知字段、超限或控制字符，再向原/desktop-tasks单次POST。复用原认证、查询、停止与两产物下载，响应未知时保留原幂等键，不自动重发；默认服务仍503，不因增加CLI提前打开生产桌面执行。使用独立PG和原API验证CLI提交/同键幂等/冲突/排队停止、非法spec零POST及默认关闭；这是操作入口开发，不替代真实VM正式三例或生产Worker启动器。
+
 ### PostgreSQL失权到真实VM停派（执行前）
 
 新建独立诊断库，通过原API提交/TaskService领取固定桌面任务，绑定原task/run/owner/epoch；原DesktopExecutionControl负责数据库heartbeat/authority→SSH隧道→guest许可。系统curl仅作为可信诊断请求方发送原生产模型HTTP observe，不创建官方会话。首次真实观察后只在该诊断库把desktop资源expires_at设置为已过期，记录修改前后原行；随后调用未经替换的refresh，必须由真实数据库拒绝并自动关闭本地/guest许可，不能手动revoke冒充联动。原HTTP observe409、预算不增；旧owner heartbeat/authority、重建control均拒绝，guest原许可sequence不得增加。零在途确认后正常claim过期清理应把原任务标BLOCKED/OWNER_LEASE_EXPIRED，不重排、不重放、不登记业务成功。finally关闭原guest/隧道、核对配置并恢复P5。保留完整私有故障/响应/原账本；此证明真实数据库至执行端联动，不冒充官方模型取消或完整Worker失权故障。
