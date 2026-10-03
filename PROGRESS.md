@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+P5通知开发：方案先补终态事务契约，0006新增notifications表；TaskService在finished/stop_requested/owner_expired的实际终态事件同事务写入通知，event_id唯一，不追补历史。API/CLI支持游标列表、未读筛选、幂等已读；同时显示历史终态和当前状态，仅当前仍成功提供原下载入口。8项新增独立PG/API测试（并发已读、事务回滚、失败/阻塞/待核验、恢复后的历史提示、重建App持久性）及全后端115/115通过。没有外部邮件/聊天/系统弹窗；生产迁移与新真实通知待验证。
+
 P5真实批次通过：0005仅新增batches/batch_items，停止空闲本项目API/Worker后，迁移前后tasks/attempts/events/artifacts/usage/resources六表行数及逐行内容SHA一致。新API78694/session3060、Worker78698/session43087；不改PG/VM/SSH。真实batch `ef18d713-c46b-4534-9668-24b1d8c3f151`关联两任务`d0c1e805-0d59-47c4-a7f4-a5a7a8684c45`、`7cc894db-4996-4adb-ac3c-0fcf87cb4b24`，同键重复POST返回created=false、原批次；两任务各5模型调用，raw9/10、token12572/15948，Flash/off、独立verify及四次API下载SHA/ETag核对通过。恢复配置无告警、无待执行任务。全后端107/107；私有证据`.runtime/p5_batch_20261003_001/independent-verification.json`，批次这两次新增28520 token，P5至此开发验证五次共72775 token（含旧版和返工，不计一周）。周期调度、通知及一周验收仍待完成，P5未推送/未验收。
 
 P5批次开发：新增0005迁移（仅batches/batch_items新表）、BatchService事务提交及/batches创建/查询/停止、CLI batch-submit/status/stop。2–3个独立任务整批先验证、同一事务写入任务/事件/关联；稳定请求摘要与唯一键处理并发和ACK丢失，同键不同正文409。部分失败不标整批成功，停止按原任务边界逐项持久执行，中断可重做剩余停止、不重建任务。7项新独立PG/API测试及全后端107/107通过，包含第二子项故障整批回滚、4并发仅一个批次、旧实例重建后查询；生产迁移及真实批次仍待验证。

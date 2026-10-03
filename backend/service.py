@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
-from backend.models import Artifact, Attempt, Event, Resource, Task, Usage, utcnow
+from backend.models import Artifact, Attempt, Event, Notification, Resource, Task, Usage, utcnow
 
 
 class Conflict(ValueError):
@@ -23,7 +23,13 @@ class TaskService:
 
     def event(self, db, task, kind, **data):
         task.updated_at = utcnow()
-        db.add(Event(task_id=task.id, kind=kind, data=data))
+        event = Event(task_id=task.id, kind=kind, data=data)
+        db.add(event)
+        if kind in ('finished', 'stop_requested', 'owner_expired') and task.status in (
+                'SUCCEEDED', 'FAILED', 'BLOCKED', 'UNVERIFIED', 'STOPPED'):
+            db.flush()
+            db.add(Notification(event_id=event.id, task_id=task.id, status=task.status,
+                                error_code=task.error_code, created_at=task.updated_at))
 
     def control(self, task, expires=None, stopped=False):
         if not task.owner:

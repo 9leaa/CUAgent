@@ -10,6 +10,7 @@ from backend.db import database
 from backend.models import Artifact, Event, Task
 from backend.schemas import BatchSubmission, Submission
 from backend.batches import BatchService
+from backend.notifications import Inbox
 from backend.service import Conflict, NotFound, TaskService
 
 
@@ -17,6 +18,7 @@ def create_app(settings):
     engine, sessions = database(settings.database_url)
     service = TaskService(sessions, settings)
     batches = BatchService(service)
+    inbox = Inbox(sessions)
     app = FastAPI(title='CUAgent Tasks', docs_url=None, redoc_url=None)
     app.state.service = service
 
@@ -63,6 +65,14 @@ def create_app(settings):
         with sessions() as db:
             ids = list(db.scalars(select(Task.id).order_by(Task.created_at, Task.id).offset(offset).limit(limit)))
         return {'items': [service.view(task_id) for task_id in ids]}
+
+    @app.get('/notifications', dependencies=[Depends(authenticated)])
+    def notifications(after: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=100), unread_only: bool = False):
+        return inbox.listing(after, limit, unread_only)
+
+    @app.post('/notifications/{notification_id}/read', dependencies=[Depends(authenticated)])
+    def read_notification(notification_id: int):
+        return inbox.mark_read(notification_id)
 
     @app.post('/batches', dependencies=[Depends(authenticated)])
     def submit_batch(body: BatchSubmission, idempotency_key: str = Header()):

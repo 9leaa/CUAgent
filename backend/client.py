@@ -12,18 +12,27 @@ from backend.manage import load_env
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=['submit', 'list', 'status', 'events', 'stop', 'resume', 'download',
-                                           'batch-submit', 'batch-status', 'batch-stop'])
+                                           'batch-submit', 'batch-status', 'batch-stop', 'notifications', 'notification-read'])
     parser.add_argument('--spec')
     parser.add_argument('--key')
     parser.add_argument('--task')
     parser.add_argument('--batch')
+    parser.add_argument('--notification', type=int)
+    parser.add_argument('--after', type=int, default=0)
+    parser.add_argument('--unread-only', action='store_true')
     parser.add_argument('--output')
     parser.add_argument('--name', choices=['report.json', 'report.md'], default='report.md')
     args = parser.parse_args()
     env = load_env()
     with httpx.Client(base_url='http://127.0.0.1:18089', trust_env=False, timeout=20,
                       headers={'Authorization': 'Bearer ' + env['CUAGENT_BACKEND_TOKEN']}) as client:
-        if args.command == 'batch-submit':
+        if args.command == 'notifications':
+            response = client.get('/notifications', params={'after': args.after, 'unread_only': args.unread_only})
+        elif args.command == 'notification-read':
+            if args.notification is None or args.notification < 1:
+                parser.error('notification-read requires a positive --notification ID')
+            response = client.post('/notifications/' + str(args.notification) + '/read')
+        elif args.command == 'batch-submit':
             if not args.spec or not args.key:
                 parser.error('batch-submit requires --spec (inline tasks JSON) and --key')
             from backend.schemas import BatchSubmission

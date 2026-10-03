@@ -93,3 +93,14 @@ class BatchItem(Base):
     batch_id: Mapped[str] = mapped_column(ForeignKey('batches.id'), index=True)
     task_id: Mapped[str] = mapped_column(ForeignKey('tasks.id'))
     position: Mapped[int] = mapped_column(Integer)
+
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey('events.id'), unique=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey('tasks.id'), index=True)
+    status: Mapped[str] = mapped_column(String(24))
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
