@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+额度口径纠正（2026-10-03）：本轮官方Codex账户工具实时返回ordinaryUsageAllowed=true、codex窗口10080分钟/usedPercent=6、积分62494.0260570000、重置卡availableCount=1。用户约62495积分及70%约束属于Codex，不能误称DSH额度。DSH只读account/getBalance返回CNY钱包，不是该积分/套餐。当前窗口与历史30–40%读数未完成同口径对应，不能据当前剩余94%自动扩张本次原70%授权；未使用重置卡、未派发P4真实模型。账户标识、凭证、卡ID不进入公开文件，DSH账户UI坐标操作noWindowsAvailable，未重启应用。下一步先确认原预算与当前窗口的执行口径，再运行真实对照；P4仍未验收。
+
 P4专用入口已编码：A1模板新增非默认`p4-report-inputs`，旧default及P1插件组合不变；构建/启动预检同步第六个候选插件，配置清理显式处理P4 preset。runner由精确审批工具清单选择P4及聚合提示，拒绝聚合定时/continue，baseline/草稿提示保持原样；仍每次显式Flash/off。YAML静态核对唯一ID/旧default/opt-in通过，核心71/71；运行App未重配、未构建覆盖现用插件，真实新preset加载仍待实测。查同版账户controller只有安全账户/钱包读取，尚未确认套餐余量接口；未因钱包可读就推断套餐足够，未派发推理。
 
 P4完整离线验收接入：`daily_report.prepare/verify`及CLI新增显式aggregate选项，默认P1/P3能力清单不变；聚合任务拒绝定时/续接组合，必须恰好一次聚合，内层派发总数/身份/预算/顺序全部匹配后才进入原字段、来源和两产物读回核验。新增合成完整轨迹5模型调用/9实际请求通过；缺内层、错误统计、截断读回、未显式opt-in均拒绝，Python27/27。修正辅助模块同时兼容包导入及直接CLI。真实App配置/preset尚未切换，真实P4仍未执行，无模型费用。
