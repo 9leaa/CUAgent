@@ -32,6 +32,10 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
     require(prompt['sessionId'] == session_id and isinstance(prompt['requestId'], str) and bool(prompt['requestId']))
     raw = read('session.jsonl', 64 * 1024 * 1024)
     rows = [json.loads(line) for line in raw.splitlines()]
+    if rows and rows[0].get('type') == 'session':
+        header = rows.pop(0)
+        require(header.get('version') == 4 and header.get('id') == session_id
+                and header.get('cwd') == binding['cwd'] and 'seq' not in header)
     require(bool(rows) and all(type(row.get('seq')) is int for row in rows))
     require([row['seq'] for row in rows] == sorted({row['seq'] for row in rows}))
     users = [row for row in rows if row['type'] == 'user/message']

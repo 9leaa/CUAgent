@@ -53,6 +53,26 @@ test('running App blocks change before intent or profile write', t => {
   assert.ok(!existsSync(join(f.root, 'profile-apply-intent.json')));
 });
 
+test('reviewed parser allows formatting only and preserves observed bytes', t => {
+  const f = fixture(t);
+  stageProfile(f.root, f.home, '[{"value":"off"}]', f.plugins);
+  applyDesktopProfile(f.root, f.home, () => {});
+  const formatted = '[ { "value": "off" } ]\n';
+  writeFileSync(f.target, formatted);
+  restoreDesktopProfile(f.root, f.home, () => {}, JSON.parse);
+  assert.equal(readFileSync(f.target, 'utf8'), f.before);
+  assert.equal(readFileSync(join(f.root, 'profile-restore-observed.yml'), 'utf8'), formatted);
+});
+
+test('reviewed parser still rejects semantic changes', t => {
+  const f = fixture(t);
+  stageProfile(f.root, f.home, '[{"value":"off"}]', f.plugins);
+  applyDesktopProfile(f.root, f.home, () => {});
+  writeFileSync(f.target, '[{"value":"high"}]');
+  assert.throws(() => restoreDesktopProfile(f.root, f.home, () => {}, JSON.parse));
+  assert.ok(!existsSync(join(f.root, 'profile-restore-intent.json')));
+});
+
 test('outside edits prevent apply and prevent restore overwrite', t => {
   const f = fixture(t);
   stageProfile(f.root, f.home, '[]\n', f.plugins);

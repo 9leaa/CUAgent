@@ -28,6 +28,11 @@ def desktop_usage(root, session_id):
             return unknown
         raw = read('session.jsonl', 64 * 1024 * 1024)
         rows = [json.loads(line) for line in raw.splitlines()]
+        if rows and rows[0].get('type') == 'session':
+            header = rows.pop(0)
+            if (header.get('version') != 4 or header.get('id') != session_id
+                    or header.get('cwd') != binding['cwd'] or 'seq' in header):
+                return unknown
         if (not rows or any(type(r.get('seq')) is not int for r in rows)
                 or [r['seq'] for r in rows] != sorted({r['seq'] for r in rows})):
             return unknown

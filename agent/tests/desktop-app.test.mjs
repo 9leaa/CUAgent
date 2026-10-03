@@ -19,6 +19,7 @@ function fixture(t) {
   for (const phase of ['apply', 'restore']) save(join(root, `profile-${phase}-receipt.json`), { sha256: hash });
   const connection = join(root, 'c0-connection.json');
   save(connection, { runId: 'run', caseId: 'real_textedit', url: 'http://192.168.64.3:8766', token: 'x'.repeat(43) });
+  save(join(root, 'vm-tools-ready.json'), { runId: 'run', toolNames: ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result'] });
   const tasks = join(root, 'base-tasks.json'); save(tasks, {});
   const state = { running: true, busy: false, presets: ['p1-daily-report'], commands: [], now: 0 };
   const dependencies = {
@@ -63,6 +64,13 @@ test('busy App never receives TERM', async t => {
   await assert.rejects(stopIdleDesktop(f.root, 'unused', 'activate', f.dependencies));
   assert.ok(!f.state.commands.some(([program]) => program === '/bin/kill'));
   assert.ok(!existsSync(join(f.root, 'app-activate-stop-intent.json')));
+});
+
+test('preset alone does not prove tools loaded', async t => {
+  const f = fixture(t); f.state.running = false;
+  rmSync(join(f.root, 'vm-tools-ready.json'));
+  await assert.rejects(startDesktop(f.root, f.home, 'unused', 'p6', f.connection, f.dependencies));
+  assert.ok(!existsSync(join(f.root, 'app-p6-start-receipt.json')));
 });
 
 test('process identity mismatch never receives TERM', async t => {

@@ -114,6 +114,11 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
       continue;
     }
     assert.deepEqual(presets, expected);
+    if (mode === 'p6') {
+      const ready = load(join(root, 'vm-tools-ready.json'));
+      assert.equal(ready.runId, root.split('/').at(-1));
+      assert.deepEqual(ready.toolNames, ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result']);
+    }
     assert.equal(pids(exec).length, 1);
     assert.equal(sha(readFileSync(privatePath(plan.target))), hash);
     save(root, `app-${mode}-start-receipt.json`, { home, presets, profileSha256: hash });

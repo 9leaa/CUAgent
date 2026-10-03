@@ -33,6 +33,19 @@ def test_all_terminal_messages_count_even_failed(evidence, reason):
     assert value['monetaryCost'] is None and len(value['sessionSha256']) == 64
 
 
+@pytest.mark.parametrize('fault', [None, 'id', 'cwd', 'version', 'duplicate'])
+def test_official_v4_session_metadata(evidence, fault):
+    write(evidence, rows())
+    header = {'type': 'session', 'version': 4, 'id': 'session-test', 'cwd': str(evidence / 'workspace')}
+    if fault in ('id', 'cwd', 'version'): header[fault] = 'wrong'
+    path = evidence / 'session.jsonl'
+    prefix = json.dumps(header) + '\n'
+    path.write_text(prefix + (prefix if fault == 'duplicate' else '') + path.read_text())
+    value = desktop_usage(evidence, 'session-test')
+    assert value['available'] is (fault is None)
+    assert value['totalTokens'] == (22 if fault is None else None)
+
+
 @pytest.mark.parametrize('fault', ['missing', 'wrong-session', 'partial', 'invalid-total', 'boolean', 'no-usage', 'public'])
 def test_incomplete_or_invalid_evidence_is_unknown_not_zero(evidence, fault):
     data = rows()

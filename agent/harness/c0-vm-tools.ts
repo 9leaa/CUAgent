@@ -168,4 +168,6 @@ export function apply(ctx: Context): void {
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request('select_target', args, exec.signal)) } },
   }))
+  if (realApp && connection.runId?.startsWith('p2-')) writeFileSync(join(dirname(configPath), 'vm-tools-ready.json'),
+    JSON.stringify({ runId: connection.runId, toolNames: [...allowed].sort() }), { mode: 0o600, flag: 'wx' })
 }

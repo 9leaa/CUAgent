@@ -49,13 +49,14 @@ export function mergeDesktopPatch(before, additions) {
   return [...retained, ...additions];
 }
 
-export function stageProfile(root, home, candidate, plugins, expectedBefore) {
+export function stageProfile(root, home, candidate, plugins, expectedBefore, installedPlugins) {
   const target = location(root, home);
   assert.ok(typeof candidate === 'string' && Buffer.byteLength(candidate) <= 1024 * 1024);
   assert.deepEqual(Object.keys(plugins).sort(), ['c0-vm-tools.mjs', 'desktop-tool-scope.mjs']);
   const before = readFileSync(target);
   if (expectedBefore !== undefined) assert.deepEqual(before, expectedBefore, 'profile changed during preparation');
-  const plan = { version: 1, root, home, target, beforeSha256: sha(before), afterSha256: sha(candidate), plugins };
+  const plan = { version: 1, root, home, target, beforeSha256: sha(before), afterSha256: sha(candidate), plugins,
+    ...(installedPlugins ? { installedPlugins } : {}) };
   save(join(root, 'profile-before.yml'), before);
   save(join(root, 'profile-next.yml'), candidate);
   save(join(root, 'profile-plan.json'), JSON.stringify(plan));
@@ -84,14 +85,17 @@ export async function prepareDesktopProfile(root, home, buildTools) {
     }
   });
   const template = readFileSync(join(project, 'agent/harness/cordis.desktop.real-app.patch.yml'), 'utf8');
-  const additions = load(template.replaceAll('@@PLUGIN_URL@@', pathToFileURL(output).href));
+  const installedPlugins = join(home, 'profiles/desktop', 'cuagent-p6-' + randomUUID());
+  mkdirSync(installedPlugins, { mode: 0o700 });
+  for (const name of ['c0-vm-tools.mjs', 'desktop-tool-scope.mjs']) save(join(installedPlugins, name), readFileSync(join(output, name)));
+  const additions = load(template.replaceAll('@@PLUGIN_URL@@', pathToFileURL(installedPlugins).href));
   const original = readFileSync(location(root, home));
   const candidate = dump(mergeDesktopPatch(load(original.toString('utf8')) ?? [], additions), { lineWidth: 110 });
   const plugins = Object.fromEntries(['c0-vm-tools.mjs', 'desktop-tool-scope.mjs'].map(name => [name, sha(readFileSync(join(output, name)))]));
-  return stageProfile(root, home, candidate, plugins, original);
+  return stageProfile(root, home, candidate, plugins, original, installedPlugins);
 }
 
-function changeProfile(root, home, restore, assertStopped) {
+function changeProfile(root, home, restore, assertStopped, parseYaml) {
   const target = location(root, home);
   const plan = JSON.parse(readFileSync(privatePath(join(root, 'profile-plan.json'), false), 'utf8'));
   assert.equal(plan.version, 1); assert.equal(plan.root, root); assert.equal(plan.home, home); assert.equal(plan.target, target);
@@ -103,17 +107,26 @@ function changeProfile(root, home, restore, assertStopped) {
     const before = readFileSync(privatePath(join(root, 'profile-before.yml'), false));
     const next = readFileSync(privatePath(join(root, 'profile-next.yml'), false));
     assert.equal(sha(before), plan.beforeSha256); assert.equal(sha(next), plan.afterSha256);
-    assert.equal(sha(readFileSync(target)), restore ? plan.afterSha256 : plan.beforeSha256, 'profile changed externally');
+    const observed = readFileSync(target), observedSha = sha(observed);
+    if (restore && observedSha !== plan.afterSha256 && parseYaml) {
+      assert.deepEqual(parseYaml(observed.toString()), parseYaml(next.toString()), 'profile changed semantically');
+      save(join(root, 'profile-restore-observed.yml'), observed);
+    } else assert.equal(observedSha, restore ? plan.afterSha256 : plan.beforeSha256, 'profile changed externally');
     if (!restore) {
       assert.deepEqual(Object.keys(plan.plugins).sort(), ['c0-vm-tools.mjs', 'desktop-tool-scope.mjs']);
       for (const [name, digest] of Object.entries(plan.plugins)) assert.equal(sha(readFileSync(privatePath(join(root, 'desktop-plugins', name), false))), digest);
+      if (plan.installedPlugins) {
+        assert.equal(dirname(plan.installedPlugins), dirname(target));
+        privatePath(plan.installedPlugins, true);
+        for (const [name, digest] of Object.entries(plan.plugins)) assert.equal(sha(readFileSync(privatePath(join(plan.installedPlugins, name), false))), digest);
+      }
     }
     const prefix = restore ? 'profile-restore' : 'profile-apply';
     save(join(root, prefix + '-intent.json'), JSON.stringify({ target, beforeSha256: sha(readFileSync(target)) }));
     assertStopped();
     temporary = join(dirname(target), '.cuagent-' + randomUUID() + '.tmp');
     save(temporary, restore ? before : next);
-    assert.equal(sha(readFileSync(privatePath(target, false))), restore ? plan.afterSha256 : plan.beforeSha256);
+    assert.equal(sha(readFileSync(privatePath(target, false))), observedSha);
     renameSync(temporary, target); temporary = undefined;
     save(join(root, prefix + '-receipt.json'), JSON.stringify({ sha256: sha(readFileSync(target)) }));
     return { [restore ? 'restored' : 'applied']: true };
@@ -123,4 +136,4 @@ function changeProfile(root, home, restore, assertStopped) {
   }
 }
 export const applyDesktopProfile = (root, home, assertStopped = appStopped) => changeProfile(root, home, false, assertStopped);
-export const restoreDesktopProfile = (root, home, assertStopped = appStopped) => changeProfile(root, home, true, assertStopped);
+export const restoreDesktopProfile = (root, home, assertStopped = appStopped, parseYaml) => changeProfile(root, home, true, assertStopped, parseYaml);
