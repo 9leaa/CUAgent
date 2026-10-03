@@ -6,6 +6,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
+P6模型工具HTTP接口已实现：沿用现有TextEdit插件协议，动作进入DesktopTask许可门禁；模型与控制凭证分离，失败请求计预算，停止不等待在途Driver返回。执行层153项测试通过，其中新增10项为本机HTTP/模拟Driver测试。尚无生产launcher、VM部署或真实端到端验收，P6仍未完成；P5环境未改。后续接可信启动/收集适配，再按隔离门槛做真实测试。
+
 P6会话证据读取已接入：从显式私有official home读取唯一原始压缩会话，限量解压；只归档绑定原请求的终态JSONL，原字节不覆盖。新增start/inspect/cancel命令入口供后续trusted adapter调用，不激活profile、不授权VM。Node测试82项通过（真实zstd处理合成事件），尚无新真实模型/VM验收。
 
 P6官方会话适配模块已实现：固定本机官方RPC、私有cookie、唯一real-app预置、Flash/off选择及创建/选模/提示前意图落盘；查询原session/request，运行中才取消，已有启动意图禁止重发。Node回归77项通过，包含6项新增协议模拟测试；未实际调用模型，profile激活、官方会话证据读取和VM执行仍未接通，P6未验收。
