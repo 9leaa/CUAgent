@@ -28,6 +28,10 @@
 
 ### VM最终派发门禁（实现前补充）
 
+延迟授权细则：GET /lease另返回guest当前clockMs；网络renew必须携带notAfterMs（guest时域的绝对截止），到达时已过期直接拒绝，实际expiresAt取本地短TTL与notAfter的较早者。重复sequence必须绑定原ttl/notAfter，不能改变请求后重放延长期限。后端客户端先查guest时钟、再调用可信authority回调拿当前固定run/owner/epoch的monotonic截止（未来Worker从数据库执行权剩余时间换算，不接受模型提供）；扣除自查询起耗时和500ms余量后计算guest notAfter。请求只发一次、响应严格校验原身份/序号/期限；异常记录为未确认，不以HTTP成功猜正确，也不重放新序号。撤销独立执行且必须返回stopped=true，失败保留待核对。
+
+此计算依赖host/guest时钟正常前进，不声称覆盖任意虚拟机冻结/时钟跳跃。guest现有倒退/过期拒绝仍保留。客户端先用本机实际HTTP和受控时钟验证，再接Worker真实数据库authority和VM隧道；后者未完成时禁止生产启用。
+
 通信入口细则：新增仅绑定127.0.0.1的独立HTTP控制服务，预期通过既有经认证SSH隧道到guest loopback，不开放公网或改变SSH配置。每run使用独立随机控制token，不能复用model/verifier token；调用方不传路径/run/owner/epoch，身份由服务构造固定。只允许GET /lease及POST /renew、/revoke；请求体限4KiB、读超时2秒、拒绝额外字段和分块传输，日志不输出认证信息。错误只返稳定代码。失败或超时不能推断撤销成功，须查回原记录；同序号续期重试不延长，撤销幂等。
 
 服务工厂不提供自动部署或生产CLI。当前先验证真实本机HTTP到许可存储再到最终门禁；worker发送权限期限、网络延迟上界及guest时钟校验尚未接通前，不授权真实桌面动作。网络入口测试不冒充VM隧道已连通。
