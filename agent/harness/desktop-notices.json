@@ -1,0 +1,9 @@
+{
+  "sourceKind": "repeat-tool-reminder",
+  "form": "notice",
+  "tools": ["vm_observe", "vm_type", "vm_save", "vm_write_result", "vm_read_result"],
+  "thresholds": [3, 5, 8],
+  "previewChars": 500,
+  "gentle": "You are repeating the exact same tool call with identical arguments. Carefully analyze the previous result before calling again: if the task is not complete, try a different approach or different arguments instead of repeating the call.",
+  "detailed": "Repeated tool call detected:\n- tool: {tool}\n- consecutive_calls: {count}\n- arguments: {arguments}\nThe repeated calls are not making progress. Do not call this tool with these exact arguments again. Inspect the latest result and choose a different action, different arguments, or finish the task if enough evidence has been gathered."
+}

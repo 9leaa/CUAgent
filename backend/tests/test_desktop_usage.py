@@ -58,3 +58,12 @@ def test_incomplete_or_invalid_evidence_is_unknown_not_zero(evidence, fault):
     value = desktop_usage(evidence, 'other' if fault == 'wrong-session' else 'session-test')
     assert not value['available']
     assert all(value[k] is None for k in FIELDS)
+
+
+@pytest.mark.parametrize('stream', [[], [{'type': 'text-delta', 'delta': 'partial'}]])
+def test_interrupted_attempt_does_not_make_prior_usage_a_complete_total(evidence, stream):
+    data = rows('aborted')
+    data.insert(-1, {'type': 'assistant/attempt', 'data': {'turn': 1, 'step': 3, 'stream': stream}})
+    write(evidence, data)
+    value = desktop_usage(evidence, 'session-test')
+    assert value['available'] is False and all(value[k] is None for k in FIELDS)

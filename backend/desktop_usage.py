@@ -37,6 +37,10 @@ def desktop_usage(root, session_id):
                 or [r['seq'] for r in rows] != sorted({r['seq'] for r in rows})):
             return unknown
         messages = [r['data'] for r in rows if r['type'] == 'assistant/message']
+        # Interrupted stream attempts may have consumed tokens without a final
+        # usage message. An empty stream is not proof of zero consumption.
+        if any(r['type'] == 'assistant/attempt' for r in rows):
+            return unknown
         ends = [r for r in rows if r['type'] == 'turn/end']
         # Partial archives may omit later consumption. Report only a terminal
         # snapshot; cancelled/failed terminal turns still count their usage.

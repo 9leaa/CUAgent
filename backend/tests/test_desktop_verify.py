@@ -81,3 +81,26 @@ def test_policy_or_correlation_failure_never_passes(evidence, mutation):
     elif mutation == 'audit': audit[0]['imageBlocks'] = 0
     else: rows[5]['data']['message']['isError'] = True
     with pytest.raises(ValueError): verify(evidence)
+
+
+@pytest.mark.parametrize('second_prompt', [False, True])
+def test_verified_notice_is_reported_but_second_user_prompt_is_still_rejected(evidence, second_prompt):
+    from backend.desktop_notices import POLICY
+    rows = evidence[3]
+    extra = []
+    for index in range(3):
+        identity = 'notice-observe-' + str(index)
+        extra.extend([{'type': 'tool/call', 'data': {'callId': identity, 'name': 'vm_observe', 'arguments': '{}'}},
+            {'type': 'tool/result', 'data': {'message': {'toolCallId': identity, 'content': [{'type': 'image'}]}}}])
+    extra.append({'type': 'user/message', 'data': {'role': 'user',
+        'source': {'kind': 'repeat-tool-reminder', 'form': 'notice', 'summary': 'vm_observe × 3'},
+        'content': [{'type': 'text', 'text': POLICY['gentle']}]}})
+    if second_prompt:
+        extra.append({'type': 'user/message', 'data': {'source': {'kind': 'user', 'rpcId': 'other'}}})
+    rows[-1:-1] = extra
+    for index, row in enumerate(rows): row['seq'] = index
+    if second_prompt:
+        with pytest.raises(ValueError): verify(evidence)
+    else:
+        result = verify(evidence)
+        assert result['sessionVerified'] and result['frameworkNotices'] == 1

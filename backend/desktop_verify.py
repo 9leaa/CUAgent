@@ -5,6 +5,7 @@ import os
 from backend.desktop_collect import private_path
 from backend.desktop_contract import DesktopSubmission
 from backend.desktop_session import MODEL
+from backend.desktop_notices import classify_desktop_messages
 
 TOOLS = {'vm_observe', 'vm_type', 'vm_save', 'vm_write_result', 'vm_read_result'}
 
@@ -38,7 +39,7 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
                 and header.get('cwd') == binding['cwd'] and 'seq' not in header)
     require(bool(rows) and all(type(row.get('seq')) is int for row in rows))
     require([row['seq'] for row in rows] == sorted({row['seq'] for row in rows}))
-    users = [row for row in rows if row['type'] == 'user/message']
+    users, framework_notices = classify_desktop_messages(rows)
     ends = [row for row in rows if row['type'] == 'turn/end']
     require(len(users) == len(ends) == 1 and ends[0]['data']['reason']['kind'] == 'completed')
     require(users[0]['data']['source'].get('kind') == 'user'
@@ -88,4 +89,5 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
                 and sorted(row['toolNames']) == sorted(TOOLS) and type(row.get('imageBlocks')) is int and row['imageBlocks'] >= 0)
     require(any(row['imageBlocks'] > 0 for row in audit))
     return {'sessionVerified': True, 'sessionId': session_id, 'sessionSha256': hashlib.sha256(raw).hexdigest(),
-            'model': MODEL.copy(), 'officialToolCalls': len(calls), 'rawCalls': guest_bundle['guest']['rawCalls']}
+            'model': MODEL.copy(), 'officialToolCalls': len(calls), 'rawCalls': guest_bundle['guest']['rawCalls'],
+            'frameworkNotices': framework_notices}

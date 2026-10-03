@@ -2,7 +2,7 @@
 
 ## DeepSeek Harness
 
-新基座为 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)，设计参考commit见 [版本记录](agent/harness/upstream-reference.json)。官方采用MIT；本仓库本轮没有复制Harness实现，也没有安装其运行依赖。后续分发构建产物时保留该固定版本LICENSE与THIRD_PARTY_NOTICES及依赖许可。
+新基座为 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)，设计参考commit见 [版本记录](agent/harness/upstream-reference.json)。官方采用MIT。P6的`agent/harness/desktop-notices.json`复用官方repeat-tool-reminder提示模板及默认阈值，用于识别原会话证据，不复制Agent循环或提醒插件实现；依据本地固定参考commit `639ed015397290b3745d163aafe02ffee4aa3f84` 的`packages/guard/repeat-tool-reminder/src/index.ts`，与真实会话notice核对。其完整许可保留在 [DEEPSEEK-NOTICE-LICENSE.txt](agent/harness/DEEPSEEK-NOTICE-LICENSE.txt)。后续分发构建产物时保留对应版本LICENSE与THIRD_PARTY_NOTICES及依赖许可。
 
 ## Cua / Lume
 

@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6官方提醒分类修复（2026-10-03）：先按966a9f9方案区分用户prompt与已审查框架notice；ba25d33另明确取消attempt的未知用量保护。新增P6专用JS/Python分类器及共享desktop-notices.json：只认五工具、默认3/5/8阈值、kind/form/summary、固定提示全文及前序已完成同名同参数调用链，拒绝来源/文本/计数/顺序/配对伪造和重复提醒；真实额外用户消息仍计数，原rpcId与唯一prompt条件不变。详细提示按UTF-16的500单位预览与原模板核对，原会话所有行保留；未改P5冻结daily-report-runner或关闭官方插件。模板来源参考639ed015的repeat-tool-reminder，MIT完整许可及THIRD_PARTY_NOTICES同步。
+
+真实旧失败只读复核：原session-a62d893b-e7cf-48cc-b5f0-39834e0861c5在新分类下正确识别userMessages=1/rawUserMessages=2/frameworkNotices=1，仍为aborted/user。原JSONL完整SHA be9a0447d0128cb08d6de594cd64964393f6e327b9af7406b71e1e09bb49fda9不变，经正式inspect归档与恢复前快照逐字节一致；Python分类相同。原task仍BLOCKED/11raw/无产物，未prompt、未恢复执行。由于末尾assistant/attempt无完整usage，P6用量读取新增保守拒绝，保持available=false/null，不把此前消息合计当完整消费。
+
+验证：跨语言正常/恶意来源、缺结果、不同参数、未知工具、重复/逆序、Unicode截断及第二条用户prompt反例；真实zstd归档完整保留提醒，Python独立验收报告提醒计数。后端全量470项通过；Node首轮112通过/1可选编译跳过，随后显式原固定build-tools全量113通过、零跳过。仅既有Starlette弃用提示，git diff --check通过；再次核对P5六文件SHA未变，README/后端说明同步。该修复尚未经新版本真实三例，repair-entry-cohort-001原失败与未执行样本不变；不能将离线分类修正冒充业务恢复或P6验收完成。
+
 P6正式入口repair-entry-cohort-001（2026-10-03 23:03—23:15北京时间）：方案7373f07先行，执行源码bb812b6/冻结host7373f07、guest原c448ae2。真实desktop_service init/serve新库/18100，原API进程5661；公开client先提交并冻结全部三例ID/输入SHA/源码SHA，再逐例新查Codex额度80%、积分未变/卡未用。第一例task 0cea134f-9a59-4b84-8395-9daed13ac097，session-97898c76-e148-4bf1-86fa-e96553333e1e，SUCCEEDED，11raw/9官方工具、392188 total tokens；公开CLI下载document/result逐字节符合原输入，独立重读VM全部原文件SHA、观察PNG/state及账本前缀、官方会话策略再次通过，停止后零派发。P5 Worker3522→6135，App原字节恢复。
 
 第二例task 33af564e-6abe-438a-b008-501ab5495b39，session-a62d893b-e7cf-48cc-b5f0-39834e0861c5，11raw后触发隔离。原会话9次工具中最后三次vm_observe相同参数，官方repeat-tool-reminder产生source.kind=repeat-tool-reminder/form=notice/summary="vm_observe × 3"的user/message（seq61），不是第二次prompt。P6按user/message总行数≤1校验因此拒绝并取消；终态归档又因“terminal evidence must belong to the one original prompt”拒绝。原prompt唯一、取消后aborted/user，guest撤销/零在途、原账本停止后零派发已独立核对。未补prompt、未改成功；完整usage仍unknown，原9条assistant消息及末尾assistant/attempt原文私有保留。

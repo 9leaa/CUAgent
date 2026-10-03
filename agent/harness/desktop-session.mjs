@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { isAbsolute, resolve, join } from 'node:path';
 import { DAILY_MODEL, observedSession } from './daily-report-runner.mjs';
+import { classifyDesktopMessages } from './desktop-notices.mjs';
 
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
 function save(root, name, value) {
@@ -89,8 +90,11 @@ export async function inspectDesktopSession(root, rpc, readSession) {
   assert.equal(session.cwd, binding.cwd);
   const rows = await readSession(binding.sessionId);
   const intent = join(root, 'prompt-request.json');
-  return observedSession(binding.sessionId, session.running, rows,
+  const observed = observedSession(binding.sessionId, session.running, rows,
     existsSync(intent) ? load(intent).request.requestId : undefined);
+  const classified = classifyDesktopMessages(rows);
+  return { ...observed, userMessages: classified.prompts.length,
+    rawUserMessages: classified.rawUserMessages, frameworkNotices: classified.frameworkNotices };
 }
 
 export async function cancelDesktopSession(root, rpc, readSession) {
