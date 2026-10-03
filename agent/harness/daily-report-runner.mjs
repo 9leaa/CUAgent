@@ -54,6 +54,25 @@ export function draftReportPrompt() {
     .replace('最后完整读回两份产物', '最后完整读回 report.json');
 }
 
+export function aggregateReportPrompt() {
+  return reportPrompt().replace('先读取 task.json，再完整读取每份 notes，分别调用 workspace_csv_stats 处理 csv，numericColumns 使用 task.json 的列。',
+    '先调用一次 workspace_report_inputs，取得完整 task.json、每份 notes 的真实读回以及 CSV 统计；不再重复读取这些输入。')
+    .replace('（daily_report内部读和写算两次）',
+      '（report_inputs外层算一次，内部task/每份note/每份CSV各算一次；daily_report内部读和写算两次）');
+}
+
+export function executionPlan(approval) {
+  assert.ok(Array.isArray(approval.allowedTools), 'explicit approved tools required');
+  const aggregate = approval.allowedTools.includes('workspace_report_inputs');
+  if (aggregate) {
+    assert.deepEqual(approval.allowedTools, ['workspace_list', 'workspace_read', 'workspace_write',
+      'workspace_csv_stats', 'workspace_daily_report', 'workspace_report_inputs'], 'exact P4 approval required');
+    assert.equal(approval.publishNotBefore, undefined, 'P4 scheduled continuation not supported');
+  }
+  return { aggregate, preset: aggregate ? 'p4-report-inputs' : 'p1-daily-report',
+    prompt: aggregate ? aggregateReportPrompt() : approval.publishNotBefore ? draftReportPrompt() : reportPrompt() };
+}
+
 export async function main(argv) {
   const [mode, ...paths] = argv;
   assert.ok(['activate', 'rebind', 'create-only', 'start-existing', 'start', 'continue', 'poll', 'inspect', 'cancel', 'restore'].includes(mode), 'invalid runner mode');
@@ -118,6 +137,7 @@ export async function main(argv) {
   assert.equal(paths.length, 1);
   const root = paths[0], approval = load(root + '/approval.json');
   const sessionId = approval.sessionId;
+  const planForTask = executionPlan(approval);
   if (['start', 'create-only', 'start-existing'].includes(mode)) {
     const inventory = await ready();
     assert.ok(inventory.items.every(s => !s.running), 'serial P1 execution requires idle App');
@@ -129,7 +149,7 @@ export async function main(argv) {
     } else {
       assert.ok(!existsSync(root + '/create-request.json'), 'creation already attempted; inspect instead of duplicating');
       assert.ok(!inventory.items.some(s => s.sessionId === sessionId || s.cwd === approval.workspaceRoot), 'session already exists');
-      const request = { sessionId, cwd: approval.workspaceRoot, agentPreset: 'p1-daily-report' };
+      const request = { sessionId, cwd: approval.workspaceRoot, agentPreset: planForTask.preset };
       save(root + '/create-request.json', request);
       const created = await rpc('session/create', { request });
       assert.equal(created.sessionId, sessionId);
@@ -143,12 +163,13 @@ export async function main(argv) {
     assert.deepEqual(selected.selected, DAILY_MODEL, 'model/thinking selection mismatch');
     if (existsSync(root + '/model-selected.json')) assert.deepEqual(load(root + '/model-selected.json').selected, DAILY_MODEL);
     else save(root + '/model-selected.json', selected);
-    const prompt = { sessionId, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: approval.publishNotBefore ? draftReportPrompt() : reportPrompt() }] };
+    const prompt = { sessionId, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: planForTask.prompt }] };
     save(root + '/prompt-request.json', { at: new Date().toISOString(), request: prompt });
     const response = await rpc('session/prompt', { request: prompt });
     save(root + '/prompt-response.json', response);
     console.log(JSON.stringify({ sessionId, model: selected.selected, accepted: response.accepted }));
   } else if (mode === 'continue') {
+    assert.equal(planForTask.aggregate, false, 'P4 continuation not supported');
     assert.ok(!existsSync(root + '/continuation-request.json'), 'continuation already attempted; inspect instead of repeating');
     const plan = load(root + '/continuation-plan.json');
     assert.equal(plan.sessionId, sessionId);

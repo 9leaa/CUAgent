@@ -12,7 +12,7 @@ loadA1TaskConfig(path);
 const profile = `${root}/.runtime/desktop-home/profiles/desktop`;
 const out = `${profile}/cuagent-a1-plugins`;
 const manifest = JSON.parse(readFileSync(`${out}/build.json`, 'utf8'));
-const entries = ['a1-policy-plugin', 'a1-tools', 'a1-request-audit', 'desktop-tool-scope', 'a1-example-fingerprint'];
+const entries = ['a1-policy-plugin', 'a1-tools', 'a1-request-audit', 'desktop-tool-scope', 'a1-example-fingerprint', 'report-inputs-tools'];
 if (manifest.stage !== 'a1' || manifest.appVersion !== '0.2.0-rc.2' || manifest.sourceCommit !== '639ed015'
   || JSON.stringify(Object.keys(manifest.hashes).sort()) !== JSON.stringify([...entries].sort())) throw new Error('A1 reviewed build required');
 for (const entry of entries) if (createHash('sha256').update(readFileSync(`${out}/${entry}.mjs`)).digest('hex') !== manifest.hashes[entry]) throw new Error('A1 build hash mismatch');

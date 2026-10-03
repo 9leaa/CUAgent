@@ -16,6 +16,7 @@ const additions = load(readFileSync(`${root}/agent/harness/cordis.desktop.${stag
 const before = load(readFileSync(target, 'utf8')) ?? []
 const controlledIds = new Set(additions.flatMap(row => row.insert?.map(child => child.id) ?? [row.id]))
 controlledIds.add('preset-p1-daily-report')
+controlledIds.add('preset-p4-report-inputs')
 for (const id of ['cuagent-a0-policy', 'preset-a0-verify', 'cuagent-desktop-request-audit', 'preset-c0-calculator', 'preset-c0-ui', 'preset-c1-controlled', 'preset-c2-controlled', 'preset-real-app', 'c0-vm-tools', 'cuagent-a1-policy', 'preset-a1-controlled', 'preset-a1-readonly', 'cuagent-a1-request-audit']) controlledIds.add(id)
 const retained = before.flatMap(row => {
   if (row.insert) {

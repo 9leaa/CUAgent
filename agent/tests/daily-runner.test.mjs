@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { observedSession, assertUnstarted, reportPrompt, draftReportPrompt } from '../harness/daily-report-runner.mjs';
+import { observedSession, assertUnstarted, reportPrompt, draftReportPrompt, aggregateReportPrompt, executionPlan } from '../harness/daily-report-runner.mjs';
+
+test('P4 selection requires exact explicit approval and preserves original report modes', () => {
+  const original = ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report'];
+  assert.deepEqual(executionPlan({ allowedTools: original }), { aggregate: false, preset: 'p1-daily-report', prompt: reportPrompt() });
+  assert.equal(executionPlan({ allowedTools: original, publishNotBefore: 1 }).prompt, draftReportPrompt());
+  const allowedTools = [...original, 'workspace_report_inputs'];
+  const selected = executionPlan({ allowedTools });
+  assert.equal(selected.preset, 'p4-report-inputs');
+  assert.equal(selected.prompt, aggregateReportPrompt());
+  assert.ok(selected.prompt.includes('path、rowCount、columnCount、columns、numeric、bytes、sha256'));
+  assert.ok(selected.prompt.includes('内部task/每份note/每份CSV各算一次'));
+  assert.ok(selected.prompt.includes('最后完整读回两份产物'));
+  assert.throws(() => executionPlan({ allowedTools, publishNotBefore: 1 }));
+  assert.throws(() => executionPlan({ allowedTools: ['workspace_report_inputs'] }));
+  assert.throws(() => executionPlan({ allowedTools: [...allowedTools, 'shell'] }));
+});
 
 test('normal and scheduled prompts preserve the full CSV contract and write-once rule', () => {
   for (const prompt of [reportPrompt(), draftReportPrompt()]) {
