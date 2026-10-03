@@ -145,3 +145,18 @@ def test_shared_lock_prevents_claiming(service):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(BlockingIOError): instance.run_once()
     assert adapter.calls == []
+
+
+@pytest.mark.parametrize('fault', [None, 'verify', 'pending'])
+def test_usage_persists_without_turning_failed_execution_into_success(service, fault):
+    instance, adapter = worker(service, fault)
+    usage = {'available': True, 'totalTokens': 22}
+    adapter.usage = lambda prepared: usage
+    result = instance.run_once()
+    assert result['usage'] == usage
+    if fault == 'pending':
+        assert result['quarantined'] and result['status'] == 'BLOCKED'
+    else:
+        state = service.view(result['taskId'])
+        assert state['usage'] == usage
+        assert state['status'] == ('UNVERIFIED' if fault else 'SUCCEEDED')

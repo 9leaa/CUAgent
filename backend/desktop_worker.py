@@ -53,6 +53,7 @@ class DesktopWorker:
         prepared = control = thread = None
         started = terminal = False
         cancelled = False
+        usage = {'available': False}
         outcome = {'taskId': task.id, 'status': 'BLOCKED', 'quarantined': False,
                    'restoreConfirmed': False}
         def pulse():
@@ -111,19 +112,22 @@ class DesktopWorker:
                 closed = control.close()
             if not closed['localRevoked'] or not closed['guestRevoked']:
                 raise RuntimeError('DESKTOP_REVOCATION_UNCONFIRMED')
+            if callable(getattr(self.adapter, 'usage', None)):
+                usage = self.adapter.usage(prepared)
             try:
                 result = self.adapter.verify(prepared)
             except Exception:
                 with phase_lock:
                     done.set()
-                    self.service.finish(task.id, self.owner, task.epoch, 'UNVERIFIED', error_code='DESKTOP_VERIFICATION_FAILED')
+                    self.service.finish(task.id, self.owner, task.epoch, 'UNVERIFIED',
+                        result={'usage': usage}, error_code='DESKTOP_VERIFICATION_FAILED')
                 outcome['status'] = 'UNVERIFIED'
             else:
                 with phase_lock:
                     if lost.is_set():
                         raise RuntimeError('DESKTOP_AUTHORITY_LOST_DURING_VERIFICATION')
                     done.set()
-                    self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result=result)
+                    self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result={**result, 'usage': usage})
                 outcome['status'] = 'SUCCEEDED'
         except Exception:
             outcome['errorCode'] = 'DESKTOP_EXECUTION_REQUIRES_REVIEW'
@@ -138,6 +142,12 @@ class DesktopWorker:
                     pass
         finally:
             done.set()
+            if prepared is not None and callable(getattr(self.adapter, 'usage', None)):
+                try:
+                    usage = self.adapter.usage(prepared)
+                except Exception:
+                    pass  # Accounting must not prevent revocation or quarantine.
+            outcome['usage'] = usage
             if thread:
                 thread.join(timeout=8)
             closed = control.close() if control else {'localRevoked': False, 'guestRevoked': False}

@@ -17,6 +17,7 @@ from backend.desktop_session import DesktopSessionClient
 from backend.desktop_ssh import create_ssh_wrapper
 from backend.desktop_tunnel import GuestControlTunnel
 from backend.desktop_verify import verify_desktop_session
+from backend.desktop_usage import desktop_usage
 from backend.desktop_worker import PreparedDesktop
 
 
@@ -123,6 +124,10 @@ class DesktopTaskAdapter:
 
     def cancel(self, prepared):
         return self.context(prepared)['session'].cancel()
+
+    def usage(self, prepared):
+        self.context(prepared)
+        return desktop_usage(prepared.run, prepared.session_id)
 
     def verify(self, prepared):
         context = self.context(prepared)
