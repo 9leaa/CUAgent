@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 官方会话适配（实现前补充）
+
+复用已核对的官方session/list/create/selectModel/prompt/cancel协议及现有observedSession解析，新增独立desktop-session模块，不修改日报runner或复制上游循环。start必须全App空闲、唯一real-app preset、模型目录明确支持Flash/off；固定run/session/cwd，create/model-select/prompt都先独占保存意图，再只发一次RPC，响应另存；任何已有create意图禁止再次start。输入保存为不覆盖请求快照，提示只指向当前批准TextEdit文档及逐行正文，不允许附加工具。查询/取消基于原session及原request ID，只有明确running才cancel；idle不发重复取消。RPC固定loopback官方端口，读取显式私有cookie文件且不输出凭证，所有请求有超时、禁止自动重试副作用。此模块不激活profile或启动App；真实profile/VM/证据连接待下一步，先用协议模拟验证全部意图窗口与拒绝路径，不计真实模型验收。
+
 ### 桌面Worker编排（实现前补充）
 
 新增独立DesktopWorker，不将桌面任务塞入日报prepare/verify。trusted adapter提供prepare/start/poll/cancel/verify/restore，仍由官方Harness执行推理；测试adapter只作故障编排验证。prepare只准备身份/目录/许可通道，不派发GUI或prompt；start唯一一次。共享宿主desktop-worker.lock必须由部署明确指定到同一实际文件，不能默认使用P6工作树另一把锁；先拿锁再领取显式desktop类型。
