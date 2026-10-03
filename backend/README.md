@@ -91,6 +91,17 @@ API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使�
 
 只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
 
+### 操作员额度入口
+
+先用账户工具查询真实额度，将单期检查记录保存为新的私有JSON（0600）：version=1、scheduleId、dueAt、checkedAt、expiresAt（最多5分钟）、ordinaryUsageAllowed、remainingPercent、creditsBalance、resetCardsUsed。该记录不是命令自行查询或验证账户真实性的结果；不能复制旧读数。执行：
+
+```bash
+.runtime/backend-venv/bin/python -m backend.schedule_operator grant --schedule SCHEDULE_UUID --quota .runtime/新检查记录.json
+.runtime/backend-venv/bin/python -m backend.schedule_operator revoke --schedule SCHEDULE_UUID
+```
+
+必须核对JSON的result为GRANTED才算放行，退出码0也可能是明确拒绝。grant检查私有文件、时效、原计划确已到期且尚未发生、本次剩余>30%、原积分余额和未用重置卡；拒绝重复活许可，文件锁防并发，许可原子替换，每次操作新建回执。达到停止线/普通额度不可用/积分变化/重置卡使用时写入scheduler-operator-stop.json并撤销许可，之后重启或自然额度重置也不能再grant；工具没有清除标记的命令，恢复需用户另行授权。不要绕过入口直接手写运行时许可。revoke可重复执行，不会撤销别的计划许可；已提交任务仍需原batch-stop。进程异常最多依赖原5分钟期限失效，不承诺自动取消模型在途动作。当前每日跟进已改用这个入口；175项后端回归通过，真实旧记录和已发生首期拒绝授权、撤销回执核验，零新增模型任务。
+
 ### 来源预览与七日回执（P5开发版）
 
 本次操作者额度约束比通用QuotaPermit更严格：每批实时查询当前窗口，已用必须<70%（剩余>30%）；达到70%停止，不用积分或重置卡，不自动等重置续用。底层5%余量只是通用拒绝门槛，不是本次允许消耗95%的授权。首日两报告已核验，下一批10-04 12:10；完整七日验收仍未完成。
