@@ -26,6 +26,12 @@
 
 ## 验收和证据
 
+### 完整执行适配与长准备续期（实现前补充）
+
+组合已有模块为DesktopTaskAdapter，显式配置已部署commit/manifest、SSH/Node/home/build-tools/base-tasks与cutover_authorized（默认拒绝）；该开关不替代实际P5/额度/环境验收，暂不提供生产启用入口。prepare创建新run/session、冻结输入、构建候选profile、启动guest控制并建隧道，不启动模型；start依次停空闲App、应用候选、启动P6 App、按实时DB执行权激活guest、单次官方prompt。poll融合官方终态与guest实际预算；verify只在撤销后采集原包、核验官方会话及guest证据，最后复制核验过的原文档/result至交付目录，不生成替代业务结果。restore恢复原App/profile后可信shutdown guest，再关自有隧道；任一步未知仍隔离，不自动重放。
+
+现Worker在prepare前、verify期间没有续期，实际SSH/构建可能超过30秒DB租约，需改为全阶段DB心跳：准备只续DB，激活阶段才续guest；终态撤销时持互斥锁切回仅DB模式，核验期间不得重新授权guest。finish与心跳串行、最终退出再停止线程；准备期间停止/失权禁止start。增加可信/ shutdown接口，仅已停止且零在途时关闭runtime释放guest锁，模型token不可调用；guest主循环随runtime关闭退出。模拟完整组合及隔离PG验证阶段时序，真实VM/App仍不执行。
+
 ### 官方App有界启停（实现前补充）
 
 新增独立App生命周期模块，复用已验证官方RPC；stop先查全部会话空闲、记录原preset，再核对唯一官方可执行路径/PID，持久意图后仅TERM一次，10秒未退出则未确认，不强杀。start须无官方App进程且版本0.2.0-rc.2，确认本次profile apply/restore回执与当前patch SHA；P6只用原run私有连接及审计路径，恢复只用显式且验证过的原A1任务配置。open命令显式DSH_HOME并清空另一模式环境变量，先写启动意图再调用一次；45秒RPC就绪且preset精确匹配才确认，失败不重启。原配置preset清单从activate前快照读取，不猜恢复值。所有测试模拟系统命令/RPC，无实际App启停；P5未收口前不执行真实切换，上层仍须持共享桌面锁并停止旧领取者。
