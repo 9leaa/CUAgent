@@ -41,7 +41,9 @@ def control_server(controller, token, *, port=0):
             if self.path != '/lease':
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
-                return self.reply(200, {'lease': controller.existing()})
+                return self.reply(200, {'lease': controller.existing(), 'clockMs': int(controller.gate.clock() * 1000),
+                    'binding': {'version': 1, 'runId': controller.gate.run_id,
+                                'owner': controller.gate.owner, 'epoch': controller.gate.epoch}})
             except (OSError, ValueError, TypeError):
                 return self.reply(409, {'error': 'CONTROL_RECORD_UNAVAILABLE'})
 
@@ -64,9 +66,9 @@ def control_server(controller, token, *, port=0):
                 if not isinstance(body, dict):
                     raise ValueError('object required')
                 if self.path == '/renew':
-                    if set(body) != {'sequence', 'ttlMs'}:
+                    if set(body) != {'sequence', 'ttlMs', 'notAfterMs'} or type(body['notAfterMs']) is not int:
                         raise ValueError('invalid renewal fields')
-                    result = controller.renew(body['sequence'], body['ttlMs'])
+                    result = controller.renew(body['sequence'], body['ttlMs'], not_after_ms=body['notAfterMs'])
                 else:
                     if body:
                         raise ValueError('revoke requires empty body')

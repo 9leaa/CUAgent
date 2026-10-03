@@ -29,6 +29,8 @@ class ControlHttpTests(unittest.TestCase):
         self.temp.cleanup()
 
     def request(self, method, path, body=None, token=None, extra=None):
+        if path == '/renew' and isinstance(body, dict):
+            body = {'notAfterMs': 120000, **body}
         connection = http.client.HTTPConnection(*self.server.server_address, timeout=3)
         try:
             headers = {'Authorization': 'Bearer ' + (self.token if token is None else token)}
@@ -41,13 +43,14 @@ class ControlHttpTests(unittest.TestCase):
 
     def test_real_http_grant_inspect_duplicate_revoke_and_gate(self):
         self.assertEqual(self.server.server_address[0], '127.0.0.1')
-        self.assertEqual(self.request('GET', '/lease'), (200, {'lease': None}))
+        binding = dict(version=1, runId='task', owner='worker', epoch=1)
+        self.assertEqual(self.request('GET', '/lease'), (200, {'lease': None, 'clockMs': 100000, 'binding': binding}))
         status, first = self.request('POST', '/renew', {'sequence': 1, 'ttlMs': 20000})
         self.assertEqual(status, 200)
         self.controller.gate.check()
         self.now = 105
         self.assertEqual(self.request('POST', '/renew', {'sequence': 1, 'ttlMs': 20000}), (200, first))
-        self.assertEqual(self.request('GET', '/lease'), (200, first))
+        self.assertEqual(self.request('GET', '/lease'), (200, {**first, 'clockMs': 105000, 'binding': binding}))
         status, stopped = self.request('POST', '/revoke', {})
         self.assertEqual(status, 200); self.assertTrue(stopped['lease']['stopped'])
         self.assertEqual(self.request('POST', '/revoke', {}), (200, stopped))
@@ -80,6 +83,11 @@ class ControlHttpTests(unittest.TestCase):
         self.now = 120
         self.assertEqual(self.request('POST', '/renew', {'sequence': 2, 'ttlMs': 20000})[0], 409)
         self.assertTrue(self.request('GET', '/lease')[1]['lease']['stopped'])
+
+    def test_delayed_initial_request_is_not_granted_from_arrival_time(self):
+        self.now = 120
+        self.assertEqual(self.request('POST', '/renew', {'sequence': 1, 'ttlMs': 20000})[0], 409)
+        self.assertFalse(self.controller.path.exists())
 
 
 if __name__ == '__main__':

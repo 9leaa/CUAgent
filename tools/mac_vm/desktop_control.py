@@ -37,7 +37,9 @@ class LeaseController:
                 or any(type(record.get(k)) is not int for k in ('version', 'epoch', 'sequence', 'issuedAt', 'expiresAt', 'ttlMs'))
                 or type(record.get('stopped')) is not bool or record['sequence'] < 1
                 or not 1 <= record['ttlMs'] <= 30000
-                or record['expiresAt'] != record['issuedAt'] + record['ttlMs']):
+                or type(record.get('notAfterMs')) is not int
+                or record['expiresAt'] != min(record['issuedAt'] + record['ttlMs'], record['notAfterMs'])
+                or record['expiresAt'] <= record['issuedAt']):
             raise ValueError('invalid or conflicting lease record')
         return record
 
@@ -53,9 +55,11 @@ class LeaseController:
             if os.path.exists(temporary):
                 os.unlink(temporary)
 
-    def renew(self, sequence, ttl_ms=20000):
+    def renew(self, sequence, ttl_ms=20000, *, not_after_ms=None):
         if type(sequence) is not int or sequence < 1 or type(ttl_ms) is not int or not 1 <= ttl_ms <= 30000:
             raise ValueError('bounded integer sequence and TTL required')
+        if not_after_ms is not None and type(not_after_ms) is not int:
+            raise ValueError('integer guest deadline required')
         with self.lock():
             old = self.existing()
             now = self.gate.clock() * 1000
@@ -71,11 +75,15 @@ class LeaseController:
                 if sequence < old['sequence']:
                     raise ValueError('stale renewal sequence')
                 if sequence == old['sequence']:
-                    if ttl_ms != old['ttlMs']:
+                    if ttl_ms != old['ttlMs'] or (not_after_ms is not None and not_after_ms != old['notAfterMs']):
                         raise ValueError('renewal identity conflict')
                     return old  # ACK retry never extends the original lease.
+            deadline = now + ttl_ms if not_after_ms is None else not_after_ms
+            if deadline <= now or deadline > now + 30000:
+                raise ValueError('guest deadline unavailable or out of bounds')
             value = dict(version=1, runId=self.gate.run_id, owner=self.gate.owner, epoch=self.gate.epoch,
-                         sequence=sequence, issuedAt=now, expiresAt=now + ttl_ms, ttlMs=ttl_ms, stopped=False)
+                         sequence=sequence, issuedAt=now, expiresAt=min(now + ttl_ms, deadline),
+                         ttlMs=ttl_ms, notAfterMs=deadline, stopped=False)
             self.replace(value)
             return value
 
@@ -85,7 +93,7 @@ class LeaseController:
             if old is None:
                 # Tombstone also prevents a delayed initial grant after stop.
                 old = dict(version=1, runId=self.gate.run_id, owner=self.gate.owner, epoch=self.gate.epoch,
-                           sequence=1, issuedAt=0, expiresAt=1, ttlMs=1, stopped=True)
+                           sequence=1, issuedAt=0, expiresAt=1, ttlMs=1, notAfterMs=1, stopped=True)
             value = {**old, 'stopped': True}
             self.replace(value)
             return value
