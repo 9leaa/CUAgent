@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P5正式七日计划已创建（2026-10-03 12:03）：schedule `1ab2e3a4-8426-48e8-bf1b-3452efa1fdfe`，北京时间10-03 12:10开始、10-10 12:10满168h；10-03至10-09各最多一批两任务，共7批14个新任务。固定p5-personal-workflows分支、基线2ca41a5、观察器版本102a8d5；源码哈希及原创建意图保存在私有`.runtime/backend/p5-week-20261003-001`，不上传。首次脚本因缺PYTHONPATH在任何写入前退出，补本项目导入路径后唯一创建成功。当前聊天定时跟进cuagent-p5已ACTIVE，每日12:11、共8次，最后一天只做最终核对；每次需新查额度、单期5分钟许可，不绕过配额或预派七天。12:03真实scheduler只返回NOT_DUE，原计划0发生/0任务，before-start回执INCOMPLETE；旧短测许可仍撤销，API80171/Worker80173保留。电脑/App需运行，未改睡眠/开机自启/共享服务；仍无用户阅读采用反馈。代码与短测已验证，真实一周未完成，不更新默认分支为P5验收。
+
 P5七日观察准备（2026-10-03）：先提交回执契约9a99914，再新增workflow_preview/week_observer及14项反例，完整后端155/155。来源预览真实运行零提交；初次人工填错完整Git SHA被拒，读取真实rev-parse后采集成功，没有改Git或放宽校验。新观察器首次误用整个usage对象比较，API额外models/monetaryCost导致CHECK_FAILED，保留diagnostic-001；修为逐项核对原token、模型和预算，diagnostic-003原短测两任务VERIFIED、四下载SHA一致，七日结论仍INCOMPLETE。回执位于私有.runtime/backend/p5-observer-diagnostic-20261003-003，预览位于.runtime/p5-preview-20261003-001；无新增模型调用/服务重启。正式七日尚未启用，P5未验收。
 
 更新：2026-10-03。主路线：[Harness最小可用底座 → Computer Use主线 → 通用增强/O0](Harness_Development_Plan.md)，当前按[个人任务服务P1–P5路线](docs/product-roadmap.md)推进。下方“当前交付”及最新收尾记录代表当前状态；各日期过程中的未提交/未完成描述保留当时事实，不代表目前状态。
