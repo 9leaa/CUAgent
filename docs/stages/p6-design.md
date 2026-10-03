@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### VM只读证据核验（实现前补充）
+
+旧TextEdit离线验证器仅接收内存数据，未绑定原PNG与完整账本。P6 DesktopTask在成功observe返回前追加observation_evidence：绑定snapshot、实际调用序号、原state/PNG文件SHA与大小；记录失败即停止，不向模型补造成功。新增只读guest核验器，不构造Task、不发GUI、不写业务文件；从固定run内有界读取原trace/final_state/文档/result及被账本引用的state/PNG，拒绝链接、特殊文件、身份不符、缺失/改动或超限。固定路径从序号生成，不采信账本里的任意路径。核对完整调用配对、顺序、停止后零新派发、原PNG哈希、输入/Save来源及保存后新观察，再复用原业务验证器。返回vmStatus与原字节哈希，不返回整体SUCCEEDED或会话已验证；官方session、Flash/off及可信收集后端仍需分别核验。测试使用明确合成的状态/截图/轨迹，不能冒充真实视觉或VM验收。
+
 ### VM模型工具HTTP接口（实现前补充）
 
 新增独立服务工厂，接收已由可信端在初次许可后创建的DesktopTask，不修改旧C0/TextEdit桥接；本步不提供生产launcher。复用现有插件的POST /、{op,args}协议，只允许observe/type_text/save/write_result/read_result/stop，所有动作走原Task与最终许可门禁，不开放verify、renew、任意Driver方法或路径。模型token与控制token强制不同；部署模式固定绑定192.168.64.3，仅接受192.168.64.1，测试模式显式仅loopback。请求限32KiB（覆盖4096字节正文JSON转义），拒绝重复JSON字段、额外字段、分块及歧义长度；2秒读超时。stop不等待模型串行锁，停止后排队请求仍由Task拒绝；已在途不承诺回滚。认证后的无效工具请求沿用原失败预算与审计，错误仅返回固定代码，不暴露私有路径/凭证。先用真实本机HTTP加模拟Driver验证许可撤销、预算、停止并发与协议兼容；不视为VM运行、部署或P6验收。
