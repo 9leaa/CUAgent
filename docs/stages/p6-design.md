@@ -28,6 +28,10 @@
 
 ## 验收和证据
 
+### PostgreSQL失权到真实VM停派（执行前）
+
+新建独立诊断库，通过原API提交/TaskService领取固定桌面任务，绑定原task/run/owner/epoch；原DesktopExecutionControl负责数据库heartbeat/authority→SSH隧道→guest许可。系统curl仅作为可信诊断请求方发送原生产模型HTTP observe，不创建官方会话。首次真实观察后只在该诊断库把desktop资源expires_at设置为已过期，记录修改前后原行；随后调用未经替换的refresh，必须由真实数据库拒绝并自动关闭本地/guest许可，不能手动revoke冒充联动。原HTTP observe409、预算不增；旧owner heartbeat/authority、重建control均拒绝，guest原许可sequence不得增加。零在途确认后正常claim过期清理应把原任务标BLOCKED/OWNER_LEASE_EXPIRED，不重排、不重放、不登记业务成功。finally关闭原guest/隧道、核对配置并恢复P5。保留完整私有故障/响应/原账本；此证明真实数据库至执行端联动，不冒充官方模型取消或完整Worker失权故障。
+
 ### 真实HTTP拒绝边界补验（执行前）
 
 只读探测发现系统curl能够收到VM SSH端口响应，区别于此前Python/Homebrew Node/Electron Node的EHOSTUNREACH；不据此推断根因或已连通模型端口。使用新的独立诊断run，先验证原guest模型端口GET明确405，再通过原生产HTTP入口进行observe→缺参数type_text拒绝→旧snapshot的save拒绝→新observe。独立要求两个拒绝计预算、无输入/hotkey派发，新观察来自真实Driver；随后可信控制通道revoke，原模型token再次observe必须409且预算不增，原控制身份直接POST renew也必须被guest拒绝，不能只测试客户端预检。curl不跟重定向、不自动重试，凭证仅stdin，不进argv或公开日志；不改变监听、来源校验、权限或网络配置。原trace、响应摘要、观察PNG/state与关闭记录私有保存并独立核对。该诊断不调用模型、不替换正式三例或旧连接失败；App/数据库失权全链路另验。
