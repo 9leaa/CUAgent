@@ -4,6 +4,10 @@
 
 ## 当前交付
 
+P4最小真实闭环通过：`p4_probe_20261003_001` / `session-5e414922-7568-4cb9-beef-1019a741892d`。先确认队列/190会话空闲，停止精确空闲Worker49960并持有原全局桌面锁，再构建6插件、激活专用preset，唯一新请求显式Flash/off；真实聚合→模型写JSON→确定性Markdown→完整读回，独立verify SUCCEEDED。5模型调用、9/30实际请求，input2884/output484/cacheRead7168/total10536 token，激活至核验9.072秒（不是完整恢复墙钟）。原始证据`.runtime/runs/p4_probe_20261003_001/probe-verification.json`；JSON SHA `4dcfb7c338e04888c63637d6377a9d993e6b83dadd80c4a9c0ef513deb4dd2b2`。finally正常恢复基础配置，旧3账本SHA不变；观察程序退出0，普通Worker重新启动。此为诊断单例，不计正式20对成功率，不宣称P4收益已证明；正式冻结/采集/对照仍待完成。
+
+用户确认夜间套餐自然重置并授权继续（2026-10-03）：实时Codex接口已用6%、剩余94%，积分62494.026057未变、重置卡1张未用。原额度口径阻塞解除，按重置后的套餐继续，仍禁用积分/重置卡，DSH固定Flash/off。只读检查后端无QUEUED/RUNNING/WAITING_RELEASE任务，官方190个会话均无running；准备P4最小新任务，未把用户本次确认倒写成此前授权。
+
 额度口径纠正（2026-10-03）：本轮官方Codex账户工具实时返回ordinaryUsageAllowed=true、codex窗口10080分钟/usedPercent=6、积分62494.0260570000、重置卡availableCount=1。用户约62495积分及70%约束属于Codex，不能误称DSH额度。DSH只读account/getBalance返回CNY钱包，不是该积分/套餐。当前窗口与历史30–40%读数未完成同口径对应，不能据当前剩余94%自动扩张本次原70%授权；未使用重置卡、未派发P4真实模型。账户标识、凭证、卡ID不进入公开文件，DSH账户UI坐标操作noWindowsAvailable，未重启应用。下一步先确认原预算与当前窗口的执行口径，再运行真实对照；P4仍未验收。
 
 P4专用入口已编码：A1模板新增非默认`p4-report-inputs`，旧default及P1插件组合不变；构建/启动预检同步第六个候选插件，配置清理显式处理P4 preset。runner由精确审批工具清单选择P4及聚合提示，拒绝聚合定时/continue，baseline/草稿提示保持原样；仍每次显式Flash/off。YAML静态核对唯一ID/旧default/opt-in通过，核心71/71；运行App未重配、未构建覆盖现用插件，真实新preset加载仍待实测。查同版账户controller只有安全账户/钱包读取，尚未确认套餐余量接口；未因钱包可读就推断套餐足够，未派发推理。
