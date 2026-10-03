@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6 SSH标准输入修复（2026-10-03）：方案9528da9先于实现。新增desktop_ssh.create_ssh_wrapper，私有规范root/known-hosts/可执行askpass，独占0700脚本；固定/bin/sh与/usr/bin/ssh、VM身份、严格主机密钥、禁止更新known-hosts、认证超时，保留stdin。凭证文件只引用路径，不读取或复制；保留旧P5 vm-ssh。DesktopAdapterSettings改为显式known_hosts/askpass，prepare生成本次wrapper，bootstrap/隧道/collect共用该路径。5项新增测试覆盖真实子进程1MiB二进制往返和完整参数/环境、路径含空格引号、真实ssh -G离线解析确认固定主机/认证/stdinnull=no、重复创建及不安全路径拒绝；相关42/42通过。未连接VM或启动模型/App，部署调用者需先用生成器生成私有wrapper再传deploy_guest；真实门禁/切换窗口/端到端仍待完成，不称P6验收。
+
 P6执行适配器组合与全阶段心跳（2026-10-03）：方案5181431先于实现。新增DesktopTaskAdapter，显式路径/部署版本/切换批准与必需的实时外部门禁；组合profile准备、guest bootstrap/隧道、空闲App切换、实时DB授权、唯一官方会话、撤销后可信证据采集及独立核验，交付只复制已核验VM原文件。恢复原App后可信shutdown关闭guest再关闭自有隧道；shutdown需控制角色、已停止及零在途。Worker在prepare前启动心跳，终态撤销后切换为仅DB续期，核验期间保持host停止标志且不再续guest，finish与心跳互斥；准备期间停止禁止启动。Python全量528/528及36个subtests、Node96/96通过；随后新增关闭权限/在途拒绝和准备时停止反例，相关23/23通过。1项既有Starlette弃用警告。全部为本地HTTP/模拟边界/隔离PG，无实际模型/VM/App切换，P5原工作树干净。额外只读发现原vm-ssh将stdin重定向/dev/null，部署与导出依赖stdin，必须另建受审查的新传输方案，不能直接复用或修改P5脚本。外部真实门禁、真实SSH传输和VM/App验收仍待完成，桌面API默认关闭、P6未验收。
 
 P6官方App有界生命周期（2026-10-03）：方案794c182先于实现，新增desktop-app模块/命令，复用官方RPC不重写循环。stop两次核对所有会话running=false，保存原preset清单，核对唯一官方PID与ps可执行路径，意图先落盘仅TERM一次；10秒观察未确认则失败，不强杀/重发。start要求无原App、版本0.2.0-rc.2、明确home与本次profile回执及当前SHA；P6仅私有绑定连接/审计路径，恢复验证原A1 tasks并从activate前快照取原预置，显式open环境并清空另一模式变量。先存启动意图，45秒RPC窗口内精确preset/唯一进程/profile哈希才回执，忙碌/错preset不视为网络等待，失败不重启。新增6项系统命令/RPC模拟测试覆盖完整启停恢复、忙碌/错PID/版本拒绝、TERM超时与启动错preset不重放；Node全96/96通过（含原profile真实编译临时测试），git diff --check通过。没有实际终止/启动App、没有模型/VM/P5环境操作；上层共享锁/旧领取者停派与整体adapter仍需接通，真实端到端未验收。

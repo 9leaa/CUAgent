@@ -1,8 +1,10 @@
 # 单人本地任务服务（P2）
 
-P6产物交付开发：桌面类型仅登记/下载`document.txt`和`result.txt`，需独立结果kind/session匹配、两文件齐全、SHA及冻结正文一致；STOP_REQUESTED不能转成功。CLI download新增这两个名字，需显式`--name`；日报名字/媒体类型保留。通知只列已登记且符合任务类型的文件，缺文件不会凭成功状态制造链接。当前仅合成产物/隔离PG/API验证，桌面Worker、VM证据收集与真实GUI独立验收仍未接通。
+P6产物交付开发：桌面类型仅登记/下载`document.txt`和`result.txt`，需独立结果kind/session匹配、两文件齐全、SHA及冻结正文一致；STOP_REQUESTED不能转成功。CLI download新增这两个名字，需显式`--name`；日报名字/媒体类型保留。通知只列已登记且符合任务类型的文件，缺文件不会凭成功状态制造链接。桌面Worker、VM证据采集及独立核验代码已组合，但只完成本地/合成证据/隔离PG验证，真实GUI闭环尚未验收。
 
-P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），但默认503、不创建任务。只有隔离测试通过Settings程序构造开启，不提供生产环境开关。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，桌面从未领取的排队停止可恢复；有执行证据则拒绝恢复，不能套用下方日报resume说明。真实TextEdit执行适配/下载尚未接通，不能用接口测试称桌面功能已上线。P5旧服务不得接入该新类型队列。
+P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），但默认503、不创建任务。只有隔离测试通过Settings程序构造开启，不提供生产环境开关。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，桌面从未领取的排队停止可恢复；有执行证据则拒绝恢复，不能套用下方日报resume说明。不能用接口测试称桌面功能已上线。P5旧服务不得接入该新类型队列。
+
+P6专用SSH：`desktop_ssh.create_ssh_wrapper(root=私有目录, known_hosts=原私有主机密钥文件, askpass=原私有可执行认证脚本)`生成新的0700传输脚本，只引用凭证路径且保留stdin。`DesktopTaskAdapter`通过显式known_hosts/askpass自动生成；离线部署准备代码调用`deploy_guest`时也须传该生成器返回路径，不能复用旧vm-ssh（它丢弃stdin）。本机1MiB往返与ssh -G解析通过不等于VM连接通过。实际执行仍需可信实时门禁核对切换许可、VM状态、剩余额度≥40%，且遵守P5隔离；没有生产启动器或自动启用开关。
 
 专业上是 FastAPI + PostgreSQL 持久队列 + 独立 Worker；直白说：提交后拿任务编号，后台执行，随后查日志、停止或下载核对过的报告。Harness 仍负责唯一的模型循环。仅日报模板、本机单用户；不是公网多租户服务。
 

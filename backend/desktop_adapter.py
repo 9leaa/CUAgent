@@ -14,6 +14,7 @@ from backend.desktop_client import DesktopControlClient
 from backend.desktop_collect import collect_guest_bundle, private_path, run_bounded, save_exclusive
 from backend.desktop_contract import DesktopSubmission
 from backend.desktop_session import DesktopSessionClient
+from backend.desktop_ssh import create_ssh_wrapper
 from backend.desktop_tunnel import GuestControlTunnel
 from backend.desktop_verify import verify_desktop_session
 from backend.desktop_worker import PreparedDesktop
@@ -26,7 +27,8 @@ class DesktopAdapterSettings:
     cookie: Path
     build_tools: Path
     base_tasks: Path
-    ssh_wrapper: Path
+    known_hosts: Path
+    askpass: Path
     guest_commit: str
     guest_manifest_sha: str
     tunnel_port: int
@@ -70,17 +72,18 @@ class DesktopTaskAdapter:
         root = private_path(self.service.settings.root, directory=True) / ('p2-' + task.id)
         root.mkdir(mode=0o700)
         (root / 'workspace').mkdir(mode=0o700)
+        wrapper = create_ssh_wrapper(root=root, known_hosts=self.settings.known_hosts, askpass=self.settings.askpass)
         session_id = 'session-' + str(uuid.uuid4())
         session = DesktopSessionClient(root=root, session_id=session_id, node=self.settings.node,
                                        official_home=self.settings.official_home, cookie=self.settings.cookie)
         session.prepare(submission)
         self.command(root, 'profile', 'prepare')
-        ready = bootstrap_guest(root=root, ssh_wrapper=self.settings.ssh_wrapper,
+        ready = bootstrap_guest(root=root, ssh_wrapper=wrapper,
                                 commit=self.settings.guest_commit, manifest_sha=self.settings.guest_manifest_sha,
                                 owner=task.owner, epoch=task.epoch)
         client = DesktopControlClient(port=self.settings.tunnel_port, token=ready['controlToken'],
                                       run_id=root.name, owner=task.owner, epoch=task.epoch)
-        tunnel = GuestControlTunnel(root=root, ssh_wrapper=self.settings.ssh_wrapper,
+        tunnel = GuestControlTunnel(root=root, ssh_wrapper=wrapper,
                                     guest_port=ready['controlPort'], client=client)
         try:
             tunnel.start()
@@ -91,7 +94,7 @@ class DesktopTaskAdapter:
             raise
         prepared = PreparedDesktop(root, session_id, client)
         self.contexts[root] = {'prepared': prepared, 'task': task, 'submission': submission,
-                               'session': session, 'tunnel': tunnel, 'started': False}
+                               'session': session, 'tunnel': tunnel, 'ssh_wrapper': wrapper, 'started': False}
         return prepared
 
     def context(self, prepared):
@@ -123,7 +126,7 @@ class DesktopTaskAdapter:
 
     def verify(self, prepared):
         context = self.context(prepared)
-        bundle = collect_guest_bundle(root=prepared.run, ssh_wrapper=self.settings.ssh_wrapper,
+        bundle = collect_guest_bundle(root=prepared.run, ssh_wrapper=context['ssh_wrapper'],
             deployment='/Users/mvpagent/CUAgent-p6-' + self.settings.guest_commit,
             client=prepared.control_client, submission=context['submission'])
         report = verify_desktop_session(prepared.run, session_id=prepared.session_id,

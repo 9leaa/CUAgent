@@ -7,12 +7,17 @@ from backend.desktop_adapter import DesktopAdapterSettings, DesktopTaskAdapter
 
 @pytest.fixture
 def assembled(tmp_path):
+    for name, mode in [('known-hosts', 0o600), ('askpass', 0o700)]:
+        path = tmp_path / name
+        path.write_text('synthetic')
+        path.chmod(mode)
     service = Mock()
     service.settings.root = tmp_path
     task = SimpleNamespace(id='11111111-1111-1111-1111-111111111111', owner='22222222-2222-2222-2222-222222222222',
                            epoch=1, payload={'kind': 'desktop-textedit', 'lines': ['synthetic']})
     settings = DesktopAdapterSettings(node=tmp_path / 'node', official_home=tmp_path / 'home', cookie=tmp_path / 'cookie',
-        build_tools=tmp_path / 'tools', base_tasks=tmp_path / 'tasks', ssh_wrapper=tmp_path / 'ssh',
+        build_tools=tmp_path / 'tools', base_tasks=tmp_path / 'tasks',
+        known_hosts=tmp_path / 'known-hosts', askpass=tmp_path / 'askpass',
         guest_commit='a' * 40, guest_manifest_sha='b' * 64, tunnel_port=19001, cutover_authorized=True)
     gate = Mock(return_value=True)
     adapter = DesktopTaskAdapter(service, settings, execution_gate=gate)
