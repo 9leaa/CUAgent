@@ -34,6 +34,8 @@ def main():
                        'csv': [{'name': c['path'], 'content': source(c['path'], 'csv'), 'numericColumns': c['numericColumns']} for c in spec['csv']]}
             if spec.get('releaseAt') is not None:
                 payload['releaseAt'] = spec['releaseAt']
+            if spec.get('inputMode') is not None:
+                payload['inputMode'] = spec['inputMode']
             response = client.post('/tasks', json=payload, headers={'Idempotency-Key': args.key})
         elif args.command == 'list':
             response = client.get('/tasks')

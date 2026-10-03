@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 import csv
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -34,12 +35,15 @@ class Submission(BaseModel):
     model_config = ConfigDict(extra='forbid')
     date: date
     releaseAt: AwareDatetime | None = None
+    inputMode: Literal['aggregate'] | None = None
     notes: list[Note] = Field(min_length=1, max_length=3)
     csv: list[Csv] = Field(min_length=1, max_length=2)
 
     @model_validator(mode='after')
     def validate_sources(self):
         from agent.daily_report import csv_oracle, markdown, note_record
+        if self.inputMode == 'aggregate' and self.releaseAt is not None:
+            raise ValueError('aggregate inputs do not support scheduled continuation')
         names = [n.name for n in self.notes] + [t.name for t in self.csv]
         if len(set(names)) != len(names):
             raise ValueError('duplicate source name')

@@ -7,6 +7,24 @@ from pathlib import Path
 import hashlib
 
 
+def test_aggregate_opt_in_preserves_legacy_and_rejects_scheduled_combination(service, payload):
+    original, _ = service.submit(payload, 'pre-p5-original')
+    with TestClient(create_app(service.settings)) as client:
+        client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
+        old = client.post('/tasks', json=payload, headers={'Idempotency-Key': 'pre-p5-original'})
+        assert old.status_code == 200 and old.json()['id'] == original
+        body = {**payload, 'inputMode': 'aggregate'}
+        response = client.post('/tasks', json=body, headers={'Idempotency-Key': 'aggregate-new'})
+        assert response.status_code == 201
+        with service.sessions() as db:
+            assert db.get(Task, response.json()['id']).payload['inputMode'] == 'aggregate'
+            assert 'inputMode' not in db.get(Task, original).payload
+        assert client.post('/tasks', json=body, headers={'Idempotency-Key': 'aggregate-new'}).status_code == 200
+        assert client.post('/tasks', json=body, headers={'Idempotency-Key': 'pre-p5-original'}).status_code == 409
+        for invalid in ({**body, 'releaseAt': '2026-10-10T12:00:00+08:00'}, {**body, 'inputMode': 'anything'}):
+            assert client.post('/tasks', json=invalid, headers={'Idempotency-Key': 'invalid-mode'}).status_code == 422
+
+
 def test_auth_input_contract_idempotency_and_cursor(service, payload):
     app = create_app(service.settings)
     with TestClient(app) as client:

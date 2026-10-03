@@ -15,7 +15,7 @@ def lifecycle(tmp_path, monkeypatch):
     worker.service.heartbeat.return_value = False
     worker.prepare_task = Mock(return_value=tmp_path)
     worker.revoke_local = Mock(return_value=True)
-    task = SimpleNamespace(id='task', epoch=2, checkpoint=None, release_at=None)
+    task = SimpleNamespace(id='task', epoch=2, checkpoint=None, release_at=None, payload={})
     for name in ('active-tasks.json', 'create-request.json', 'prompt-request.json'):
         (tmp_path / name).write_text('{}')
     monkeypatch.setattr('backend.worker.snapshot', lambda *_: {'used': 0})
@@ -28,6 +28,50 @@ def lifecycle(tmp_path, monkeypatch):
 def terminal():
     return {'exists': True, 'running': False, 'terminal': True,
             'promptObserved': True, 'userMessages': 1, 'calls': 0}
+
+
+@pytest.mark.parametrize('failure', [False, True])
+def test_aggregate_reconciles_original_terminal_without_continuation(lifecycle, monkeypatch, failure):
+    worker, task, run, verify = lifecycle
+    task.payload = {'inputMode': 'aggregate'}
+    plan = Mock(side_effect=AssertionError('must not create aggregate continuation'))
+    monkeypatch.setattr('backend.worker.partial_report_plan', plan)
+    if failure:
+        verify.side_effect = ValueError('incorrect artifact')
+    worker.rpc_process = Mock(side_effect=[terminal(), terminal(), {}])
+    worker.execute(task)
+    verify.assert_called_once_with(run, continuation=False, aggregate=True)
+    plan.assert_not_called()
+    assert [c.args[0] for c in worker.rpc_process.call_args_list] == ['inspect', 'poll', 'restore']
+    assert worker.service.finish.call_args.args[3] == ('UNVERIFIED' if failure else 'SUCCEEDED')
+
+
+def test_aggregate_rejects_existing_continuation_without_model_dispatch(lifecycle):
+    worker, task, run, verify = lifecycle
+    task.payload = {'inputMode': 'aggregate'}
+    (run / 'continuation-request.json').write_text('{}')
+    worker.rpc_process = Mock(return_value={})
+    worker.execute(task)
+    verify.assert_not_called()
+    assert [c.args[0] for c in worker.rpc_process.call_args_list] == ['restore']
+    assert worker.service.finish.call_args.kwargs['error_code'] == 'AGGREGATE_CONTINUATION_NOT_SUPPORTED'
+
+
+def test_prepare_preserves_mode_and_original_approval(tmp_path, payload):
+    worker = object.__new__(Worker)
+    worker.owner = 'owner'
+    worker.settings = SimpleNamespace(root=tmp_path)
+    worker.service = Mock()
+    task = SimpleNamespace(id='task', epoch=1, release_at=None, payload={**payload, 'inputMode': 'aggregate'})
+    run = worker.prepare_task(task)
+    approval = json.loads((run / 'approval.json').read_text())
+    assert 'workspace_report_inputs' in approval['allowedTools']
+    assert worker.prepare_task(task) == run
+    assert json.loads((run / 'approval.json').read_text()) == approval
+    task.payload.pop('inputMode')
+    with pytest.raises(RuntimeError, match='ORIGINAL_INPUT_MODE_CHANGED'):
+        worker.prepare_task(task)
+    assert json.loads((run / 'approval.json').read_text()) == approval
 
 
 @pytest.mark.parametrize('state,code', [
@@ -50,7 +94,7 @@ def test_existing_continuation_intent_is_observed_not_resent(lifecycle):
     worker.rpc_process = Mock(side_effect=[terminal(), terminal(), {}])
     worker.execute(task)
     assert [c.args[0] for c in worker.rpc_process.call_args_list] == ['inspect', 'poll', 'restore']
-    verify.assert_called_once_with(run, continuation=True)
+    verify.assert_called_once_with(run, continuation=True, aggregate=False)
     assert worker.service.finish.call_args.args[3] == 'SUCCEEDED'
 
 

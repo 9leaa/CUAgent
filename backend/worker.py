@@ -8,7 +8,7 @@ import subprocess
 import threading
 import time
 import uuid
-from agent.daily_report import dump, prepare, verify
+from agent.daily_report import AGGREGATE_TOOLS, DAILY_TOOLS, dump, prepare, verify
 from backend.config import Settings
 from backend.db import database
 from backend.models import Task, utcnow
@@ -95,6 +95,10 @@ class Worker:
              {'before': before, 'after': after, 'evidence': evidence})
 
     def prepare_task(self, task):
+        mode = task.payload.get('inputMode')
+        if mode not in (None, 'aggregate') or (mode == 'aggregate' and task.release_at):
+            raise RuntimeError('INVALID_INPUT_MODE')
+        aggregate = mode == 'aggregate'
         root = self.settings.root / 'jobs' / task.id
         root.mkdir(mode=0o700, parents=True, exist_ok=True)
         source = root / 'source'
@@ -117,11 +121,13 @@ class Worker:
             raise RuntimeError('SOURCE_SPEC_CHANGED')
         run = root / ('p2-' + task.id)
         if not run.exists():
-            prepare(source / 'spec.json', run)
+            prepare(source / 'spec.json', run, aggregate=aggregate)
         approval_path = run / 'approval.json'
         if not approval_path.exists():
             raise RuntimeError('PARTIAL_PREPARATION_NEEDS_REVIEW')
         approval = json.loads(approval_path.read_text())
+        if approval['allowedTools'] != (AGGREGATE_TOOLS if aggregate else DAILY_TOOLS):
+            raise RuntimeError('ORIGINAL_INPUT_MODE_CHANGED')
         approval.update(controlPath=str(self.settings.root / 'controls' / (task.id + '.json')), controlEpoch=task.epoch)
         if task.release_at:
             approval['publishNotBefore'] = int(task.release_at.timestamp() * 1000)
@@ -161,6 +167,9 @@ class Worker:
             # A previous Worker can die after activating this task's profile.
             # Recovery owns the same project-wide lock and must also restore it.
             activated = (run / 'active-tasks.json').exists()
+            aggregate = task.payload.get('inputMode') == 'aggregate'
+            if aggregate and (run / 'continuation-request.json').exists():
+                raise RuntimeError('AGGREGATE_CONTINUATION_NOT_SUPPORTED')
             checkpoint('prepared')
             if self.service.heartbeat(task.id, self.owner, task.epoch):
                 stopping.set()
@@ -173,7 +182,7 @@ class Worker:
                 if not state['running'] and not state['promptObserved']:
                     # Disk absence cannot rule out a lost live-inbox request.
                     raise RuntimeError('PROMPT_ACCEPTANCE_UNKNOWN_NO_REPLAY')
-                if state['terminal'] and not (run / 'continuation-request.json').exists() and not stopping.is_set():
+                if state['terminal'] and not aggregate and not (run / 'continuation-request.json').exists() and not stopping.is_set():
                     self.rpc_process('poll', run)
                     try:
                         verify(run)
@@ -280,7 +289,7 @@ class Worker:
             else:
                 try:
                     checkpoint('verifying')
-                    result = verify(run, continuation=continuing)
+                    result = verify(run, continuation=continuing, aggregate=aggregate)
                 except (ValueError, KeyError, OSError, TypeError, IndexError) as error:
                     # Private report preserves diagnostic detail; public event is a code.
                     dump(run / ('backend-verification-' + uuid.uuid4().hex + '.json'), {'status': 'UNVERIFIED', 'reason': str(error)})
