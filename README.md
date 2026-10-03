@@ -6,6 +6,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
+P6新增只读VM证据导出：固定run/owner/epoch、许可撤销后先独立核验，再把白名单原文件与无凭证manifest输出为tar；逐文件复核哈希，不导出token/lease，不写业务文件。执行层174项测试通过（合成证据/真实内存tar），尚未接真实SSH采集与后端接收。P6未验收，P5未改。
+
 P6新增受控SSH隧道管理：复用现有私有vm-ssh，仅转发宿主loopback到guest loopback，固定身份查询后才就绪；占用端口不抢占，启动意图持久保存且不自动重启，只关闭自有进程。相关23项测试通过，并用ssh -G只读确认参数解析；没有真实SSH/VM连接。部署、收集与生产adapter仍待接通，P6未验收，P5未改。
 
 P6已新增VM专用guest命令入口：先核对普通mvpagent/VirtualMac及显式审批，固定C0Evidence/原bridge锁，新run不复用；生成私有独立token，仅启动控制通道，收到授权/activate后才开放模型工具。信号/一小时上限撤销退出，在途不明会持久隔离。执行层169项、后端相关17项本地测试通过；未部署VM，生产adapter和真实端到端仍待接通，P6未验收，P5未改。

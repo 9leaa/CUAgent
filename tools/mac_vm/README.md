@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+P6 `desktop_export.py --run p2-<task-uuid> --owner <worker-uuid> --epoch <positive-int>`仅供可信SSH采集端使用，stdin为`{"lines":["本次批准正文"]}`，stdout为核验后的原始证据tar，不是JSON日志。必须先撤销许可、确认零在途；固定run内只导出白名单证据，token/lease不导出，错误仅stderr固定代码并非零退出。后端不得把manifest当官方会话验收，仍须核对原任务及Flash/off。174项本地执行层测试通过，尚无真实SSH导出验收。
+
 P6 `desktop_guest.py --run p2-<task-uuid> --owner <worker-uuid> --epoch <positive-int> --approve-task`是测试VM专用启动入口（当前尚未真实部署验收）。固定普通mvpagent的C0Evidence与旧bridge.lock，新run独占，先仅开loopback控制端口；私有guest-ready.json指明端口，凭证单独存为bridge-token/control-token，不能交给模型或输出日志。终止信号撤销许可；在途未清空时保留bridge.lock.quarantine，必须人工核对，不能自动删除或混跑不识别它的旧桥接。169项本地执行层测试通过不等于真实VM连通。
 
 P6 `DesktopGuestRuntime`负责显式共享bridge锁、许可后单次activate、工具服务及撤销/在途状态；配合control_server(runtime=...)开放可信/activate和/status，模型凭证不能访问。准备时不启动工具服务，失败保留意图并撤销；close遇在途拒绝释放锁。164项本地执行层测试通过。仍无生产启动CLI，后续部署必须核对VM身份与旧服务所用同一实际锁，不能拿另一个文件当全局互斥。
