@@ -104,3 +104,30 @@ class Notification(Base):
     error_code: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Schedule(Base):
+    __tablename__ = 'schedules'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(80), unique=True)
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    config: Mapped[dict] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(24), default='ACTIVE')
+    next_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    occurrences: Mapped[int] = mapped_column(Integer, default=0)
+    last_commit: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Occurrence(Base):
+    __tablename__ = 'schedule_occurrences'
+    __table_args__ = (UniqueConstraint('schedule_id', 'due_at'),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    schedule_id: Mapped[str] = mapped_column(ForeignKey('schedules.id'), index=True)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(32))
+    prepare_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    batch_id: Mapped[str | None] = mapped_column(ForeignKey('batches.id'))
+    source: Mapped[list | None] = mapped_column(JSONB)
+    source_sha256: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -61,3 +61,23 @@ class Submission(BaseModel):
 class BatchSubmission(BaseModel):
     model_config = ConfigDict(extra='forbid')
     tasks: list[Submission] = Field(min_length=2, max_length=3)
+
+
+class ScheduleSubmission(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    startAt: AwareDatetime
+    timezone: str = Field(max_length=80)
+    runs: int = Field(default=7, ge=1, le=7, strict=True)
+    branch: Literal['harness-migration', 'p5-personal-workflows']
+    baselineCommit: str = Field(pattern=r'^[0-9a-f]{40}$')
+
+    @model_validator(mode='after')
+    def valid_zone(self):
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        try:
+            zone = ZoneInfo(self.timezone)
+        except (ValueError, ZoneInfoNotFoundError) as error:
+            raise ValueError('unknown IANA timezone') from error
+        if self.startAt.astimezone(zone).utcoffset() != self.startAt.utcoffset():
+            raise ValueError('startAt offset differs from timezone')
+        return self
