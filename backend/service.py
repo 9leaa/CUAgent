@@ -8,6 +8,7 @@ import time
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
 from backend.desktop_contract import DesktopSubmission
+from backend.artifact_contract import artifact_names
 from backend.models import Artifact, Attempt, Event, Notification, Resource, Task, Usage, utcnow
 
 
@@ -227,13 +228,31 @@ class TaskService:
             if status == 'SUCCEEDED':
                 if not result or result.get('status') != 'SUCCEEDED' or result.get('sessionId') != task.session_id:
                     raise Conflict('INDEPENDENT_VERIFICATION_REQUIRED')
+                allowed = artifact_names(task.payload)
+                if not allowed:
+                    raise Conflict('UNKNOWN_TASK_ARTIFACT_TYPE')
+                expected = None
+                if task.payload.get('kind') == 'desktop-textedit':
+                    if task.status != 'RUNNING':
+                        raise Conflict('DESKTOP_TASK_NO_LONGER_RUNNING')
+                    if result.get('kind') != 'desktop-textedit' or set(result.get('artifacts', {})) != set(allowed):
+                        raise Conflict('DESKTOP_ARTIFACT_SET_REQUIRED')
+                    document = DesktopSubmission.model_validate(task.payload).expected_document()
+                    expected = {'document.txt': document, 'result.txt': document + b'\n'}
                 for name, digest in result['artifacts'].items():
-                    if name not in ('report.json', 'report.md'):
+                    if name not in allowed:
                         raise Conflict('INVALID_ARTIFACT')
                     path = Path(task.run_dir) / 'workspace' / name
-                    if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                    if path.is_symlink():
                         raise Conflict('ARTIFACT_CHANGED')
-                    db.add(Artifact(task_id=task_id, name=name, sha256=digest, bytes=path.stat().st_size))
+                    if expected is not None and not path.resolve().is_relative_to(self.settings.root):
+                        raise Conflict('ARTIFACT_PATH_CHANGED')
+                    data = path.read_bytes()
+                    if hashlib.sha256(data).hexdigest() != digest:
+                        raise Conflict('ARTIFACT_CHANGED')
+                    if expected is not None and data != expected[name]:
+                        raise Conflict('DESKTOP_ARTIFACT_CONTENT_MISMATCH')
+                    db.add(Artifact(task_id=task_id, name=name, sha256=digest, bytes=len(data)))
             if result and result.get('usage'):
                 db.merge(Usage(task_id=task_id, data=result['usage']))
             task.status, task.error_code = status, error_code

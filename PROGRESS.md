@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6交付链路最终后端回归248/248通过（1项既有Starlette/httpx弃用提示）；没有真实桌面业务成功声明。
+
+P6类型化产物交付（2026-10-03）：检查Worker发现finish/下载/通知硬编码日报文件，先提交方案c379b71，再补artifact_contract、桌面两产物完整性/kind/session/正文/状态检查、按类型下载媒体及CLI文件选择。通知改为只列已登记且符合类型的文件。首轮245通过/1失败：旧通知测试仅强设成功未建Artifact却期待两链接；补齐合成登记数据，并增加缺产物不生成链接反例，不修改生产证据。新增桌面交付合成测试覆盖缺项/额外项/跨类型/错会话/错SHA/错正文/链接/停止并发、下载后篡改拒绝；不是GUI真实性证明。无模型或VM调用、生产API仍不开放桌面提交；P5环境未改。
+
 P6数据库authority联动（2026-10-03）：方案2da1553先于实现；TaskService.desktop_authority在短事务锁定资源/任务，校验运行类型/状态和同owner/epoch/task绑定，用数据库clock_timestamp计算剩余许可并保守映射monotonic截止。新增DesktopExecutionControl协调heartbeat、guest查询、新查authority、单次授权；异常后对象永久关闭、host许可停止并尝试guest撤销，分别保存localRevoked/guestRevoked，明确inflightCancellationConfirmed=false。11项新增隔离PG+真实loopback测试，包括停止联动、六类身份/类型/过期拒绝、短剩余期限、DB失败、网络不可达不伪造撤销、绑定错误；全后端237/237通过，1项既有弃用提示。并未修改旧日报Worker、接生产VM或创建模型任务；真实SSH通道、桌面Worker及端到端仍待完成。额度实时剩余89%，积分基准未变，重置卡未用。P5运行环境未改。
 
 P6通信期限最终回归：后端226/226通过，执行层143/143通过；保留1项既有Starlette/httpx弃用提示。无生产部署或真实桌面授权。

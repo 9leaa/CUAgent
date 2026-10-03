@@ -10,6 +10,7 @@ from backend.db import database
 from backend.models import Artifact, Event, Schedule, Task
 from backend.schemas import BatchSubmission, ScheduleSubmission, Submission
 from backend.desktop_contract import DesktopSubmission
+from backend.artifact_contract import artifact_names, media_type
 from backend.batches import BatchService
 from backend.notifications import Inbox
 from backend.schedule_runtime import runtime_service
@@ -149,10 +150,10 @@ def create_app(settings):
 
     @app.get('/tasks/{task_id}/artifacts/{name}', dependencies=[Depends(authenticated)])
     def artifact(task_id: str, name: str):
-        if name not in ('report.json', 'report.md'):
-            raise NotFound('ARTIFACT_NOT_FOUND')
         with sessions() as db:
             task = db.get(Task, task_id)
+            if task is None or name not in artifact_names(task.payload):
+                raise NotFound('ARTIFACT_NOT_FOUND')
             record = db.scalar(select(Artifact).where(Artifact.task_id == task_id, Artifact.name == name))
             if task is None or task.status != 'SUCCEEDED' or record is None:
                 raise NotFound('VERIFIED_ARTIFACT_NOT_FOUND')
@@ -162,7 +163,7 @@ def create_app(settings):
             data = path.read_bytes()
             if len(data) != record.bytes or hashlib.sha256(data).hexdigest() != record.sha256:
                 raise Conflict('ARTIFACT_CHANGED')
-            return Response(data, media_type='application/json' if name.endswith('.json') else 'text/markdown',
+            return Response(data, media_type=media_type(name),
                             headers={'Content-Disposition': f'attachment; filename="{name}"', 'ETag': '"' + record.sha256 + '"'})
 
     return app

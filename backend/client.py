@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--after', type=int, default=0)
     parser.add_argument('--unread-only', action='store_true')
     parser.add_argument('--output')
-    parser.add_argument('--name', choices=['report.json', 'report.md'], default='report.md')
+    parser.add_argument('--name', choices=['report.json', 'report.md', 'document.txt', 'result.txt'], default='report.md')
     args = parser.parse_args()
     env = load_env()
     with httpx.Client(base_url='http://127.0.0.1:18089', trust_env=False, timeout=20,

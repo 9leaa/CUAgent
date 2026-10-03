@@ -1,6 +1,7 @@
 """Persistent read-only listing and idempotent acknowledgement of local notices."""
 from sqlalchemy import select
-from backend.models import Notification, Task, utcnow
+from backend.models import Artifact, Notification, Task, utcnow
+from backend.artifact_contract import artifact_names
 from backend.service import NotFound
 
 
@@ -12,7 +13,7 @@ class Inbox:
         if type(after) is not int or after < 0 or type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError('INVALID_NOTIFICATION_CURSOR')
         with self.sessions() as db:
-            query = select(Notification, Task.status).join(Task, Task.id == Notification.task_id)
+            query = select(Notification, Task.status, Task.payload).join(Task, Task.id == Notification.task_id)
             query = query.where(Notification.id > after)
             if unread_only: query = query.where(Notification.read_at.is_(None))
             rows = db.execute(query.order_by(Notification.id).limit(limit)).all()
@@ -20,8 +21,10 @@ class Inbox:
                       'status_at_event': n.status, 'current_status': current, 'error_code': n.error_code,
                       'created_at': n.created_at.isoformat(), 'read_at': n.read_at.isoformat() if n.read_at else None,
                       'artifact_urls': ['/tasks/' + n.task_id + '/artifacts/' + name for name in
-                                        ('report.json', 'report.md')] if current == n.status == 'SUCCEEDED' else []}
-                     for n, current in rows]
+                                        db.scalars(select(Artifact.name).where(Artifact.task_id == n.task_id)
+                                                   .order_by(Artifact.name)) if name in artifact_names(payload)]
+                                       if current == n.status == 'SUCCEEDED' else []}
+                     for n, current, payload in rows]
         return {'items': items, 'next_cursor': items[-1]['id'] if items else after}
 
     def mark_read(self, identity):

@@ -92,6 +92,9 @@ def test_success_links_only_for_success_current_state(service, payload):
         task = db.get(Task, identity)
         task.status = 'SUCCEEDED'
         service.event(db, task, 'finished', status='SUCCEEDED')
+        from backend.models import Artifact
+        for name in ('report.json', 'report.md'):
+            db.add(Artifact(task_id=identity, name=name, sha256='0' * 64, bytes=0))
     item, = Inbox(service.sessions).listing()['items']
     assert len(item['artifact_urls']) == 2
     with service.sessions.begin() as db:
