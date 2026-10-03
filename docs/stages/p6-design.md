@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### Guest证据导出（实现前补充）
+
+新增VM专用只读导出命令，固定C0Evidence/p2-UUID，owner/epoch由可信调用端提供；正文期望从stdin有界JSON lines读取，不接受任意路径或shell。先核对私有lease固定身份且stopped=true，再运行已有guest独立验证器；所有调用必须完成。仅将核验清单中的trace/final_state/state-NN.json/png/固定文档/result及生成的无凭证manifest打包到stdout，不能导出token、lease、个人目录或任意额外文件。逐文件二次安全读取并比对核验SHA/大小，发送任何字节前完成全部校验，总原始内容≤64MiB，固定tar普通文件/0600、无链接；失败stderr固定代码、非零，不生成业务文件。此摘要仅证明VM证据核验，不替代官方会话/Flash-off；后端仍需通过可信SSH采集、验证包哈希和独立绑定。测试合成文件与真实内存tar，不调用VM/模型。
+
 ### 宿主控制隧道（实现前补充）
 
 复用已核对的私有vm-ssh开发包装器（固定mvpagent@192.168.64.3、严格known-hosts），不新建凭证或修改SSH配置。新增GuestControlTunnel，可信部署显式提供wrapper、固定绑定的DesktopControlClient和guest控制端口；仅-N/-T及127.0.0.1:hostPort→127.0.0.1:guestPort，ExitOnForwardFailure、禁agent/X11转发和复用连接。先校验私有规范路径及本地端口未占用，再独占落盘启动意图、单次Popen，不自动重启。最多10秒只读查询原lease binding确认身份和进程仍存活，监听存在本身不算就绪；错误/超时仅终止自己创建的进程，不杀已有服务。stdout/stderr不公开凭证，关闭限时TERM后KILL自有句柄；隧道关闭不代表guest许可已撤销。测试用模拟进程与控制客户端验证参数、身份、冲突、失败与不重放，不连接VM；真实隧道及部署仍需后续验收。
