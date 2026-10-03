@@ -25,20 +25,7 @@ class LeaseGate:
             if self.last_time is not None and now < self.last_time:
                 raise ValueError('clock moved backwards')
             self.last_time = now
-            if self.path.parent.resolve(strict=True) != self.path.parent:
-                raise ValueError('control parent symlink')
-            directory = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-            try:
-                self.private(os.fstat(directory), directory=True)
-                fd = os.open(self.path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
-                with os.fdopen(fd, 'rb') as stream:
-                    self.private(os.fstat(stream.fileno()))
-                    raw = stream.read(4097)
-            finally:
-                os.close(directory)
-            if len(raw) > 4096:
-                raise ValueError('oversized lease')
-            lease = json.loads(raw)
+            lease = self.read()
             if not (isinstance(lease, dict) and type(lease.get('version')) is int and lease['version'] == 1
                     and lease.get('runId') == self.run_id and lease.get('owner') == self.owner
                     and type(lease.get('epoch')) is int and lease['epoch'] == self.epoch
@@ -48,6 +35,22 @@ class LeaseGate:
         except (OSError, ValueError, TypeError):
             self.denied = True
             raise StopRun('BLOCKED', 'Execution lease unavailable or invalid') from None
+
+    def read(self):
+        if self.path.parent.resolve(strict=True) != self.path.parent:
+            raise ValueError('control parent symlink')
+        directory = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            self.private(os.fstat(directory), directory=True)
+            fd = os.open(self.path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+            with os.fdopen(fd, 'rb') as stream:
+                self.private(os.fstat(stream.fileno()))
+                raw = stream.read(4097)
+        finally:
+            os.close(directory)
+        if len(raw) > 4096:
+            raise ValueError('oversized lease')
+        return json.loads(raw)
 
     @staticmethod
     def private(info, directory=False):
