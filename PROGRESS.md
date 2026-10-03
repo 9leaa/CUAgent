@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6后端证据包校验（2026-10-03）：方案170495d先于实现，新增desktop_bundle.decode_guest_bundle。仅处理可信收集通道提供的≤65MiB原tar字节，≤65个普通文件/单项≤8MiB/总内容≤64MiB，manifest≤64KiB；不落盘解压或执行内容。严格文件白名单、去重、无链接/特殊文件/PAX、完整零填充尾部；核对原run/owner/epoch及严格整数、冻结输入SHA、精确文件集合与各项SHA/大小，文档/result逐字节匹配，截图/状态成对。返回内存快照且sessionVerified=false、不含整体status；明确任意自洽包不证明来源或GUI，可信SSH与官方会话验收仍为必要条件。新增22项测试涵盖格式兼容（调用实际guest write_bundle）、身份/正文/摘要/布尔混淆、越界/重复/秘密文件、截断/附加内容、链接/特殊项、超大header及PAX拒绝；相关45/45通过，git diff --check通过。无真实SSH/VM/模型调用，P5未改；下一步需将实际采集/会话/交付接入adapter。
+
 P6 guest只读导出（2026-10-03）：先提交方案d9aa154，再新增desktop_export.py。CLI先require_vm、绑定p2-UUID/owner/epoch，固定C0Evidence目录，stdin最多32KiB且只接受受控lines正文≤4096字节。许可必须固定绑定并已stopped，guest独立验证要求完整调用/PNG/文件轨迹；导出只接受trace/final_state/state-01..30.json/png/固定文档/result。二次O_NOFOLLOW有界读取与核验SHA/大小一致，原字节总≤64MiB，完成全部校验后才输出普通文件0600的USTAR及无凭证manifest；复查lease不变。没有解压到任意目录、没有业务文件写入；manifest明确sessionVerified=false。新增5项测试使用合成证据和真实内存tar，检查凭证排除、原字节、未撤销/缺许可、核验后篡改、额外路径及输入契约；执行层174/174通过，git diff --check通过。没有真实VM/SSH/模型调用，后端接收、实际adapter及完整验收尚待完成；P5未改。
 
 P6控制隧道管理（2026-10-03）：方案883b121先于实现。只读核对原vm-ssh固定mvpagent@192.168.64.3、StrictHostKeyChecking和专用known-hosts；新增GuestControlTunnel校验私有规范wrapper/run、固定client绑定与端口。独占持久启动意图、单次Popen，-F /dev/null不继承用户SSH配置，仅-N/-T、显式127.0.0.1双端转发、ExitOnForwardFailure、禁agent/X11/ControlMaster复用。先检查端口占用，10秒内只读lease identity探测并确认子进程存活；错误身份立即失败，不以端口打开冒充guest就绪。错误/关闭只TERM自有句柄，2秒后必要时KILL，再2秒未确认报告失败；不替代远端revoke。新增6项模拟子进程测试，包含真实本机端口冲突、持久意图拒绝重启、身份不符、超时强制关闭、私有路径/链接拒绝。相关23项通过，git diff --check通过；本机ssh -G只读解析确认选项位于目标参数之后仍正确生效，无真实SSH连接/VM部署/模型调用。生产adapter、可信收集与端到端尚待完成，P5未改。
