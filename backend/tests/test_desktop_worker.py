@@ -147,6 +147,24 @@ def test_shared_lock_prevents_claiming(service):
     assert adapter.calls == []
 
 
+def test_owned_public_runtime_directory_keeps_private_lock(service):
+    instance, adapter = worker(service)
+    parent = service.settings.root / 'shared-runtime'
+    parent.mkdir(mode=0o755)
+    instance.shared_lock = parent / 'desktop-worker.lock'
+    assert instance.run_once()['status'] == 'SUCCEEDED'
+    assert instance.shared_lock.stat().st_mode & 0o777 == 0o600
+
+
+def test_other_writable_shared_directory_refuses_claim(service):
+    instance, adapter = worker(service)
+    parent = service.settings.root / 'shared-runtime'
+    parent.mkdir(mode=0o700); parent.chmod(0o777)
+    instance.shared_lock = parent / 'desktop-worker.lock'
+    with pytest.raises(ValueError): instance.run_once()
+    assert adapter.calls == []
+
+
 @pytest.mark.parametrize('fault', [None, 'verify', 'pending'])
 def test_usage_persists_without_turning_failed_execution_into_success(service, fault):
     instance, adapter = worker(service, fault)

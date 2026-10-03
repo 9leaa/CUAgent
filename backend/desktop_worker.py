@@ -31,8 +31,10 @@ class DesktopWorker:
 
     def run_once(self):
         parent = self.shared_lock.parent
-        if parent.resolve(strict=True) != parent or parent.stat().st_mode & 0o077:
-            raise ValueError('private canonical shared lock directory required')
+        info = parent.stat()
+        if (parent.resolve(strict=True) != parent or not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != os.getuid() or info.st_mode & 0o022):
+            raise ValueError('owned non-writable canonical shared lock directory required')
         fd = os.open(self.shared_lock, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, 'r+b') as lock:
             info = os.fstat(lock.fileno())
