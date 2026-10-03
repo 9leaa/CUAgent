@@ -22,6 +22,14 @@ def fixture():
 
 
 class EfficiencyTests(unittest.TestCase):
+    def test_pending_safety_audit_does_not_hide_failed_cost(self):
+        manifest, results = fixture()
+        results[1].update(status='UNVERIFIED', verified=False, safetyPassed=None)
+        report = compare(manifest, results)
+        self.assertEqual(report['status'], 'INCOMPLETE')
+        self.assertEqual(report['totalsIncludingFailuresAndRework']['candidate']['totalTokens'], 1600)
+        self.assertEqual(report['totalsIncludingFailuresAndRework']['candidate']['failures'], 1)
+
     def test_complete_paired_metrics(self):
         manifest, results = fixture()
         result = compare(manifest, results)

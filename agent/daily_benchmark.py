@@ -10,7 +10,7 @@ except ImportError:
     from daily_report import MODEL, dump, prepare, require, sha, verify
 
 
-def freeze(directory):
+def freeze(directory, *, controlled=False):
     root = Path(directory).absolute()
     require(not root.exists(), 'suite exists; do not replace original trials')
     root.mkdir(mode=0o700, parents=True)
@@ -49,7 +49,7 @@ def freeze(directory):
         spec = {'date': f'2026-10-{index:02d}', 'notes': notes, 'csv': tables}
         dump(case / 'spec.json', spec)
         run = root / f'{root.name}-{index:02d}'
-        prepare(case / 'spec.json', run)
+        prepare(case / 'spec.json', run, controlled=controlled)
         schedule.append({'index': index, 'runDir': str(run), 'specSha256': sha((case / 'spec.json').read_bytes()),
                          'oracleSha256': sha((run / 'oracle.json').read_bytes())})
     dump(root / 'schedule.json', {'version': 1, 'requiredSuccesses': 18, 'trials': schedule})

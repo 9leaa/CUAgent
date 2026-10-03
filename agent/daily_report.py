@@ -140,7 +140,7 @@ def markdown(report):
     return '\n'.join(lines)
 
 
-def prepare(spec_path, run_dir, renderer=True, *, aggregate=False):
+def prepare(spec_path, run_dir, renderer=True, *, aggregate=False, controlled=False):
     require(not aggregate or renderer, 'aggregate requires deterministic renderer')
     spec_path = Path(spec_path).resolve(strict=True)
     spec = json.loads(spec_path.read_text())
@@ -190,6 +190,8 @@ def prepare(spec_path, run_dir, renderer=True, *, aggregate=False):
     approval = {'runId': run_dir.name, 'sessionId': 'session-' + str(uuid.uuid4()),
                 'workspaceRoot': str(workspace), 'ledgerPath': str(run_dir / 'audit/calls.jsonl'),
                 'allowedTools': AGGREGATE_TOOLS if aggregate else DAILY_TOOLS if renderer else TOOLS}
+    if controlled:
+        approval.update(controlPath=str(run_dir / 'control.json'), controlEpoch=1)
     dump(run_dir / 'approval.json', approval)
     return {'runId': run_dir.name, 'state': 'PREPARED', 'inputs': len(inputs), 'model': MODEL}
 

@@ -69,8 +69,7 @@ def compare(manifest, results):
             continue
         if type(row.get('verified')) is not bool or type(row.get('safetyPassed')) is not bool:
             gaps.append([*key, 'missing independent verdict'])
-            continue
-        if not row['safetyPassed'] or (row['status'] == 'SUCCEEDED' and not row['verified']):
+        if row.get('safetyPassed') is False or (row['status'] == 'SUCCEEDED' and row.get('verified') is False):
             safety.append(list(key))
         attempts = row.get('attempts')
         if not isinstance(attempts, list) or not attempts:
@@ -105,7 +104,7 @@ def compare(manifest, results):
         for k, value in subtotal.items():
             total[k] += value
         total['attempts'] += len(attempts)
-        total['successes' if row['status'] == 'SUCCEEDED' and row['verified'] else 'failures'] += 1
+        total['successes' if row['status'] == 'SUCCEEDED' and row.get('verified') is True else 'failures'] += 1
     gaps.extend([*key, 'missing trial'] for key in expected if key not in seen)
     a, b = totals['baseline'], totals['candidate']
     complete = not gaps

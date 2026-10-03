@@ -33,7 +33,7 @@ def freeze(directory):
     sources = source_hashes()
     source_digest = sha(canonical(sources))
     text = prompts()
-    freeze_baseline(root / 'baseline')
+    freeze_baseline(root / 'baseline', controlled=True)
     baseline = json.loads((root / 'baseline/schedule.json').read_text())
     candidate_root = root / 'candidate'
     candidate_root.mkdir(mode=0o700)
@@ -42,7 +42,7 @@ def freeze(directory):
         index = case['index']
         original = Path(case['runDir'])
         candidate = candidate_root / f'{root.name}-candidate-{index:02d}'
-        prepare(root / f'baseline/case-{index:02d}/spec.json', candidate, aggregate=True)
+        prepare(root / f'baseline/case-{index:02d}/spec.json', candidate, aggregate=True, controlled=True)
         pair = {}
         for arm, run in [('baseline', original), ('candidate', candidate)]:
             approval = json.loads((run / 'approval.json').read_text())
