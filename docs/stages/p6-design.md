@@ -28,6 +28,10 @@
 
 ## 验收和证据
 
+### 真实HTTP拒绝边界补验（执行前）
+
+只读探测发现系统curl能够收到VM SSH端口响应，区别于此前Python/Homebrew Node/Electron Node的EHOSTUNREACH；不据此推断根因或已连通模型端口。使用新的独立诊断run，先验证原guest模型端口GET明确405，再通过原生产HTTP入口进行observe→缺参数type_text拒绝→旧snapshot的save拒绝→新observe。独立要求两个拒绝计预算、无输入/hotkey派发，新观察来自真实Driver；随后可信控制通道revoke，原模型token再次observe必须409且预算不增，原控制身份直接POST renew也必须被guest拒绝，不能只测试客户端预检。curl不跟重定向、不自动重试，凭证仅stdin，不进argv或公开日志；不改变监听、来源校验、权限或网络配置。原trace、响应摘要、观察PNG/state与关闭记录私有保存并独立核对。该诊断不调用模型、不替换正式三例或旧连接失败；App/数据库失权全链路另验。
+
 ### 真实VM自然到期诊断（实施前）
 
 宿主独立Python/Node直连VM受阻，不改网络权限或模型入口。新增仅可信开发者可运行的VM诊断：沿用prepare_guest、原共享锁、真实DesktopTask/Driver及未改的生产许可门禁，先实际观察，再停止续期等待真实墙钟到期；同一对象再次observe必须在Driver派发前拒绝。之后原controller及从同一许可文件重新构造的controller均不得续期；不手写许可、不修改时钟、不重建任务、不增加模型工具。finally撤销并关闭原runtime，保存原trace、观察文件摘要、到期时间、拒绝与关闭回执。宿主独立核对首次真实观察、到期后预算不变/零新派发、原身份及关闭结果。该结果只证明真实VM最终派发/持久许可边界，不冒充官方App请求、HTTP来源隔离或数据库失权全链路；后者仍分别验收。P5空闲检查/共享锁/临时Worker停启与配置核对保持原要求，未知清理结果不得自动恢复领取。
