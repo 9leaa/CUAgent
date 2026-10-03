@@ -13,6 +13,7 @@ from pathlib import Path
 TOOLS = ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read',
          'workspace_write', 'workspace_csv_stats']
 DAILY_TOOLS = ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report']
+AGGREGATE_TOOLS = [*DAILY_TOOLS, 'workspace_report_inputs']
 MODEL = {'provider': 'deepseek-account', 'model': 'deepseek-flash', 'reasoningEffort': 'off'}
 
 
@@ -139,7 +140,8 @@ def markdown(report):
     return '\n'.join(lines)
 
 
-def prepare(spec_path, run_dir, renderer=True):
+def prepare(spec_path, run_dir, renderer=True, *, aggregate=False):
+    require(not aggregate or renderer, 'aggregate requires deterministic renderer')
     spec_path = Path(spec_path).resolve(strict=True)
     spec = json.loads(spec_path.read_text())
     require(set(spec) == {'date', 'notes', 'csv'}, 'spec keys must be date/notes/csv')
@@ -187,16 +189,17 @@ def prepare(spec_path, run_dir, renderer=True):
     dump(run_dir / 'oracle.json', oracle)
     approval = {'runId': run_dir.name, 'sessionId': 'session-' + str(uuid.uuid4()),
                 'workspaceRoot': str(workspace), 'ledgerPath': str(run_dir / 'audit/calls.jsonl'),
-                'allowedTools': DAILY_TOOLS if renderer else TOOLS}
+                'allowedTools': AGGREGATE_TOOLS if aggregate else DAILY_TOOLS if renderer else TOOLS}
     dump(run_dir / 'approval.json', approval)
     return {'runId': run_dir.name, 'state': 'PREPARED', 'inputs': len(inputs), 'model': MODEL}
 
 
-def verify(run_dir, *, continuation=False):
+def verify(run_dir, *, continuation=False, aggregate=False):
     root = Path(run_dir)
     task = json.loads((root / 'approval.json').read_text())
     renderer = 'workspace_daily_report' in task['allowedTools']
-    allowed = DAILY_TOOLS if renderer else TOOLS
+    require(not aggregate or (renderer and not continuation and not task.get('publishNotBefore')), 'aggregate only supports original non-scheduled tasks')
+    allowed = AGGREGATE_TOOLS if aggregate else DAILY_TOOLS if renderer else TOOLS
     require(task['allowedTools'] == allowed, 'unexpected approved capabilities')
     oracle = json.loads((root / 'oracle.json').read_text())
     workspace = Path(task['workspaceRoot'])
@@ -247,9 +250,13 @@ def verify(run_dir, *, continuation=False):
                 'publication preceded approved deadline')
     returned = [a for a in audit if a['event'] == 'result']
     render_calls = [c for c in calls if c['data']['name'] == 'workspace_daily_report']
+    aggregate_calls = [c for c in calls if c['data']['name'] == 'workspace_report_inputs']
+    require(len(aggregate_calls) == (1 if aggregate else 0), 'one opt-in aggregate call required')
+    input_count = 1 + len(expected['notes']) + len(expected['csv']) if aggregate else 0
     require((len(render_calls) == 1 if renderer else not render_calls), 'one renderer call required')
-    require(0 < len(calls) == len(results) and len(dispatch) == len(returned) == len(calls) + len(render_calls) <= 30, 'unmatched calls or budget')
+    require(0 < len(calls) == len(results) and len(dispatch) == len(returned) == len(calls) + len(render_calls) + input_count <= 30, 'unmatched calls or budget')
     expected_ids = {c['data']['callId'] for c in calls} | {c['data']['callId'] + ':daily-source' for c in render_calls}
+    expected_ids |= {c['data']['callId'] + ':input-' + str(i) for c in aggregate_calls for i in range(1, input_count + 1)}
     require({a['callId'] for a in dispatch} == {a['callId'] for a in returned} == expected_ids, 'unmatched internal request')
     require([a['used'] for a in dispatch] == list(range(1, len(dispatch) + 1)), 'non-continuous budget')
     require(len({c['data']['callId'] for c in calls}) == len(calls), 'duplicate call')
@@ -267,7 +274,14 @@ def verify(run_dir, *, continuation=False):
         message = result[0]['data']['message']
         require(not message.get('isError') and completed[0]['outcome'] == 'returned', 'tool failed')
         value = json.loads(message['content'][0]['text'])
-        parsed.append({'name': c['name'], 'args': args, 'value': value, 'seq': call['seq'], 'end': result[0]['seq']})
+        parsed.append({'name': c['name'], 'args': args, 'value': value, 'seq': call['seq'], 'end': result[0]['seq'], 'callId': c['callId']})
+    if aggregate:
+        try:
+            from .aggregate_evidence import verify_inputs
+        except ImportError:
+            from aggregate_evidence import verify_inputs
+        parent = next(p for p in parsed if p['name'] == 'workspace_report_inputs')
+        parsed.extend(verify_inputs(parent, audit, workspace, oracle))
     if renderer:
         rc = render_calls[0]['data']['callId']
         child = [a for a in dispatch if a['callId'] == rc + ':daily-source'][0]
@@ -323,14 +337,16 @@ def main():
     p = sub.add_parser('prepare')
     p.add_argument('--spec', required=True)
     p.add_argument('--run-dir', required=True)
+    p.add_argument('--aggregate', action='store_true')
     p = sub.add_parser('verify')
     p.add_argument('--run-dir', required=True)
+    p.add_argument('--aggregate', action='store_true')
     args = parser.parse_args()
     if args.command == 'prepare':
-        result = prepare(args.spec, args.run_dir)
+        result = prepare(args.spec, args.run_dir, aggregate=args.aggregate)
     else:
         try:
-            result = verify(args.run_dir)
+            result = verify(args.run_dir, aggregate=args.aggregate)
         except (ValueError, KeyError, OSError, TypeError, IndexError) as error:
             result = {'status': 'UNVERIFIED', 'reason': str(error)}
         dump(Path(args.run_dir) / ('verification-' + uuid.uuid4().hex + '.json'), result)

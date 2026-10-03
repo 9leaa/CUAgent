@@ -1,7 +1,10 @@
 """Independent P4 input evidence checks. Read-only; never creates business output."""
 import json
 from pathlib import Path
-from agent.daily_report import require, same, sha, text_file
+try:
+    from .daily_report import require, same, sha, text_file
+except ImportError:  # direct daily_report.py CLI
+    from daily_report import require, same, sha, text_file
 
 
 def verify_inputs(parent, audit, workspace, oracle):
