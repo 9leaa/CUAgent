@@ -43,7 +43,19 @@ API 127.0.0.1:18089；独立数据库 127.0.0.1:55432，不改现有 5432/Redis�
 
 P3可在输入spec加`releaseAt`（必须带时区，例如`2026-10-03T09:00:00+08:00`）。第一轮只生成JSON草稿，状态转为WAITING_RELEASE并释放资源；到点由持续运行的Worker领取同一任务完成Markdown。等待中停止后再恢复不会提前发布，工具端也拒绝提前渲染/普通写入绕过。数据库需迁移至0004。真实1小时、8小时及重启恢复已通过，见[P3总结](../docs/stages/p3-summary.md)；这不是连续8小时推理，也不承诺未启动Worker时自行唤醒机器。
 
-P5开发版可在spec/API正文显式加入`"inputMode":"aggregate"`，使用P4已验证的受控输入聚合；不填写保持旧行为，旧幂等键不变。不可与releaseAt组合，已有任务不能更换模式。原聚合会话终止后只重新核验，不自动续跑；不完整产物记UNVERIFIED。两类实际来源采集位于`backend/workflow_sources.py`，目前真实报告及下载核对已通过，批次/周期计划/通知入口尚未交付。
+P5开发版可在spec/API正文显式加入`"inputMode":"aggregate"`，使用P4已验证的受控输入聚合；不填写保持旧行为，旧幂等键不变。不可与releaseAt组合，已有任务不能更换模式。原聚合会话终止后只重新核验，不自动续跑；不完整产物记UNVERIFIED。两类实际来源采集位于`backend/workflow_sources.py`，真实报告及下载核对已通过。
+
+### 批次（P5开发版）
+
+数据库迁移至0005后，`POST /batches`接受`{"tasks":[任务正文1,任务正文2]}`（2–3项、整批请求最多262144字节），与/tasks使用相同认证和Idempotency-Key。完整校验后事务写入整批；同键同正文返回原批次，不同正文409。`GET /batches/批次UUID`返回逐任务状态、用量和产物；全部独立成功才显示SUCCEEDED，混合失败显示COMPLETED_WITH_ERRORS。每项仍独立30raw、串行执行，不共享或重置预算。
+
+```bash
+.runtime/backend-venv/bin/python -m backend.client batch-submit --spec .runtime/batch-body.json --key my-batch-001
+.runtime/backend-venv/bin/python -m backend.client batch-status --batch BATCH_UUID
+.runtime/backend-venv/bin/python -m backend.client batch-stop --batch BATCH_UUID
+```
+
+批次JSON中的tasks是内联任务正文，不是任意文件引用。停止按现有单任务边界逐项持久执行，保留已完成项；中途失败可用原batch再次stop完成剩余项，不承诺跨任务的原子停止、不新建任务。下载沿用各任务的原下载入口。真实两任务批次及重复请求已通过；周期计划和本地通知尚未交付。
 
 只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
 

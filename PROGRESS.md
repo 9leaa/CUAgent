@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+P5真实批次通过：0005仅新增batches/batch_items，停止空闲本项目API/Worker后，迁移前后tasks/attempts/events/artifacts/usage/resources六表行数及逐行内容SHA一致。新API78694/session3060、Worker78698/session43087；不改PG/VM/SSH。真实batch `ef18d713-c46b-4534-9668-24b1d8c3f151`关联两任务`d0c1e805-0d59-47c4-a7f4-a5a7a8684c45`、`7cc894db-4996-4adb-ac3c-0fcf87cb4b24`，同键重复POST返回created=false、原批次；两任务各5模型调用，raw9/10、token12572/15948，Flash/off、独立verify及四次API下载SHA/ETag核对通过。恢复配置无告警、无待执行任务。全后端107/107；私有证据`.runtime/p5_batch_20261003_001/independent-verification.json`，批次这两次新增28520 token，P5至此开发验证五次共72775 token（含旧版和返工，不计一周）。周期调度、通知及一周验收仍待完成，P5未推送/未验收。
+
 P5批次开发：新增0005迁移（仅batches/batch_items新表）、BatchService事务提交及/batches创建/查询/停止、CLI batch-submit/status/stop。2–3个独立任务整批先验证、同一事务写入任务/事件/关联；稳定请求摘要与唯一键处理并发和ACK丢失，同键不同正文409。部分失败不标整批成功，停止按原任务边界逐项持久执行，中断可重做剩余停止、不重建任务。7项新独立PG/API测试及全后端107/107通过，包含第二子项故障整批回滚、4并发仅一个批次、旧实例重建后查询；生产迁移及真实批次仍待验证。
 
 P5两类真实报告闭环（2026-10-03）：核对套餐93%/积分未变、空队列后精确停止旧API49955/Worker76802，启动本项目新API77570（session36494）及Worker（session20026），PG/VM/SSH未变。项目变更task `36a7740a-ae01-4b1b-903d-4df19f8ec912`，5模型工具调用/9raw/13005 token；运行日报首版task `7332b05d-044a-4a63-8e90-be6a69e018d9`，5/10/15297 token，链路正确但缺用途要求中的状态数量。补明确状态计数，不改原17任务源数据，另存新快照SHA `c471bbf52960507b2688e45deaf120c0094444b76c7fd6f0b0ead453c246fff7`，新task `d5949c63-af6c-418e-9a7d-5ede1a8141ff`，5/10/15953 token，状态计数与来源逐项一致。三次均Flash/off、独立verify和两产物API下载SHA/ETag通过，首版及返工消耗保留，共44255 token，费用未知。后端100/100，旧请求幂等/审批模式不变/聚合失败不续跑均覆盖；基础配置恢复记录与无待办核对通过。此为用途开发验证，不计正式一周；批次、计划及通知未完成，未推送P5或标总目标完成。
