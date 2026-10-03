@@ -34,7 +34,14 @@ def test_grant_atomic_replace_old_revoked_permit_and_revoke(tmp_path):
     assert len(list(tmp_path.glob('operator-receipt-*.json'))) == 6
 
 
-@pytest.mark.parametrize('change', [dict(remainingPercent=30), dict(remainingPercent=0),
+def test_exactly_forty_percent_can_grant(tmp_path):
+    operator, quota, loader = setup(tmp_path, remainingPercent=40)
+    assert operator.grant('plan', quota, loader)['result'] == 'GRANTED'
+    assert QuotaPermit(operator.permit)('plan', NOW, NOW)
+    assert not operator.stop.exists()
+
+
+@pytest.mark.parametrize('change', [dict(remainingPercent=39.999), dict(remainingPercent=0),
     dict(ordinaryUsageAllowed=False), dict(creditsBalance='62493'), dict(resetCardsUsed=1)])
 def test_budget_stop_persists_across_restart_and_natural_reset(tmp_path, change):
     operator, quota, loader = setup(tmp_path, **change)

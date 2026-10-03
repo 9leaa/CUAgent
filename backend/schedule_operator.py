@@ -80,7 +80,7 @@ class Operator:
                 valid = False
             if not valid:
                 return self.receipt('grant', identity, 'INVALID_ATTESTATION')
-            if remaining <= 30 or not quota['ordinaryUsageAllowed'] or quota['creditsBalance'] != CREDITS or quota['resetCardsUsed'] != 0:
+            if remaining < 40 or not quota['ordinaryUsageAllowed'] or quota['creditsBalance'] != CREDITS or quota['resetCardsUsed'] != 0:
                 stop = dict(stoppedAt=now.isoformat(), scheduleId=identity, reason='QUOTA_POLICY_STOP')
                 dump(self.stop, stop)
                 # This stop is global for this single-user run. Existing submitted work is separate.
