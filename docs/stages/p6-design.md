@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 可信SSH证据采集（实现前补充）
+
+新增后端采集器，固定现有guest Python路径、/Users/mvpagent/CUAgent-p6-<40位commit>部署目录和desktop_export.py；任务只提供已验证lines，run/owner/epoch来自绑定控制客户端，不接受任意远端命令。采集前后检查guest停止、零在途、调用数不变及持久许可已撤销；先独占写采集意图，单次SSH，无自动重试。子进程无shell，remote argv逐项quote，禁继承SSH配置和额外转发；stdin有界JSON、stdout选择器流式限65MiB/45秒，stderr不公开，超限/超时只终止自有句柄。完整成功传输先以0600独占保存原tar，再走既有内存接收核验；核验失败保留原包，不生成业务产物或登记成功。测试使用真实本机小进程验证有界I/O、模拟SSH结果验证集成，不连接VM。部署源码哈希、实际SSH和官方会话仍为后续必验项。
+
 ### 后端证据包接收（实现前补充）
 
 新增纯内存decode_guest_bundle，只接可信SSH收集返回的有界原tar字节及冻结任务/执行身份；不直接解压到磁盘、不执行包内代码。限制包≤65MiB、普通文件≤65项、单文件≤8MiB及总内容≤64MiB，拒绝重复名、链接、特殊文件、任意路径/PAX扩展与白名单外文件；manifest有界且严格绑定run/owner/epoch、原输入摘要、每个文件SHA/大小、精确文件集合。文档/result再次逐字节核对冻结正文；返回内存快照与guest报告，始终sessionVerified=false，不能直接供finish登记成功。缺文件、改动、身份混用、tar截断及超限必须拒绝；后续实际adapter再结合官方会话/模型审计、安全落盘和全链路判据，不能将包校验当GUI真实性新增证明。
