@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+P6 `desktop_expiry_live.py --run p2-<uuid> --owner <uuid> --approve-task`仅供已批准的可信VM诊断窗口；须先核对源码、P5空闲和共享锁，不是模型工具。真实观察后等待短许可自然过期，同任务再次观察必须拒绝，原/重新构造controller不能续期，finally关闭原runtime。原trace/PNG/state/许可及expiry-diagnostic.json留私有目录，业务保持UNVERIFIED。2026-10-03真实VM3raw诊断与独立原文件核对通过；不证明官方App/HTTP/DB完整失权链路，不可替代P6业务验收。对应4项本地反例、执行层181项测试通过。
+
 2026-10-03 P6已有真实SSH/VM/App最小闭环11raw通过；固定正式第一例因拒绝输入后复用旧观察而UNVERIFIED，独立验证未放行。DesktopTask现已在拒绝路径作废snapshot，不改旧C0实现或预算；176项本地测试和36子测试通过，修复版真实回归仍待运行。下方“尚未真实部署”等描述是历史快照，不代表完整P6已验收。
 
 P6 `desktop_bootstrap.py`仅由可信后端通过固定SSH/Python调用：验证部署清单及源码SHA后，单次启动guest控制服务，日志写私有P6Launch目录。其stdout包含本次新建的模型/控制token，只能由后端有界接收并保存私有回执，禁止打印或上传。未知就绪不重启/不自动杀进程，且不授权GUI；当前仅模拟环境测试，真实启动仍待验收。

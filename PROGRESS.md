@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6真实VM自然到期（2026-10-03 22:11北京时间）：方案5d65408先于诊断实现dc5eeb7。新增desktop_expiry_live，沿用prepare_guest、原bridge.lock、DesktopTask/Driver及生产许可门禁，不增加模型能力或改网络权限。助手经原测试凭据解锁VM；最新Codex剩余82%、积分基准不变、重置卡未用。独立确认P5队列/App空闲后临时停止Worker2406并持原宿主锁；guest运行c448ae2已部署源码，执行前重新核对manifest及所有文件SHA。run p2-f482c002-c4de-41fe-8466-ee7c304555eb实际launch_app/list_windows/get_window_state共3raw，snapshot s00000049；许可于1791036690068ms自然到期，1791036690108ms尝试observe在派发前拒绝，预算仍3。原controller及同文件重新构造的controller续期均拒绝、stopped持久为true；runtime关闭且零在途，P5 Worker恢复3122，原DSH profile字节不变，API80171/scheduler81383保留。私有expiry-live-001的原trace SHA83911cdb743230589451248ed81253827a4d74526798fe2c115d2a74979dec6c、原state/PNG与观察摘要、完整三对调用及到期/停止后零派发独立核对通过。零模型调用、无正文输入/保存（仅原桥接创建空测试文档），业务UNVERIFIED；这是VM最终门禁及持久许可诊断，不冒充HTTP/App/DB失权全链路。新增4项诊断反例，本地执行层181项通过；原失败保留，拒绝边界及完整同版业务回归仍未完成。
+
 停止修正后回归：后端392项通过（独立临时PG库），VM本地177项及36子测试通过；只有既有Starlette测试客户端弃用提示。P5只读复核活动任务0、原profile逐字节恢复、API80171/scheduler81383/Worker2406在线。
 
 P6真实停止（2026-10-03 21:57北京时间）：方案d2ca8cb→实现0f22590；同目录原STOP_REQUESTED仅在原会话terminal、guestStopped、零在途、撤销确认与DB原owner/epoch仍有效时finish STOPPED；缺证明/失权仍隔离。23项Worker测试通过，另修异常后不能沿用旧terminal标记恢复。stop-live-001独立PG/API创建排队任务并停止，session=null、budget=0；运行任务96a428f3-5f49-4ed6-82a2-bbac5481f273，首次观察3raw后API于1791035821.1804512返回STOP_REQUESTED，guest于1791035822.912292记录stop，约1.73秒；全轨迹3raw且stop后无dispatch，原官方会话aborted/user，最终STOPPED无产物、无quarantine、恢复成功。完整usage缺失保留null，原第一段已报告907 token，不据此估算完整消耗。宿主0f22590/guest c448ae2，P5 Worker恢复2406。真实失权、拒绝边界及完整同版业务回归未完成，不将这次停止测试替代业务成功。
