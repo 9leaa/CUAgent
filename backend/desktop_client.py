@@ -155,3 +155,13 @@ class DesktopControlClient:
         if not result['stopped']:
             raise ControlUnconfirmed('GUEST_REVOCATION_UNCONFIRMED')
         return result
+
+    def shutdown(self):
+        state = self.status()
+        if not state['stopped'] or state['pendingCalls']:
+            raise ControlUnconfirmed('GUEST_SHUTDOWN_REQUIRES_STOPPED_IDLE')
+        result = self.request('POST', '/shutdown', {})
+        state = self.validate_status(result.get('status', {}))
+        if result.get('closed') is not True or not state['stopped'] or state['active'] or state['pendingCalls']:
+            raise ControlUnconfirmed('GUEST_SHUTDOWN_UNCONFIRMED')
+        return result

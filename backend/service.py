@@ -93,7 +93,7 @@ class TaskService:
             db.flush()
             return task
 
-    def heartbeat(self, task_id, owner, epoch):
+    def heartbeat(self, task_id, owner, epoch, *, dispatch_stopped=False):
         with self.sessions.begin() as db:
             resource = db.get(Resource, 'desktop', with_for_update=True)
             task = db.get(Task, task_id, with_for_update=True)
@@ -103,7 +103,7 @@ class TaskService:
             if task.status not in ('RUNNING', 'STOP_REQUESTED'):
                 raise Conflict('TASK_NOT_RUNNING')
             resource.expires_at = utcnow() + timedelta(seconds=self.settings.lease_seconds)
-            self.control(task, resource.expires_at, stopped=stop)
+            self.control(task, resource.expires_at, stopped=stop or dispatch_stopped)
             return stop
 
     def desktop_authority(self, task_id, owner, epoch, *, clock=time.monotonic):

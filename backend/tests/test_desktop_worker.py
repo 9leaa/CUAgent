@@ -67,6 +67,35 @@ def test_synthetic_lifecycle_delivers_after_stop_and_verify(service):
     assert instance.run_once() is None
 
 
+def test_heartbeat_during_prepare_and_verify_never_regrants_revoked_guest(service, monkeypatch):
+    import json
+    import threading
+    instance, adapter = worker(service)
+    prepare_pulse, verify_pulse = threading.Event(), threading.Event()
+    original_heartbeat = service.heartbeat
+    original_prepare, original_verify = adapter.prepare, adapter.verify
+    def heartbeat(*args, **kwargs):
+        result = original_heartbeat(*args, **kwargs)
+        if kwargs.get('dispatch_stopped'):
+            assert json.loads((service.settings.root / 'controls' / (args[0] + '.json')).read_text())['stopped'] is True
+            verify_pulse.set()
+        elif not hasattr(adapter, 'client'):
+            prepare_pulse.set()
+        return result
+    monkeypatch.setattr(service, 'heartbeat', heartbeat)
+    def prepare(task):
+        assert prepare_pulse.wait(5), 'DB heartbeat missing during preparation'
+        return original_prepare(task)
+    def verify(prepared):
+        renewals = adapter.client.renew.call_count
+        assert verify_pulse.wait(5), 'DB heartbeat missing during verification'
+        assert adapter.client.renew.call_count == renewals
+        return original_verify(prepared)
+    adapter.prepare, adapter.verify = prepare, verify
+    result = instance.run_once()
+    assert result['status'] == 'SUCCEEDED'
+
+
 @pytest.mark.parametrize('fault', ['prepare', 'start', 'revoke', 'pending', 'budget', 'stopped'])
 def test_unconfirmed_execution_is_quarantined_and_never_replayed(service, fault):
     instance, adapter = worker(service, fault)
@@ -77,6 +106,20 @@ def test_unconfirmed_execution_is_quarantined_and_never_replayed(service, fault)
     assert service.view(result['taskId'])['status'] != 'SUCCEEDED'
     replacement = DesktopWorker(service, Adapter(service), shared_lock=instance.shared_lock)
     with pytest.raises(RuntimeError, match='QUARANTINED'): replacement.run_once()
+
+
+def test_stop_during_preparation_never_starts_session(service):
+    instance, adapter = worker(service)
+    original = adapter.prepare
+    def prepare(task):
+        prepared = original(task)
+        service.stop(task.id)
+        return prepared
+    adapter.prepare = prepare
+    result = instance.run_once()
+    assert result['status'] == 'BLOCKED' and result['quarantined']
+    assert adapter.calls == ['prepare']
+    assert not adapter.client.renew.called
 
 
 def test_verification_failure_does_not_deliver_artifacts(service):

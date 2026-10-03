@@ -48,6 +48,8 @@ class DesktopWorker:
 
     def execute(self, task):
         done, lost = threading.Event(), threading.Event()
+        phase_lock = threading.RLock()
+        renew_guest = True
         prepared = control = thread = None
         started = terminal = False
         cancelled = False
@@ -56,11 +58,17 @@ class DesktopWorker:
         def pulse():
             while not done.wait(3):
                 try:
-                    control.refresh()
+                    with phase_lock:
+                        if control is not None and renew_guest:
+                            control.refresh()
+                        elif self.service.heartbeat(task.id, self.owner, task.epoch, dispatch_stopped=not renew_guest):
+                            raise RuntimeError('DESKTOP_STOP_REQUESTED')
                 except Exception:
                     lost.set()
                     return
         try:
+            thread = threading.Thread(target=pulse, daemon=True)
+            thread.start()
             prepared = self.adapter.prepare(task)
             if (not isinstance(prepared, PreparedDesktop) or not prepared.session_id
                     or prepared.run.is_symlink() or not prepared.run.is_dir()
@@ -69,9 +77,9 @@ class DesktopWorker:
             self.service.record_prepared(task.id, self.owner, task.epoch, prepared.run, prepared.session_id)
             control = DesktopExecutionControl(self.service, prepared.control_client,
                 task_id=task.id, owner=self.owner, epoch=task.epoch)
+            if lost.is_set():
+                raise RuntimeError('DESKTOP_AUTHORITY_LOST_DURING_PREPARE')
             control.refresh()
-            thread = threading.Thread(target=pulse, daemon=True)
-            thread.start()
             with (prepared.run / 'desktop-start-intent.json').open('x') as file:
                 os.chmod(file.name, 0o600)
                 json.dump({'taskId': task.id, 'sessionId': prepared.session_id,
@@ -95,20 +103,27 @@ class DesktopWorker:
                         raise RuntimeError('DESKTOP_INFLIGHT_UNCONFIRMED')
                     break
                 done.wait(.2)
-            done.set(); thread.join(timeout=8)
-            if thread.is_alive() or lost.is_set():
+            if lost.is_set():
                 raise RuntimeError('DESKTOP_AUTHORITY_LOST')
-            self.service.desktop_authority(task.id, self.owner, task.epoch)
-            closed = control.close()
+            with phase_lock:
+                self.service.desktop_authority(task.id, self.owner, task.epoch)
+                renew_guest = False
+                closed = control.close()
             if not closed['localRevoked'] or not closed['guestRevoked']:
                 raise RuntimeError('DESKTOP_REVOCATION_UNCONFIRMED')
             try:
                 result = self.adapter.verify(prepared)
             except Exception:
-                self.service.finish(task.id, self.owner, task.epoch, 'UNVERIFIED', error_code='DESKTOP_VERIFICATION_FAILED')
+                with phase_lock:
+                    done.set()
+                    self.service.finish(task.id, self.owner, task.epoch, 'UNVERIFIED', error_code='DESKTOP_VERIFICATION_FAILED')
                 outcome['status'] = 'UNVERIFIED'
             else:
-                self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result=result)
+                with phase_lock:
+                    if lost.is_set():
+                        raise RuntimeError('DESKTOP_AUTHORITY_LOST_DURING_VERIFICATION')
+                    done.set()
+                    self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result=result)
                 outcome['status'] = 'SUCCEEDED'
         except Exception:
             outcome['errorCode'] = 'DESKTOP_EXECUTION_REQUIRES_REVIEW'

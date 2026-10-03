@@ -44,6 +44,8 @@ def test_grant_activate_status_revoke_real_loopback(lifecycle):
     assert client.revoke()['stopped']
     assert client.status()['stopped']
     assert runtime.task.used == 0
+    assert client.shutdown()['closed']
+    assert runtime.closed
 
 
 def test_wrong_identity_never_activates(lifecycle):
@@ -53,6 +55,28 @@ def test_wrong_identity_never_activates(lifecycle):
         client.activate(lambda: 65)
     assert runtime.task is None
     assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+def test_shutdown_requires_revocation_idle_and_control_role(lifecycle, monkeypatch):
+    client, runtime, _ = lifecycle
+    client.renew(1, lambda: 65)
+    client.activate(lambda: 65)
+    with pytest.raises(ControlUnconfirmed):
+        client.request('POST', '/shutdown', {})
+    assert not runtime.closed
+    client.revoke()
+    token = client.token
+    client.token = runtime.model_token
+    with pytest.raises(ControlUnconfirmed):
+        client.request('POST', '/shutdown', {})
+    client.token = token
+    original = runtime.status
+    monkeypatch.setattr(runtime, 'status', lambda: {**original(), 'pendingCalls': 1})
+    with pytest.raises(ControlUnconfirmed):
+        client.request('POST', '/shutdown', {})
+    assert not runtime.closed
+    monkeypatch.setattr(runtime, 'status', original)
+    assert client.shutdown()['closed']
 
 
 def test_missing_lease_never_activates(lifecycle):

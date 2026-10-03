@@ -68,11 +68,13 @@ class GuestLauncherTests(unittest.TestCase):
 
     def test_time_limit_and_cleanup_on_loop_failure(self):
         runtime, server = Mock(), Mock()
+        runtime.closed = False
         desktop_guest.serve_guest(runtime, server, threading.Event(), clock=Mock(side_effect=[0, 3600]))
         server.handle_request.assert_not_called()
         runtime.close.assert_called_once()
         server.server_close.assert_called_once()
         runtime, server = Mock(), Mock()
+        runtime.closed = False
         server.handle_request.side_effect = OSError('listener failed')
         with self.assertRaises(OSError):
             desktop_guest.serve_guest(runtime, server, threading.Event(), clock=lambda: 0)

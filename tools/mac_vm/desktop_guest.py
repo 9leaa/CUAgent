@@ -65,7 +65,7 @@ def prepare_guest(run_id, owner, epoch, *, approved):
 def serve_guest(runtime, server, stopping, *, clock=time.monotonic):
     deadline = clock() + 3600
     try:
-        while not stopping.is_set() and clock() < deadline:
+        while not stopping.is_set() and not runtime.closed and clock() < deadline:
             server.handle_request()
     finally:
         # Close admission before releasing the global guest desktop lock.

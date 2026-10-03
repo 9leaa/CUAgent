@@ -57,7 +57,7 @@ def control_server(controller, token, *, port=0, runtime=None):
         def do_POST(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
-            if self.path not in (('/renew', '/revoke', '/activate') if runtime is not None else ('/renew', '/revoke')):
+            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown') if runtime is not None else ('/renew', '/revoke')):
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
                 sizes = self.headers.get_all('Content-Length', [])
@@ -76,6 +76,14 @@ def control_server(controller, token, *, port=0, runtime=None):
                     if set(body) != {'sequence', 'ttlMs', 'notAfterMs'} or type(body['notAfterMs']) is not int:
                         raise ValueError('invalid renewal fields')
                     result = controller.renew(body['sequence'], body['ttlMs'], not_after_ms=body['notAfterMs'])
+                elif self.path == '/shutdown':
+                    if body:
+                        raise ValueError('shutdown requires empty body')
+                    state = runtime.status()
+                    if not state['stopped'] or state['pendingCalls']:
+                        raise ValueError('stopped idle runtime required')
+                    runtime.close()
+                    return self.reply(200, {'closed': True, 'status': runtime.status()})
                 elif self.path == '/activate':
                     if body:
                         raise ValueError('activate requires empty body')
