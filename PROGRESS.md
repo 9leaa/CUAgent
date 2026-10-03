@@ -4,7 +4,7 @@
 
 ## 当前交付
 
-P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前分支 `p3-durable-execution`，依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。P3的1小时及8小时门槛均通过，正在最终审计、尚未阶段推送；P4/P5未开始。历史套餐/积分读数见过程记录，不作为当前余额；下一次模型推理前须重新核对，禁止使用重置卡或积分。
+P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前分支 `p3-durable-execution`，依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。P3本地验收完成，含1/8小时及最终断点矩阵；阶段推送单独核对；P4/P5未开始。历史套餐/积分读数见过程记录，不作为当前余额；下一次模型推理前须重新核对，禁止使用重置卡或积分。
 
 P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先于代码提交，首轮17/20、修正后新完整轮次20/20。A1 `9e18f70`、TextEdit `a49c236` 已分别推送其阶段分支。
 
@@ -16,7 +16,7 @@ P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先�
 | 旧仓库 | `9leaa/os_agent` 已归档，描述/主页指向新仓库；后续按用户要求将旧本地源码和Pi移至废纸篓，VM/镜像保留 |
 | 设计与计划 | README、DESIGN、Harness_Development_Plan、AGENTS、COLLABORATION、MIGRATION已按Harness与Computer Use优先顺序改写 |
 | 核心工具迁移 | 20个文件逐字节迁入；manifest记录来源类别和SHA-256，其中15个来自旧未跟踪文件 |
-| 工具与后端测试 | 核心64/64、官方Desktop同版注册31/31、Python日报13/13、后端71/71；属于无模型测试 |
+| 工具与后端测试 | 核心64/64、官方Desktop同版注册31/31、Python日报13/13、后端80/80；属于无模型测试 |
 | 本轮VM工具测试 | 最新 Python 123/123 执行层/mock/反例通过；不替代真实 VM 证据 |
 | Harness版本 | 当前官方 Desktop App 0.2.0-rc.2 / 内置 Node 24.18.1，同版源码参考639ed015；初始 Web 固定源码00102833d / 0.1.7-alpha.2仅历史 |
 | Harness A0最小底座 | 最新 Desktop 真会话/文件/直接与工具图片/标准取消/30 次持久预算回归通过；重启首回复错误和后续澄清保留，Web记录仅历史 |
@@ -25,6 +25,8 @@ P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先�
 | O0 | 后置，未开始 |
 
 ## 2026-10-02：P3 检查点实现中
+
+2026-10-03最终收口：先提交断点矩阵方案`0fb18c4`，再补9项无模型Worker测试，覆盖创建/选择响应窗口、提示响应有无、activate/start单次失败、未知续接只观察及准备失败零RPC。后端80/80、核心64/64、官方注册31/31、Python日报13/13，保留TestClient弃用警告。1/8小时和真实故障证据及已知失败汇总于 [P3总结](docs/stages/p3-summary.md)；P3声明范围内本地验收完成。没有新增模型调用或VM操作，GitHub推送结果另记。
 
 2026-10-03 8小时门槛通过并再次独立复核：任务 `9295c25e-a411-4d6e-9d39-2992fe6a089b`，原session `session-0459ea6c-ed62-45ef-9180-2d7489203a1b`。原观察器正常退出0，`.runtime/backend/soak-8h-001/verification.json` SUCCEEDED，实测28863.758144秒、1912采样；1910份等待证据完全一致，无pending且只有草稿JSON，最大采样间隔15.304476秒。API PID46195→49955，Worker48418→49960。期限UTC00:28:20.572520，第二attempt于00:28:20.783307领取，未提前发布；同session预算6→10/30，9个模型工具调用、19591 token、Flash/off。收尾重新运行独立verify、读取当前API并下载两文件，JSON SHA `0e606c801039dad846774d81697cb687fd73aff3fd48909bb11a8b7e83ae9c97`、Markdown SHA `eb8c062e09cbb93b366be176fdc3c4862f2794f0244a8b971c9aae1fd5c7c5c9`一致；两attempt均有backend-restored且无restore-pending。只读复核未调用模型。此结果不证明连续模型推理、任意GUI长任务或关闭Desktop执行；最终阶段审计和推送仍待完成，以下运行中记录保留当时事实。
 

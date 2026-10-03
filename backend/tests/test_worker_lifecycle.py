@@ -93,3 +93,71 @@ def test_created_session_with_work_cannot_be_treated_as_unstarted(lifecycle, fie
     worker.execute(task)
     assert [c.args[0] for c in worker.rpc_process.call_args_list] == ['inspect', 'restore']
     assert worker.service.finish.call_args.kwargs['error_code'] == 'ORIGINAL_SESSION_NOT_PROVEN_UNSTARTED'
+
+
+@pytest.mark.parametrize('saved', [(), ('session-created.json',),
+                                  ('session-created.json', 'model-selected.json')])
+def test_creation_and_selection_response_windows_use_original_session(lifecycle, saved):
+    worker, task, run, verify = lifecycle
+    (run / 'prompt-request.json').unlink()
+    for name in saved:
+        (run / name).write_text('{}')
+    idle = {'exists': True, 'running': False, 'terminal': False, 'userMessages': 0, 'calls': 0}
+    worker.rpc_process = Mock(side_effect=[idle, {}, {}, terminal(), {}])
+    worker.execute(task)
+    assert [c.args[0] for c in worker.rpc_process.call_args_list] == [
+        'inspect', 'rebind', 'start-existing', 'poll', 'restore']
+    assert worker.service.finish.call_args.args[3] == 'SUCCEEDED'
+
+
+@pytest.mark.parametrize('response_saved', [False, True])
+def test_prompt_response_presence_never_triggers_resend(lifecycle, response_saved):
+    worker, task, run, verify = lifecycle
+    if response_saved:
+        (run / 'prompt-response.json').write_text('{}')
+    worker.rpc_process = Mock(side_effect=[terminal(), terminal(), terminal(), {}])
+    worker.execute(task)
+    assert [c.args[0] for c in worker.rpc_process.call_args_list] == [
+        'inspect', 'poll', 'poll', 'restore']
+    assert worker.service.finish.call_args.args[3] == 'SUCCEEDED'
+
+
+@pytest.mark.parametrize('failed_mode', ['activate', 'start'])
+def test_initial_side_effect_failure_is_not_retried(lifecycle, failed_mode):
+    worker, task, run, verify = lifecycle
+    for name in ('active-tasks.json', 'create-request.json', 'prompt-request.json'):
+        (run / name).unlink()
+    def rpc(mode, *_):
+        if mode == failed_mode:
+            raise RuntimeError('DESKTOP_' + mode.upper() + '_FAILED')
+        return {}
+    worker.rpc_process = Mock(side_effect=rpc)
+    worker.execute(task)
+    modes = [c.args[0] for c in worker.rpc_process.call_args_list]
+    assert modes == (['activate'] if failed_mode == 'activate' else ['activate', 'start', 'restore'])
+    assert worker.service.finish.call_args.args[3] == 'BLOCKED'
+    assert worker.service.finish.call_args.kwargs['error_code'] == 'DESKTOP_' + failed_mode.upper() + '_FAILED'
+    worker.revoke_local.assert_called_once_with(task)
+    verify.assert_not_called()
+
+
+def test_unknown_continuation_only_observes_and_blocks(lifecycle):
+    worker, task, run, verify = lifecycle
+    (run / 'continuation-request.json').write_text('{}')
+    worker.rpc_process = Mock(side_effect=[terminal(), RuntimeError('DESKTOP_POLL_FAILED'), {}])
+    worker.execute(task)
+    assert [c.args[0] for c in worker.rpc_process.call_args_list] == ['inspect', 'poll', 'restore']
+    assert worker.service.finish.call_args.args[3] == 'BLOCKED'
+    worker.revoke_local.assert_called_once_with(task)
+    verify.assert_not_called()
+
+
+def test_partial_preparation_never_activates_or_sends(lifecycle):
+    worker, task, run, verify = lifecycle
+    worker.prepare_task.side_effect = RuntimeError('PARTIAL_PREPARATION_NEEDS_REVIEW')
+    worker.rpc_process = Mock()
+    worker.execute(task)
+    worker.rpc_process.assert_not_called()
+    assert worker.service.finish.call_args.args[3] == 'BLOCKED'
+    assert worker.service.finish.call_args.kwargs['error_code'] == 'PARTIAL_PREPARATION_NEEDS_REVIEW'
+    worker.revoke_local.assert_called_once_with(task)
