@@ -10,6 +10,8 @@ P4实现中，分支 `p4-efficiency`：先比较同批任务的真实用量，�
 
 P4首个真实聚合任务已独立通过：`p4_probe_20261003_001`，Flash/off，5模型调用、9/30实际请求、10536 token；原文件/统计/内部审计及两产物读回一致。专用preset真实加载后已恢复基础配置，旧账本不变。Python27/27、核心71/71、官方注册37/37；正式20对比较未执行，单例不证明优化收益。用户确认按夜间重置后的套餐继续，仍禁止积分/重置卡。
 
+正式20对的离线冻结/防漂移准备器已实现，Python现29/29；原始证据采集及逐对运行控制仍在接入，尚未启动正式批次。
+
 按 [个人任务服务路线](docs/product-roadmap.md) 推进：P1 日报 → P2 后端/日志 → P3 长任务 → P4 效率 → P5 日常用途。P1、P2、P3 已完成声明范围验收并推送，P3 `b6e7f7d` 已核对阶段和默认分支一致；P4/P5 尚未开始。P1 先写 [技术方案](docs/stages/p1-design.md)，两轮真实模型对照首轮17/20、修正后新轮次20/20，失败保留；见 [使用方法](docs/stages/p1-usage.md) 和 [结果](docs/stages/p1-summary.md)。
 
 后续 DSH 推理按用户指定固定 **DeepSeek 4.1 Flash，思考关闭**：当前 App 路由 `deepseek-account/deepseek-flash`、`reasoningEffort=off`。旧阶段 high 的记录保留为历史，不再沿用。

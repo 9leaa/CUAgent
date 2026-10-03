@@ -4,7 +4,10 @@ import csv
 import io
 import json
 from pathlib import Path
-from daily_report import MODEL, dump, prepare, require, sha, verify
+try:
+    from .daily_report import MODEL, dump, prepare, require, sha, verify
+except ImportError:
+    from daily_report import MODEL, dump, prepare, require, sha, verify
 
 
 def freeze(directory):
