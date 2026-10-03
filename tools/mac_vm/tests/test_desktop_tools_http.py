@@ -65,6 +65,17 @@ class DesktopToolsHttpTests(unittest.TestCase):
         self.assertFalse(self.task.stopped.is_set())
         self.assertEqual(self.task.used, 0)
 
+    def test_http_rejection_consumes_observation_before_save(self):
+        self.task.snapshot = {'snapshot_id': 'old'}
+        self.assertEqual(self.request({'op': 'type_text', 'args': {'snapshot_id': 'old'}})[0], 409)
+        self.assertIsNone(self.task.snapshot)
+        self.assertEqual(self.request({'op': 'save', 'args': {'snapshot_id': 'old'}})[0], 409)
+        self.assertEqual(self.task.used, 2)
+        self.assertEqual(self.sent, [])
+        rows = [json.loads(row) for row in self.task.ledger.read_text().splitlines()]
+        self.assertEqual([r['tool'] for r in rows if r['event'] == 'dispatch'],
+                         ['rejected_type_text', 'rejected_save'])
+
     def test_rejected_tools_count_once_and_cannot_exceed_budget(self):
         for number in range(30):
             op = ('verify', 'renew', 'launch_app', 'type_text', 'save', 'write_result')[number % 6]
