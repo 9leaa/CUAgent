@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6真实窗口授权与现场阻断（2026-10-03）：用户明确回复“允许”临时停旧Worker、切换App测试并恢复，不取消P5调度。实时Codex额度used15%/remaining85%、ordinaryUsageAllowed=true，积分仍62494.0260570000、1张重置卡仍可用，未使用；另通过官方DSH界面只读查询API余额¥13.20，确认两种额度不可混用。官方RPC列出241会话且running0。真实SSH只读检查身份mvpagent、hw.model=VirtualMac2,1、CuaDriver serve PID602在线；ioreg显示IOConsoleLocked=true且mvpagent会话CGSSessionScreenIsLocked=true，故前置失败停止。没有停止P5进程、部署VM、切换配置或调用模型；用户需解锁VM桌面后重查再执行，既有窗口批准不需重复索取。P6真实验收仍未完成。
+
 P6桌面用量统计（2026-10-03）：方案459ce9a先于实现。验收核对发现adapter未交付usage，新增desktop_usage只读私有原session归档、固定run/session/cwd、64MiB限制与单终态/序号检查；全部assistant用量字段须非负整数且总量一致，保留模型路由与原文件SHA，缺失/异常明确available=false、token=null、费用未知。adapter提供usage，Worker成功/UNVERIFIED向既有finish写usage；UNKNOWN只在私有outcome保留，不为了记账改变停止/锁/隔离决策。新增10项原会话合成测试和3项隔离PG生命周期测试，相关29/29通过、git diff --check通过，无模型/VM/App调用。真实环境切换批准仍未收到，P6未验收；没有以记账结果代替额度检查或GUI验收。
 
 P6 SSH标准输入修复（2026-10-03）：方案9528da9先于实现。新增desktop_ssh.create_ssh_wrapper，私有规范root/known-hosts/可执行askpass，独占0700脚本；固定/bin/sh与/usr/bin/ssh、VM身份、严格主机密钥、禁止更新known-hosts、认证超时，保留stdin。凭证文件只引用路径，不读取或复制；保留旧P5 vm-ssh。DesktopAdapterSettings改为显式known_hosts/askpass，prepare生成本次wrapper，bootstrap/隧道/collect共用该路径。5项新增测试覆盖真实子进程1MiB二进制往返和完整参数/环境、路径含空格引号、真实ssh -G离线解析确认固定主机/认证/stdinnull=no、重复创建及不安全路径拒绝；相关42/42通过。未连接VM或启动模型/App，部署调用者需先用生成器生成私有wrapper再传deploy_guest；真实门禁/切换窗口/端到端仍待完成，不称P6验收。
