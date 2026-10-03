@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 桌面任务用量交付（实现前补充）
+
+补齐路线要求的用量可统计：只从本次私有run原始session.jsonl读取assistant/message用量，核对绑定session/run，保留输入、输出、缓存读写和总token及模型路由；完整非负整数且总量一致才available=true。缺失、异常、截断或绑定不符返回未知/null，绝不当零或估算货币。adapter提供只读usage；Worker核验成功/失败均向既有finish传usage，未知执行仍不强制finish或释放资源，而在私有outcome保留可取得的用量。用量统计不能证明GUI成功或额度充足，不替代实时账户检查。纯合成会话及隔离PG验证，不切换P5环境。
+
 ### SSH标准输入修复（实现前补充）
 
 只读确认P5旧vm-ssh最后使用`< /dev/null`，会丢弃P6部署包和导出请求。保留旧脚本原字节；新增P6专用包装器生成器，显式接收私有known-hosts和可执行askpass的路径（不读/复制凭证），在新私有目录独占写0700脚本。固定/usr/bin/ssh、VM地址/用户、严格host-key检查和认证超时，保持stdin原样；调用者既有有界I/O和命令/隧道参数不变。adapter配置改为known_hosts/askpass，在prepare生成本次独立包装器并传给bootstrap、隧道和采集；部署入口可使用同一生成器但不自动执行部署。测试以真实本机子进程回传大块stdin/参数、ssh -G无网络解析，以及私有路径/不可覆盖反例验证；不连接VM、不改P5运行环境。
