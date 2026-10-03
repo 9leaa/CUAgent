@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6只读guest证据核验（2026-10-03）：方案6306d99先于实现。DesktopTask.observe在返回前绑定原state/PNG的SHA/大小、snapshot及实际调用序号，原响应与文件不一致或记录失败即stop。desktop_evidence独立读取私有固定run，拒绝链接/特殊文件/超限/任务混入、非有限或倒退时间、重复/不匹配/未完成调用、停止后派发和并发dispatch；验证账本引用的state/PNG原字节与哈希、当前输入/Save的观察来源、最后Save后的新观察和result完整读回，再复用旧业务核验器，复读trace检查收集期间变化。固定文件路径由序号构造，总读取≤64MiB；不构造Task、不发GUI、不生成业务文件。返回vmStatus=VERIFIED且sessionVerified=false，不能单凭此登记整体成功；源必须由未来可信收集通道提供，不防VM拥有者伪造整套记录。新增5项测试含多种合成反例，执行层158/158通过、git diff --check通过；原P5工作树仍干净，无真实模型或VM动作，官方会话绑定/Flash-off及端到端尚待接通。
+
 P6模型工具HTTP（2026-10-03）：先提交方案2b249c8，再新增desktop_tools_http，复用原POST /与op/args协议，固定VM接口/宿主来源或显式loopback测试模式；仅接受DesktopTask，模型token不得与控制token相同，无verify/renew/通用Driver入口。32KiB有界正文、2秒读取、拒绝重复JSON字段/认证头/长度头、分块及额外字段；认证失败不耗预算，认证后的拒绝沿用审计与30次总预算，已经派发失败不重复计数。stop绕过任务串行锁，最终准入仍逐个内部请求检查许可。新增10项本机真实HTTP+模拟Driver测试，覆盖中途撤销、在途停止、预算耗尽、协议/凭证边界、中文最大正文透传；执行层完整153/153通过，git diff --check通过。未修改旧桥接、插件或P5原工作树（仍干净），无VM/模型调用；可信launcher、SSH通道、Worker实际适配与真实验收仍待完成。
 
 P6官方会话证据与命令入口（2026-10-03）：先提交方案33bd977，再新增desktop-session-evidence/command。显式私有home与受控sessionId定位唯一原compressed文件，拒绝链接/重复/越界、只读有界读取≤64MiB，固定zstd 1.5.7解压≤64MiB/10秒，原JSONL字节保留；原prompt匹配且唯一用户消息/terminal才独占归档，已存证据变化拒绝覆盖。start/inspect/cancel CLI只调用已有官方会话模块，不部署/激活/授权VM；错误仅固定代码，不泄漏凭证。新增5项Node测试使用真实zstd压缩/解压合成事件，验证原字节、拒绝路径、非终态/错请求、旧证据不覆盖及命令参数；无新模型或真实App调用。后续Python adapter需接此命令、VM证据及配置激活，P6仍未验收；P5未改。

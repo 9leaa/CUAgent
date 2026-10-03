@@ -1,5 +1,7 @@
 """Guest-local final admission guard. Trusted lease transport is separate."""
+import base64
 import json
+import hashlib
 import os
 from pathlib import Path
 import stat
@@ -67,6 +69,33 @@ class DesktopTask(RealAppTask):
         self.lease = lease
         lease.check()
         super().__init__(directory, *args, **kwargs)
+
+    def observe(self):
+        result = super().observe()
+        try:
+            files = {}
+            for extension in ('json', 'png'):
+                path = self.directory / ('state-%02d.' % self.used + extension)
+                fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(fd, 'rb') as stream:
+                    info = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(info.st_mode) or info.st_size > 8 * 1024 * 1024:
+                        raise ValueError('invalid observation file')
+                    data = stream.read(8 * 1024 * 1024 + 1)
+                    if len(data) != info.st_size:
+                        raise ValueError('observation file changed')
+                if extension == 'json' and json.loads(data) != result['state']:
+                    raise ValueError('observation state mismatch')
+                if extension == 'png':
+                    if data != base64.b64decode(result['png'], validate=True):
+                        raise ValueError('observation image mismatch')
+                files[extension] = {'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+            self.record({'event': 'observation_evidence', 'snapshot_id': result['state']['snapshot_id'],
+                         'used': self.used, 'files': files})
+        except Exception:
+            self.stop()
+            raise
+        return result
 
     def _admit(self, tool):
         try:
