@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6后端guest启动/查询（2026-10-03）：先提交方案610f695，再扩展DesktopControlClient.status/activate。状态严格检查binding、布尔类型、端口、预算/在途数及调用数不回退；启动先读未激活零调用状态与有效guest许可，再实时authority确认执行权。对象内一次尝试且POST不重试，ACK要求当前执行权和保守guest期限仍有效、active且未停/零调用；未知结果交由Worker撤销/隔离，guest持久意图防跨进程重放。新增10项参数化用例覆盖真实loopback grant/activate/status/revoke、身份、缺许可、无效authority、丢ACK/迟ACK、异常状态与回退；Driver/环境模拟，无模型/VM操作。后端全量267通过（1项既有Starlette弃用提示）；随后补缺许可反例，相关客户端17项通过。git diff --check通过，生产adapter/launcher/可信收集和端到端未接通，P6未验收，P5环境未改。
+
 P6 guest运行生命周期（2026-10-03）：先提交方案84c7b24，再新增DesktopGuestRuntime。构造仅持私有、显式共享bridge锁并绑定run/owner/epoch及独立token；不构造Task或开放模型端口。控制HTTP显式附加runtime后支持GET /status、空POST /activate，默认旧控制工厂行为不变；activate先独占fsync意图再检查许可、构造DesktopTask、启动模型服务，失败撤销并保留意图，跨重建不可重放。revoke持久撤销后stop，不等待Driver；状态区分端口活动、停止、真实调用数与在途数。close撤销/关入口后只有零在途才释放锁，未知状态保留锁待核对。6项新增本机HTTP/模拟环境测试覆盖grant→activate→原工具→status→revoke、无许可持久拒绝、凭证隔离、共享锁、绑定失败及在途保锁；执行层164/164通过，git diff --check通过。没有生产launcher、SSH部署、真实模型/VM操作；尚需后端客户端/实际adapter接入。P5原工作树仍干净，运行环境未改。
 
 P6只读guest证据核验（2026-10-03）：方案6306d99先于实现。DesktopTask.observe在返回前绑定原state/PNG的SHA/大小、snapshot及实际调用序号，原响应与文件不一致或记录失败即stop。desktop_evidence独立读取私有固定run，拒绝链接/特殊文件/超限/任务混入、非有限或倒退时间、重复/不匹配/未完成调用、停止后派发和并发dispatch；验证账本引用的state/PNG原字节与哈希、当前输入/Save的观察来源、最后Save后的新观察和result完整读回，再复用旧业务核验器，复读trace检查收集期间变化。固定文件路径由序号构造，总读取≤64MiB；不构造Task、不发GUI、不生成业务文件。返回vmStatus=VERIFIED且sessionVerified=false，不能单凭此登记整体成功；源必须由未来可信收集通道提供，不防VM拥有者伪造整套记录。新增5项测试含多种合成反例，执行层158/158通过、git diff --check通过；原P5工作树仍干净，无真实模型或VM动作，官方会话绑定/Flash-off及端到端尚待接通。

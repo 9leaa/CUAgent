@@ -4,6 +4,7 @@ import json
 import math
 import re
 import time
+import threading
 
 
 class ControlUnconfirmed(RuntimeError):
@@ -20,6 +21,58 @@ class DesktopControlClient:
             raise ValueError('fixed execution identity required')
         self.port, self.token, self.clock = port, token, clock
         self.identity = dict(version=1, runId=run_id, owner=owner, epoch=epoch)
+        self._activation_attempted = False
+        self._lifecycle_lock = threading.RLock()
+        self._raw_calls = 0
+
+    def validate_status(self, value):
+        binding = value.get('binding')
+        if (not isinstance(binding, dict) or binding != self.identity
+                or type(binding.get('version')) is not int or type(binding.get('epoch')) is not int
+                or any(type(value.get(key)) is not bool for key in ('active', 'stopped'))
+                or any(type(value.get(key)) is not int for key in ('rawCalls', 'pendingCalls'))
+                or not self._raw_calls <= value['rawCalls'] <= 30
+                or not 0 <= value['pendingCalls'] <= value['rawCalls']):
+            raise ControlUnconfirmed('GUEST_RUNTIME_STATUS_MISMATCH')
+        port = value.get('modelPort')
+        if ((port is not None and (type(port) is not int or not 1 <= port <= 65535))
+                or (value['active'] and port is None)):
+            raise ControlUnconfirmed('GUEST_RUNTIME_PORT_MISMATCH')
+        self._raw_calls = value['rawCalls']
+        return value
+
+    def status(self):
+        with self._lifecycle_lock:
+            return self.validate_status(self.request('GET', '/status'))
+
+    def activate(self, authority):
+        """Single attempt; caller must close/quarantine on any unknown outcome."""
+        with self._lifecycle_lock:
+            if self._activation_attempted:
+                raise ControlUnconfirmed('GUEST_ACTIVATION_REQUIRES_RECONCILIATION')
+            self._activation_attempted = True
+            start = self.clock()
+            state = self.status()
+            if state['active'] or state['stopped'] or state['rawCalls'] or state['pendingCalls']:
+                raise ControlUnconfirmed('GUEST_RUNTIME_NOT_FRESH')
+            observed = self.inspect()
+            lease = self.validate(observed.get('lease'))
+            guest_now = observed.get('clockMs')
+            if type(guest_now) is not int or lease['stopped'] or guest_now < 0 or guest_now >= lease['expiresAt']:
+                raise ControlUnconfirmed('GUEST_ACTIVATION_LEASE_UNAVAILABLE')
+            deadline = authority()
+            now = self.clock()
+            if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                    or not math.isfinite(now) or not math.isfinite(start) or now < start or now >= deadline
+                    or guest_now + math.ceil((now - start) * 1000) >= lease['expiresAt']):
+                raise ControlUnconfirmed('GUEST_ACTIVATION_AUTHORITY_UNAVAILABLE')
+            result = self.validate_status(self.request('POST', '/activate', {}))
+            after = self.clock()
+            if (not math.isfinite(after) or after < now or after >= deadline
+                    or guest_now + math.ceil((after - start) * 1000) >= lease['expiresAt']
+                    or not result['active'] or result['stopped'] or result['rawCalls'] or result['pendingCalls']):
+                raise ControlUnconfirmed('GUEST_ACTIVATION_UNCONFIRMED')
+            return result
 
     def request(self, method, path, body=None):
         connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=2)
