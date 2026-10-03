@@ -1,6 +1,8 @@
 """Generate a private P6 transport without copying credentials or discarding stdin."""
 import os
 import shlex
+import stat
+from pathlib import Path
 
 from backend.desktop_collect import private_path, save_exclusive
 
@@ -9,7 +11,11 @@ SSH_BINARY = '/usr/bin/ssh'
 
 def create_ssh_wrapper(*, root, known_hosts, askpass):
     root = private_path(root, directory=True)
-    known_hosts = private_path(known_hosts, directory=False)
+    known_hosts = Path(known_hosts).absolute()
+    info = known_hosts.stat()
+    if (known_hosts.resolve(strict=True) != known_hosts or not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid() or info.st_mode & 0o022):
+        raise ValueError('owned non-writable public host-key file required')
     askpass = private_path(askpass, directory=False)
     if not os.access(askpass, os.X_OK):
         raise ValueError('executable trusted askpass required')

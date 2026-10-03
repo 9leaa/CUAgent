@@ -45,6 +45,7 @@ def test_real_process_preserves_large_stdin_and_argv(transport, monkeypatch):
 
 
 def test_real_ssh_config_resolution_without_network(transport):
+    transport['known_hosts'].chmod(0o644)
     wrapper = desktop_ssh.create_ssh_wrapper(**transport)
     result = subprocess.run([str(wrapper), '-F', '/dev/null', '-G', '-o', 'ClearAllForwardings=yes',
                              '-o', 'ForwardAgent=no', '-o', 'ControlMaster=no', 'true'],
@@ -57,10 +58,10 @@ def test_real_ssh_config_resolution_without_network(transport):
     assert config['clearallforwardings'] == 'yes' and config['forwardagent'] == 'no'
 
 
-@pytest.mark.parametrize('fault', ['public', 'link', 'not-executable'])
+@pytest.mark.parametrize('fault', ['writable', 'link', 'not-executable'])
 def test_unsafe_credentials_rejected_before_wrapper_write(transport, fault):
-    if fault == 'public':
-        transport['known_hosts'].chmod(0o644)
+    if fault == 'writable':
+        transport['known_hosts'].chmod(0o664)
     elif fault == 'link':
         link = transport['root'] / 'linked-hosts'
         link.symlink_to(transport['known_hosts'])
