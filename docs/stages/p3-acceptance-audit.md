@@ -18,8 +18,8 @@
 | 清理恢复基础配置不能吞掉失败 | finally记录backend-restored或backend-restore-pending，已完成真实任务有恢复记录；新增execute整流程反例核对清理只试一次、保留业务结果、记录告警和无伪恢复成功；操作指引见backend/README | 声明范围通过；清理失败是mock，API暂不单独展示清理告警，不把业务成功等同配置恢复 |
 | 提前发布、恢复绕过发布时间拒绝 | PG WAITING_RELEASE/stop-resume测试；真实工具注册拒绝早渲染和直接写Markdown；97秒短闭环 | 短测通过，不替代小时级门槛 |
 | 真实1小时原任务 | 6757af50…，3659.080秒/243采样，同session6→10/30，到期发布及独立verify/API成功；等待证据不变，最大采样间隔15.170秒，API/Worker不同PID | 真实通过；证据soak-1h-002/verification.json |
-| 真实8小时原任务 | 1小时通过后新9295c25e…，草稿6/30，截止北京时间2026-10-03 08:28:20；观察器18636，API/Worker已重启 | 运行中，未通过；不能由1小时结果替代 |
-| README、失败、用量与限制 | README/PROGRESS逐项记录；Flash/off，套餐34%，积分62494.026057未变 | 继续更新；阶段最终总结与推送尚未执行 |
+| 真实8小时原任务 | 9295c25e…，28863.758秒/1912采样；1910份等待快照不变，最大间隔15.304秒；API/Worker不同PID，同session6→10/30、19591 token，到期后第二attempt领取；重新verify及API两文件下载SHA一致、两次基础配置恢复有记录 | 真实通过；证据soak-8h-001/verification.json，不由1小时替代 |
+| README、失败、用量与限制 | README/PROGRESS已同步8小时结果；Flash/off；历史账户读数不能代替当前额度检查 | 继续更新；阶段最终总结与推送尚未执行 |
 
 ## 收口前顺序
 

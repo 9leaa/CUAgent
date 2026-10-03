@@ -4,7 +4,7 @@
 
 ## 当前交付
 
-P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前分支 `p3-durable-execution`，依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。P3已过1小时，8小时正在运行；P3/P4/P5仍未完成。最近套餐核对已用35%，积分62494.026057未变，未使用重置卡。
+P2 `6bd8c4a` 已核实推送阶段及默认分支，技术方案 f7911f4 先于实现；后端闭环与工具审计见 [P2 总结](docs/stages/p2-summary.md)。当前分支 `p3-durable-execution`，依据 P2 的实际断点重写 [P3 方案](docs/stages/p3-design.md)，先提交方案再实现。P3的1小时及8小时门槛均通过，正在最终审计、尚未阶段推送；P4/P5未开始。历史套餐/积分读数见过程记录，不作为当前余额；下一次模型推理前须重新核对，禁止使用重置卡或积分。
 
 P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先于代码提交，首轮17/20、修正后新完整轮次20/20。A1 `9e18f70`、TextEdit `a49c236` 已分别推送其阶段分支。
 
@@ -25,6 +25,8 @@ P1–P5路线已落盘；P1阶段分支为 `p1-daily-report`，技术方案先�
 | O0 | 后置，未开始 |
 
 ## 2026-10-02：P3 检查点实现中
+
+2026-10-03 8小时门槛通过并再次独立复核：任务 `9295c25e-a411-4d6e-9d39-2992fe6a089b`，原session `session-0459ea6c-ed62-45ef-9180-2d7489203a1b`。原观察器正常退出0，`.runtime/backend/soak-8h-001/verification.json` SUCCEEDED，实测28863.758144秒、1912采样；1910份等待证据完全一致，无pending且只有草稿JSON，最大采样间隔15.304476秒。API PID46195→49955，Worker48418→49960。期限UTC00:28:20.572520，第二attempt于00:28:20.783307领取，未提前发布；同session预算6→10/30，9个模型工具调用、19591 token、Flash/off。收尾重新运行独立verify、读取当前API并下载两文件，JSON SHA `0e606c801039dad846774d81697cb687fd73aff3fd48909bb11a8b7e83ae9c97`、Markdown SHA `eb8c062e09cbb93b366be176fdc3c4862f2794f0244a8b971c9aae1fd5c7c5c9`一致；两attempt均有backend-restored且无restore-pending。只读复核未调用模型。此结果不证明连续模型推理、任意GUI长任务或关闭Desktop执行；最终阶段审计和推送仍待完成，以下运行中记录保留当时事实。
 
 2026-10-03 00:27（北京时间）1小时门槛真实通过：原观察器89219正常退出0，`.runtime/backend/soak-1h-002/verification.json`独立SUCCEEDED，实际3659.079962秒、243采样、最大间隔15.169904秒；等待JSON/账本不变，原session `session-448f5520-d1f2-431b-95a4-e3098da29ff2`，6→10/30，18011 token，Flash/off。API同任务SUCCEEDED；两attempt且到期后领取，renderer真实派发符合不可变期限，文件/读回/来源均核对。API两PID、Worker多PID重启均有采样。首个草稿失败继续保留，不能称所有长测尝试均成功。
 
