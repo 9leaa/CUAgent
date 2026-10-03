@@ -74,6 +74,9 @@ export function apply(ctx: Context): void {
   ctx.on('llm/stream', async function* (options, next) {
     const toolNames = (options.tools ?? []).map(tool => tool.name).sort()
     if (toolNames.some(tool => !allowed.includes(tool))) throw new Error('Unreviewed tool in C0 model request')
+    if (realApp && (toolNames.length !== allowed.length || allowed.some(tool => !toolNames.includes(tool)))) {
+      throw new Error('Required TextEdit tools missing from model request')
+    }
     const imageBlocks = options.messages.reduce((n, m) => n + (Array.isArray(m.content) ? m.content.filter(b => b.type === 'image').length : 0), 0)
     appendFileSync(auditPath, JSON.stringify({ at: new Date().toISOString(), toolNames,
       provider: options.provider, model: options.model,

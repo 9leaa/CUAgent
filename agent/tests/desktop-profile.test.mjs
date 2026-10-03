@@ -118,6 +118,12 @@ test('optional real pinned compiler builds into temporary run without altering p
     assert.match(readFileSync(join(f.root, 'profile-next.yml'), 'utf8'), /preset-real-app/u);
     assert.match(readFileSync(join(f.root, 'profile-next.yml'), 'utf8'), /id: account/u);
     assert.ok(readFileSync(join(f.root, 'desktop-plugins/c0-vm-tools.mjs')).length > 1000);
+    const plan = JSON.parse(readFileSync(join(f.root, 'profile-plan.json')));
+    assert.ok(plan.installedPlugins.startsWith(join(f.home, 'profiles/desktop') + '/'));
+    assert.match(readFileSync(f.target, 'utf8'), /account/);
+    for (const [name, digest] of Object.entries(plan.plugins)) {
+      assert.equal(sha(readFileSync(join(plan.installedPlugins, name))), digest);
+    }
     applyDesktopProfile(f.root, f.home, () => {});
     restoreDesktopProfile(f.root, f.home, () => {});
     assert.equal(readFileSync(f.target, 'utf8'), f.before);

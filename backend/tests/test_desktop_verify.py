@@ -51,6 +51,19 @@ def test_synthetic_session_policy_and_guest_correlation(evidence):
     assert 'status' not in result
 
 
+@pytest.mark.parametrize('fault', [None, 'id', 'cwd', 'version', 'duplicate'])
+def test_official_metadata_requires_original_identity(evidence, fault):
+    root, _, _, rows, _ = evidence
+    header = {'type': 'session', 'id': 'session', 'version': 4, 'cwd': str(root / 'workspace')}
+    if fault in ('id', 'cwd', 'version'): header[fault] = 'wrong'
+    rows.insert(0, header)
+    if fault == 'duplicate': rows.insert(0, header.copy())
+    if fault is None:
+        assert verify(evidence)['sessionVerified'] is True
+    else:
+        with pytest.raises(ValueError): verify(evidence)
+
+
 @pytest.mark.parametrize('mutation', ['model', 'tools', 'prompt', 'terminal', 'duplicate', 'missing',
                                      'input', 'snapshot', 'readback', 'image', 'audit', 'error'])
 def test_policy_or_correlation_failure_never_passes(evidence, mutation):
