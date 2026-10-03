@@ -23,7 +23,7 @@ def load_env():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['init', 'db-up', 'migrate', 'api', 'worker', 'test'])
+    parser.add_argument('command', choices=['init', 'db-up', 'migrate', 'api', 'worker', 'scheduler', 'test'])
     parser.add_argument('--once', action='store_true')
     args = parser.parse_args()
     if args.command == 'init':
@@ -50,6 +50,8 @@ def main():
         command = [sys.executable, '-m', 'uvicorn', 'backend.api:production_app', '--factory', '--host', '127.0.0.1', '--port', '18089', '--no-access-log']
     elif args.command == 'test':
         command = [sys.executable, '-m', 'pytest', '-q', 'backend/tests']
+    elif args.command == 'scheduler':
+        command = [sys.executable, '-m', 'backend.schedule_runner'] + (['--once'] if args.once else [])
     else:
         command = [sys.executable, '-m', 'backend.worker'] + (['--once'] if args.once else [])
     os.execvpe(command[0], command, env)

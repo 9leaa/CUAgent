@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select, text
 from backend.config import Settings
 from backend.db import database
-from backend.models import Artifact, Event, Task
-from backend.schemas import BatchSubmission, Submission
+from backend.models import Artifact, Event, Schedule, Task
+from backend.schemas import BatchSubmission, ScheduleSubmission, Submission
 from backend.batches import BatchService
 from backend.notifications import Inbox
+from backend.schedule_runtime import runtime_service
 from backend.service import Conflict, NotFound, TaskService
 
 
@@ -19,6 +20,7 @@ def create_app(settings):
     service = TaskService(sessions, settings)
     batches = BatchService(service)
     inbox = Inbox(sessions)
+    schedules = runtime_service(service)
     app = FastAPI(title='CUAgent Tasks', docs_url=None, redoc_url=None)
     app.state.service = service
 
@@ -65,6 +67,32 @@ def create_app(settings):
         with sessions() as db:
             ids = list(db.scalars(select(Task.id).order_by(Task.created_at, Task.id).offset(offset).limit(limit)))
         return {'items': [service.view(task_id) for task_id in ids]}
+
+    @app.post('/schedules', dependencies=[Depends(authenticated)])
+    def create_schedule(body: ScheduleSubmission, idempotency_key: str = Header()):
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
+            raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
+        try:
+            identity, created = schedules.create(body.model_dump(mode='json'), idempotency_key)
+        except Conflict:
+            raise
+        except ValueError:
+            raise HTTPException(422, 'INVALID_SCHEDULE_WINDOW')
+        return JSONResponse({'id': identity, 'created': created}, status_code=201 if created else 200)
+
+    @app.get('/schedules', dependencies=[Depends(authenticated)])
+    def list_schedules(offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+        with sessions() as db:
+            ids = list(db.scalars(select(Schedule.id).order_by(Schedule.created_at, Schedule.id).offset(offset).limit(limit)))
+        return {'items': [schedules.view(identity) for identity in ids]}
+
+    @app.get('/schedules/{schedule_id}', dependencies=[Depends(authenticated)])
+    def view_schedule(schedule_id: str):
+        return schedules.view(schedule_id)
+
+    @app.post('/schedules/{schedule_id}/pause', dependencies=[Depends(authenticated)])
+    def pause_schedule(schedule_id: str):
+        return schedules.pause(schedule_id)
 
     @app.get('/notifications', dependencies=[Depends(authenticated)])
     def notifications(after: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=100), unread_only: bool = False):

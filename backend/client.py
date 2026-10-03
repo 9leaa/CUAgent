@@ -12,11 +12,13 @@ from backend.manage import load_env
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=['submit', 'list', 'status', 'events', 'stop', 'resume', 'download',
-                                           'batch-submit', 'batch-status', 'batch-stop', 'notifications', 'notification-read'])
+                                           'batch-submit', 'batch-status', 'batch-stop', 'notifications', 'notification-read',
+                                           'schedule-create', 'schedule-list', 'schedule-status', 'schedule-pause'])
     parser.add_argument('--spec')
     parser.add_argument('--key')
     parser.add_argument('--task')
     parser.add_argument('--batch')
+    parser.add_argument('--schedule')
     parser.add_argument('--notification', type=int)
     parser.add_argument('--after', type=int, default=0)
     parser.add_argument('--unread-only', action='store_true')
@@ -26,7 +28,22 @@ def main():
     env = load_env()
     with httpx.Client(base_url='http://127.0.0.1:18089', trust_env=False, timeout=20,
                       headers={'Authorization': 'Bearer ' + env['CUAGENT_BACKEND_TOKEN']}) as client:
-        if args.command == 'notifications':
+        if args.command == 'schedule-create':
+            if not args.spec or not args.key:
+                parser.error('schedule-create requires --spec and --key; this does not grant execution quota')
+            from backend.schemas import ScheduleSubmission
+            path = Path(args.spec).resolve(strict=True)
+            if path.stat().st_size > 4096: raise ValueError('schedule spec too large')
+            body = ScheduleSubmission.model_validate_json(path.read_text()).model_dump(mode='json')
+            response = client.post('/schedules', json=body, headers={'Idempotency-Key': args.key})
+        elif args.command == 'schedule-list':
+            response = client.get('/schedules')
+        elif args.command in ('schedule-status', 'schedule-pause'):
+            if not args.schedule or not re.fullmatch(r'[a-f0-9-]{36}', args.schedule):
+                parser.error('a schedule UUID is required')
+            url = '/schedules/' + args.schedule
+            response = client.post(url + '/pause') if args.command == 'schedule-pause' else client.get(url)
+        elif args.command == 'notifications':
             response = client.get('/notifications', params={'after': args.after, 'unread_only': args.unread_only})
         elif args.command == 'notification-read':
             if args.notification is None or args.notification < 1:
