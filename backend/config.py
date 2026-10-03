@@ -11,6 +11,9 @@ class Settings:
     base_tasks: Path
     cookie_file: Path
     lease_seconds: int = 30
+    # Development construction only; production has no enablement until the
+    # VM execution adapter and its stop/lease gates have passed acceptance.
+    desktop_tasks_enabled: bool = False
 
     @classmethod
     def from_env(cls):

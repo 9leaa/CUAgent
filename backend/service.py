@@ -6,6 +6,7 @@ import uuid
 from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
+from backend.desktop_contract import DesktopSubmission
 from backend.models import Artifact, Attempt, Event, Notification, Resource, Task, Usage, utcnow
 
 
@@ -39,6 +40,8 @@ class TaskService:
                              expires_at=(expires or utcnow()).timestamp() * 1000, stopped=stopped)
 
     def submit(self, payload, key):
+        if 'kind' in payload:
+            payload = DesktopSubmission.model_validate(payload).model_dump(mode='json')
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
         digest = hashlib.sha256(encoded).hexdigest()
         with self.sessions.begin() as db:
@@ -54,7 +57,12 @@ class TaskService:
                 self.event(db, task, 'submitted')
             return task.id, bool(created)
 
-    def claim(self, owner):
+    def claim(self, owner, *, kind='daily-report'):
+        if kind not in ('daily-report', 'desktop-textedit'):
+            raise ValueError('UNSUPPORTED_TASK_KIND')
+        # Missing discriminator means legacy report, not JSON null or unknown.
+        selector = (~Task.payload.has_key('kind') if kind == 'daily-report' else
+                    Task.payload['kind'].astext == 'desktop-textedit')
         with self.sessions.begin() as db:
             resource = db.scalar(select(Resource).where(Resource.name == 'desktop').with_for_update(skip_locked=True))
             if resource is None:
@@ -68,7 +76,7 @@ class TaskService:
                     self.control(old, stopped=True)
                     self.event(db, old, 'owner_expired')
                 resource.owner, resource.task_id, resource.expires_at = None, None, None
-            task = db.scalar(select(Task).where(or_(Task.status == 'QUEUED',
+            task = db.scalar(select(Task).where(selector, or_(Task.status == 'QUEUED',
                 and_(Task.status == 'WAITING_RELEASE', Task.release_at <= utcnow())))
                 .order_by(Task.created_at).with_for_update(skip_locked=True).limit(1))
             if task is None:
@@ -118,6 +126,10 @@ class TaskService:
                 raise Conflict('OWNER_STILL_ACTIVE')
             if task.status not in ('STOPPED', 'BLOCKED', 'RUNNING', 'STOP_REQUESTED'):
                 raise Conflict('TASK_NOT_RESUMABLE')
+            if 'kind' in task.payload:
+                attempted = db.scalar(select(Attempt.id).where(Attempt.task_id == task.id).limit(1))
+                if task.payload['kind'] != 'desktop-textedit' or attempted is not None or task.session_id or task.calls or task.run_dir or task.checkpoint:
+                    raise Conflict('DESKTOP_RECOVERY_REQUIRES_VERIFIED_ADAPTER')
             # Same ID/session/ledger; worker reconciles any previous dispatch.
             task.status = 'WAITING_RELEASE' if task.release_at and task.release_at > utcnow() and task.checkpoint else 'QUEUED'
             task.error_code = None
@@ -241,7 +253,8 @@ class TaskService:
             if task is None:
                 raise NotFound('TASK_NOT_FOUND')
             usage = db.get(Usage, task_id)
-            return {'id': task.id, 'status': task.status, 'error_code': task.error_code,
+            return {'id': task.id, 'kind': task.payload.get('kind', 'daily-report'),
+                    'status': task.status, 'error_code': task.error_code,
                     'session_id': task.session_id, 'budget': {'used': task.calls, 'limit': 30},
                     'release_at': task.release_at.isoformat() if task.release_at else None,
                     'checkpoint': {k: task.checkpoint[k] for k in ('phase', 'epoch', 'at')} if task.checkpoint else None,

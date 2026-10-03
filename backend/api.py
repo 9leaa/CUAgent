@@ -9,6 +9,7 @@ from backend.config import Settings
 from backend.db import database
 from backend.models import Artifact, Event, Schedule, Task
 from backend.schemas import BatchSubmission, ScheduleSubmission, Submission
+from backend.desktop_contract import DesktopSubmission
 from backend.batches import BatchService
 from backend.notifications import Inbox
 from backend.schedule_runtime import runtime_service
@@ -60,6 +61,15 @@ def create_app(settings):
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
             raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
         task_id, created = service.submit(body.model_dump(mode='json', exclude_none=True), idempotency_key)
+        return JSONResponse({'id': task_id, 'created': created}, status_code=201 if created else 200)
+
+    @app.post('/desktop-tasks', dependencies=[Depends(authenticated)])
+    def submit_desktop(body: DesktopSubmission, idempotency_key: str = Header()):
+        if not settings.desktop_tasks_enabled:
+            raise HTTPException(503, 'DESKTOP_TASK_EXECUTION_NOT_ENABLED')
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
+            raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
+        task_id, created = service.submit(body.model_dump(mode='json'), idempotency_key)
         return JSONResponse({'id': task_id, 'created': created}, status_code=201 if created else 200)
 
     @app.get('/tasks', dependencies=[Depends(authenticated)])
