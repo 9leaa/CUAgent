@@ -69,11 +69,25 @@ P5开发版可在spec/API正文显式加入`"inputMode":"aggregate"`，使用P4�
 
 只在你确实要确认该通知时执行已读命令。真实停止通知在API重启后保留，重复确认不改变首次已读时间；新真实成功通知及其两产物链接核验通过。这里是本服务内收件箱，不是邮件、聊天消息或系统推送；读取接口不会暗中标记已读，也不等于用户已采用报告。
 
-### 周期调度开发状态
+### 周期调度（P5开发版）
 
-`backend/schedules.py`及0007迁移提供计划/发生记录的持久化核心，目前只完成隔离数据库测试，尚未部署或开放运行入口。固定UTC每24小时、1–7次，保存IANA时区；跨夏令时不保证相同本地钟点。到期后10分钟仍未取得许可记MISSED，不补派；PREPARING采集最多60秒，超时保留PREPARATION_EXPIRED且不重采。暂停与最终提交按同一行锁排序，已提交的批次需要另行stop；EXHAUSTED仅指次数用尽，不代表其任务成功或一周验收完成。
+0007迁移后，计划API/CLI和实际到期短测已通过。固定UTC每24小时、1–7次，保存IANA时区；跨夏令时不保证相同本地钟点。到期后10分钟仍未取得许可记MISSED，不补派；PREPARING采集最多60秒，超时保留PREPARATION_EXPIRED且不重采。暂停与最终提交按同一行锁排序，已提交的批次需要另行stop；EXHAUSTED仅指次数用尽，不代表其任务成功或一周验收完成。
 
-计划源快照与批次/任务在同一事务提交；采集本身不占用数据库锁。实际采集适配、每次绑定计划/时刻的5分钟额度许可、API/CLI及真实到期验证仍待完成，不要把直接调用内部类当作已配置无人值守运行。
+计划源快照与批次/任务同事务提交；采集本身不占数据库锁。只读本项目指定分支的Git事实和到期前24h任务元数据，两个固定工作流不开放任意命令/路径。创建前准备JSON：startAt为未来7日内带时区时刻、timezone为匹配的IANA时区、runs为1–7整数、branch为harness-migration或p5-personal-workflows、baselineCommit为该分支上的完整40位起始SHA。超20个提交或100条任务拒绝缩减样本，记来源错误。
+
+```bash
+.runtime/backend-venv/bin/python -m backend.client schedule-create --spec .runtime/schedule.json --key my-schedule-001
+.runtime/backend-venv/bin/python -m backend.client schedule-list
+.runtime/backend-venv/bin/python -m backend.client schedule-status --schedule SCHEDULE_UUID
+.runtime/backend-venv/bin/python -m backend.client schedule-pause --schedule SCHEDULE_UUID
+.runtime/backend-venv/bin/python -m backend.manage scheduler --once
+# 持续观察计划，不负责模型循环；模型仍由原Worker执行
+.runtime/backend-venv/bin/python -m backend.manage scheduler
+```
+
+API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使用原认证及创建幂等键。创建计划不创建额度许可。调度器只读取私有后端根目录的scheduler-permit.json：需由操作者实时查询账户后记录version=1、scheduleId、dueAt、checkedAt、expiresAt、ordinaryUsageAllowed、remainingPercent、creditsBalance、resetCardsUsed；时刻均带时区，许可最多5分钟且只匹配这一期，余量须大于5%，积分基准62494.0260570000不变且未用重置卡。文件/父目录必须私有，拒绝链接；无记录或过期不会派发。该记录是操作确认，不是项目直接连接Codex账户；不要复制旧额度读数或预授权七天。
+
+调度器重启不会重做已登记发生；源准备进程退出后保留失败，不自动补样。可撤销许可或暂停计划，已提交任务另行stop。短测原计划06388638-8839-4ee3-baa6-79704a2a6f51仅1次，已EXHAUSTED，许可已撤销；不等同正式一周，也不表示机器睡眠时会自动唤醒。
 
 只读长测观察器：`python -m backend.soak --task TASK_UUID --seconds 3600 --output /绝对路径/.runtime/backend/新的证据目录`（在后端虚拟环境内执行；8小时用28800）。它不提交模型请求、不修改时钟、不重启服务；要求真实观察满时长、等待证据不变、到期执行、API/Worker至少各两组实际存活PID及最终独立验收。重启由操作者另行执行并确认安全空闲。只生成采样不等于PASS，以verification.json为准；目录已存在则拒绝覆盖。
 
