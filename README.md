@@ -6,6 +6,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
+P6 Python官方会话适配已实现：冻结原run/session/输入，固定Node命令入口，start/cancel先写意图且只尝试一次，启动精确核对Flash/off；poll以guest实际rawCalls/pendingCalls供Worker判断，不把官方工具数当Driver预算。后端全量327项通过，未启动App/模型。部署、profile切换与这些模块仍需组合成生产adapter，P6未验收；P5未改。
+
 P6固定版本部署代码已实现：从显式Git commit取14个VM依赖文件与来源许可证，先完整核对SHA/大小/语法，再写入全新专用目录；不覆盖旧版本、不执行源码、不启动服务。宿主单次部署并核对清单回执，相关63项测试通过。尚未真实部署VM，执行adapter及完整验收仍待接通，P6未验收，P5未改。
 
 P6可信SSH证据采集代码已接到包校验：固定guest Python/commit部署路径和导出命令，采集前后检查已停止、零在途与调用数不变；单次请求，输出≤65MiB/45秒，先保留原tar再核验。相关53项测试通过，包含真实本机进程I/O反例；未连接真实VM，部署与整体执行adapter仍待接通，P6未验收，P5未改。
