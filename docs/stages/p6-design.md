@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### Python到官方会话适配（实现前补充）
+
+新增DesktopSessionClient，固定已审查desktop-session-command.mjs入口，可信部署显式指定Node、私有official home/cookie及原run/session；不复制凭证、不激活profile。prepare只独占保存冻结输入、cwd/run/session请求，start/cancel各先写Python侧意图，再一次有界子进程调用已有官方命令，失败不重发。start回执必须同session、accepted=true、Flash/off精确匹配；inspect严格验证原session与终态/运行态/原prompt唯一性，poll同时读取guest rawCalls/pendingCalls，禁止把官方工具调用数当实际Driver预算。未知/缺会话或异常状态不当完成，cancelRequested只表示请求取消。运行命令有输出/时间限制，原Node会话模块继续保存官方意图/响应和原JSONL；本轮模拟命令响应与真实参数边界测试，不触发App/模型。
+
 ### 固定版本VM源码部署（实现前补充）
 
 仅打包14个已核对依赖文件及来源许可证，内容从显式40位Git commit读取而非脏工作树；包含逐文件SHA/base64，包≤1MiB。独立安装器不导入待安装代码，先核对普通mvpagent/VirtualMac，再完整验证文件白名单、编码/大小/SHA与Python语法，最后独占创建home/CUAgent-p6-commit并0600写入及fsync，生成部署清单；已有目录一律拒绝，失败保留残留供审查，不覆盖/自动清理旧版本。宿主先保存部署意图，再通过固定SSH/Python单次发送安装器与包，限时/限输出，核对回执路径和清单SHA；未知响应不重试。通用有界进程输入默认32KiB不变，仅部署显式允许≤1MiB。不启动VM/Driver/App/guest服务、不授权GUI；测试在临时目录及模拟SSH中验证，真实部署受P5隔离门槛约束。
