@@ -1,11 +1,13 @@
 /** Root-mounted A1 policy service. Approval is private task config, not prompt text. */
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { lstatSync, readFileSync } from 'node:fs'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { A1Policy } from '../a1-policy.mjs'
 import { loadA1TaskConfig } from '../a1-task-config.mjs'
 import { readWorkspaceFile } from '../workspace-read.mjs'
+import { calculateWorkspaceCsvStats } from '../workspace-csv-stats.mjs'
+import { collectReportInputs } from '../report-inputs.mjs'
 
 export const name = 'cuagent-a1-policy'
 export const inject = ['tools']
@@ -16,6 +18,7 @@ const digest = (text: string) => createHash('sha256').update(text).digest('hex')
 declare module '@deepseek-ai/cordis' { interface Context { cuagentA1Policy: A1PolicyService } }
 
 export class A1PolicyService extends Service {
+  readonly instanceId = randomUUID()
   private policies = new Map<string, A1Policy>()
   private configPath?: string
   private configDigest?: string
@@ -83,6 +86,32 @@ export class A1PolicyService extends Service {
     }
     policy.result(call, { artifact: value })
     return value.content
+  }
+  async reportInputs(exec: ToolExecution): Promise<unknown> {
+    if (exec.name !== 'workspace_report_inputs') throw new Error('wrong aggregate owner')
+    return collectReportInputs({ signal: exec.signal, invoke: async (name: string, args: any, sequence: number) => {
+      if (this.ctx.get('cuagentA1Policy')?.instanceId !== this.instanceId) throw new Error('A1 policy unavailable')
+      const root = this.requireAdmission(exec)
+      const policy = this.policy(exec)!
+      const call = { ...callOf(exec), callId: String(exec.callId) + ':input-' + sequence,
+        name, arguments: args }
+      const refusal = policy.dispatch(call)
+      if (refusal) throw new Error(refusal)
+      let value
+      try {
+        exec.signal.throwIfAborted()
+        value = name === 'workspace_read'
+          ? await readWorkspaceFile({ workspaceRoot: root, ...args })
+          : await calculateWorkspaceCsvStats({ workspaceRoot: root, ...args })
+        exec.signal.throwIfAborted()
+        this.requireAdmission(exec)
+      } catch (error) {
+        policy.result(call, { errorCode: 'REPORT_INPUT_FAILED' })
+        throw error
+      }
+      policy.result(call, { artifact: value })
+      return value
+    } })
   }
   result(exec: Readonly<ToolExecution>, result: ToolExecutionResult): void {
     // Only called for dispatches admitted by this wrapper; denials are not results.

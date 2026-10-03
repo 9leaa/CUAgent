@@ -13,8 +13,9 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import * as policyPlugin from './a1-policy-plugin.ts'
 import * as toolsPlugin from './a1-tools.ts'
 import * as fingerprintPlugin from './a1-example-fingerprint.ts'
+import * as reportInputsPlugin from './report-inputs-tools.ts'
 
-async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, dailyReport?: boolean, controlled?: boolean, publishNotBefore?: number, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
+async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, reportInputs?: boolean, dailyReport?: boolean, controlled?: boolean, publishNotBefore?: number, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-a1-registry-'))
   const previous = process.env.CUAGENT_A1_TASKS_PATH
   const tasks = ['one', 'two'].map(id => {
@@ -29,7 +30,7 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
       ...(options.publishNotBefore ? { publishNotBefore: options.publishNotBefore } : {}),
       allowedTools: options.dailyReport ? ['workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', 'workspace_daily_report']
         : options.readOnly ? ['calculate', 'workspace_list', 'workspace_read', 'workspace_csv_stats']
-        : ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', ...(options.example ? ['workspace_text_fingerprint'] : [])] }
+        : ['calculate', 'workspace_image_probe', 'workspace_list', 'workspace_read', 'workspace_write', 'workspace_csv_stats', ...(options.example ? ['workspace_text_fingerprint'] : []), ...(options.reportInputs ? ['workspace_report_inputs'] : [])] }
   })
   const config = join(dir, 'tasks.json')
   writeFileSync(config, JSON.stringify({ version: 1, tasks }), { mode: 0o600 })
@@ -60,6 +61,98 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
 const daily = { date: '2026-10-02', notes: [{ path: 'inputs/n.md', sha256: 'a'.repeat(64), title: 'A', progress: 'Done', blockers: 'None', next: 'Review' }],
   csv: [{ path: 'inputs/m.csv', sha256: 'b'.repeat(64), rowCount: 1, columnCount: 1, columns: ['n'], bytes: 4,
     numeric: { n: { count: 1, missing: 0, sum: 2, min: 2, max: 2, mean: 2 } } }] }
+
+function inputFiles(root: string) {
+  mkdirSync(join(root, 'inputs'))
+  writeFileSync(join(root, 'inputs/n.md'), '# Original note\n')
+  writeFileSync(join(root, 'inputs/m.csv'), 'n\n2\n4\n')
+  writeFileSync(join(root, 'task.json'), JSON.stringify({ version: 1, workflow: 'renderer-v1', date: '2026-10-03',
+    notes: ['inputs/n.md'], csv: [{ path: 'inputs/m.csv', numericColumns: ['n'] }] }))
+}
+
+test('P4 official registry counts outer plus each internal read/stat with matched results', async t => {
+  const { ctx, call, ledger, tasks } = await fixture(t, { reportInputs: true })
+  inputFiles(tasks[0].workspaceRoot)
+  await ctx.plugin(reportInputsPlugin)
+  const response = await call('workspace_report_inputs', {})
+  assert.equal(response.isError, false, JSON.stringify(response.content))
+  if (!response.isError) {
+    const result = JSON.parse((response.value as any).result)
+    assert.equal(result.notes[0].content, '# Original note\n')
+    assert.equal(result.csv[0].numeric.n.sum, 6)
+  }
+  const dispatches = ledger().filter(r => r.event === 'dispatch')
+  assert.deepEqual(dispatches.map(r => r.name), ['workspace_report_inputs', 'workspace_read', 'workspace_read', 'workspace_csv_stats'])
+  assert.deepEqual(dispatches.map(r => r.used), [1, 2, 3, 4])
+  assert.deepEqual(dispatches.slice(1).map(r => r.callId), [1, 2, 3].map(n => dispatches[0].callId + ':input-' + n))
+  assert.equal(ledger().filter(r => r.event === 'result').length, 4)
+  assert.equal(ledger().filter(r => r.event === 'result' && r.artifact).length, 3)
+  assert.equal(existsSync(join(tasks[0].workspaceRoot, 'report.json')), false)
+})
+
+test('P4 actual budget cannot be bypassed by aggregated internal reads', async t => {
+  const { ctx, call, ledger, tasks } = await fixture(t, { reportInputs: true })
+  inputFiles(tasks[0].workspaceRoot); await ctx.plugin(reportInputsPlugin)
+  for (let i = 0; i < 28; i++) assert.equal((await call('workspace_read', { path: 'source.txt' })).isError, false)
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  const dispatches = ledger().filter(r => r.event === 'dispatch')
+  assert.equal(dispatches.length, 30)
+  assert.equal(dispatches.at(-1).name, 'workspace_read')
+  assert.equal(ledger().filter(r => r.event === 'result').length, 30)
+  assert.ok(!dispatches.some(r => r.name === 'workspace_csv_stats'))
+})
+
+test('P4 registration does not grant old tasks approval', async t => {
+  const { ctx, call, ledger } = await fixture(t)
+  await ctx.plugin(reportInputsPlugin)
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  assert.equal(ledger().filter(r => r.event === 'dispatch').length, 0)
+})
+
+test('P4 live control revoked between internal reads prevents the next dispatch', async t => {
+  const { ctx, call, ledger, tasks } = await fixture(t, { reportInputs: true, controlled: true })
+  inputFiles(tasks[0].workspaceRoot); await ctx.plugin(reportInputsPlugin)
+  const service = ctx.get('cuagentA1Policy')!
+  const original = service.requireAdmission.bind(service)
+  let checks = 0
+  t.mock.method(service, 'requireAdmission', (exec: any) => {
+    const root = original(exec)
+    if (++checks === 2) {
+      const path = tasks[0].controlPath!
+      writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, 'utf8')), stopped: true }))
+    }
+    return root
+  })
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  assert.equal(checks, 2)
+  assert.deepEqual(ledger().filter(r => r.event === 'dispatch').map(r => r.name), ['workspace_report_inputs', 'workspace_read'])
+  assert.equal(ledger().filter(r => r.event === 'result').length, 2)
+})
+
+test('P4 rejects stopped, foreign and unloaded policy calls before any reads', async t => {
+  const { ctx, call, ledger, tasks, policyFiber } = await fixture(t, { reportInputs: true })
+  inputFiles(tasks[0].workspaceRoot); await ctx.plugin(reportInputsPlugin)
+  const stop = new AbortController(); stop.abort()
+  assert.equal((await call('workspace_report_inputs', {}, 'session-one', stop.signal)).isError, true)
+  assert.equal((await call('workspace_report_inputs', {}, 'foreign')).isError, true)
+  await policyFiber.dispose()
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  assert.equal(existsSync(tasks[0].ledgerPath) ? ledger().filter(r => r.event === 'dispatch').length : 0, 0)
+})
+
+test('P4 real symlink escape fails internally without reading subsequent CSV', async t => {
+  const { ctx, call, ledger, tasks } = await fixture(t, { reportInputs: true })
+  inputFiles(tasks[0].workspaceRoot); await ctx.plugin(reportInputsPlugin)
+  rmSync(join(tasks[0].workspaceRoot, 'inputs/n.md'))
+  symlinkSync(join(tasks[1].workspaceRoot, 'source.txt'), join(tasks[0].workspaceRoot, 'inputs/n.md'))
+  assert.equal((await call('workspace_report_inputs', {})).isError, true)
+  const events = ledger()
+  assert.equal(events.filter(r => r.event === 'dispatch').length, 3)
+  assert.equal(events.filter(r => r.event === 'result').length, 3)
+  assert.equal(events.filter(r => r.event === 'result' && r.outcome === 'error').length, 2)
+  assert.ok(!events.some(r => r.name === 'workspace_csv_stats'))
+})
 
 test('P3 actual registry rejects early publication and ordinary-write bypass', async t => {
   let now = Date.now()
