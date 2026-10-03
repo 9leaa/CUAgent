@@ -28,6 +28,10 @@
 
 ## 验收和证据
 
+### 真实VM自然到期诊断（实施前）
+
+宿主独立Python/Node直连VM受阻，不改网络权限或模型入口。新增仅可信开发者可运行的VM诊断：沿用prepare_guest、原共享锁、真实DesktopTask/Driver及未改的生产许可门禁，先实际观察，再停止续期等待真实墙钟到期；同一对象再次observe必须在Driver派发前拒绝。之后原controller及从同一许可文件重新构造的controller均不得续期；不手写许可、不修改时钟、不重建任务、不增加模型工具。finally撤销并关闭原runtime，保存原trace、观察文件摘要、到期时间、拒绝与关闭回执。宿主独立核对首次真实观察、到期后预算不变/零新派发、原身份及关闭结果。该结果只证明真实VM最终派发/持久许可边界，不冒充官方App请求、HTTP来源隔离或数据库失权全链路；后者仍分别验收。P5空闲检查/共享锁/临时Worker停启与配置核对保持原要求，未知清理结果不得自动恢复领取。
+
 ### 已请求停止的有证据收尾（实现前）
 
 现有Worker任何中断均隔离，连已明确停止且无在途也不能收尾。新增仅STOP_REQUESTED路径：先撤销local/guest，单次cancel原会话，结束并确认续期线程退出；有界读取原session/guest，不重新prompt或授权。仅同一原任务仍STOP_REQUESTED、guestStopped=true/零在途/合法raw、官方原prompt明确terminal、再次撤销确认及原owner/epoch的停止态DB心跳有效时，保存usage并finish STOPPED；之后才允许已有恢复流程。取消ACK本身不算停止，未知状态、失权、超时、缺字段继续隔离；不把副作用当回滚，不对非用户停止的错误自动收尾。先模拟协议/独立PG反例，再真实App停止验证。
