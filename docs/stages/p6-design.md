@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 官方会话独立策略验收（实现前补充）
+
+新增后端只读验收，绑定私有desktop-session-binding/prompt-request/session.jsonl与原提交、run/session；原会话必须唯一用户提示、唯一completed终态，全部request/header均Flash/off且恰好五个TextEdit工具，完整call/result配对。核对唯一vm_type正文与guest输入SHA、Save snapshot序列与guest attempted_save、最终vm_read_result完整正文；仅与guest rejected_write_result计数匹配的写结果拒绝可保留，其余工具错误不接受。要求官方observe返回含图片、原请求审计至少一次imageBlocks>0且模型/工具范围一致。返回会话策略验收报告而不是登记整体SUCCEEDED；图片存在/请求审计不等于逐像素视觉理解，原PNG/GUI/文档仍依赖guest独立核验，真实会话格式仍需端到端验证。旧切换脚本硬编码原.runtime，不直接调用以免误改P5；完整profile适配另补。
+
 ### Guest启动准备与私有回执（实现前补充）
 
 后端新增单次启动准备：先写原run部署/启动意图，通过固定SSH/Python运行审查过的启动脚本。脚本先校验普通VM身份、部署manifest SHA与全部源码SHA、固定run/owner/epoch，再独占新建私有启动日志并启动desktop_guest.py；stdin关闭、输出只入私有日志、无GUI/模型启动。最多10秒读原guest-ready及两份新token，必须绑定原run/owner/epoch和自有子进程PID、控制loopback/模型固定URL；准备回执含新任务凭证，仅保存到宿主私有文件，不打印/公开日志。超时/中断不重启/不猜PID杀进程，保留未确认状态待原run核对。宿主校验字段/令牌及回执身份，后续才能构造控制客户端/隧道；还不授权GUI。先用模拟VM/进程验证，不部署生产或切换P5。
