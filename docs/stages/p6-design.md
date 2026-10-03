@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 后端guest生命周期客户端（实现前补充）
+
+在现有固定loopback控制客户端上新增status/activate，不增加模型调用。status严格验证run/owner/epoch、布尔状态、端口、0–30调用数与在途数，调用数不得回退。activate对象内一次尝试，先查未启动且零调用状态、核对guest许可未停未过期，再新查可信authority期限；只POST一次，ACK必须仍在执行权/guest保守期限内，且active、未停、零调用。错误身份/类型/迟到/丢失响应都保持未确认，不补发启动；实际启动后的未知状态交由已有Worker撤销与隔离处理。guest持久启动意图继续约束跨进程重放；本轮真实loopback连接guest runtime，但Driver/环境仍模拟，不计真实VM验收。
+
 ### Guest受控启动生命周期（实现前补充）
 
 新增DesktopGuestRuntime，构造时仅持有显式共享bridge.lock并绑定run/controller/token；不构造DesktopTask、不打开模型端口。可信控制HTTP可显式附加runtime，新增空参数POST /activate与GET /status，默认旧工厂无此能力。activate先独占保存启动意图，再检查有效许可、构造DesktopTask和固定地址模型HTTP；任何失败撤销许可并保留意图，不自动重试/重建。状态仅返回固定binding、active、stopped、rawCalls/pendingCalls及模型端口，不泄漏凭证/文件内容。revoke先持久停止许可，再停止已建Task；不等待在途Driver，也不宣称回滚。共享锁跨整个runtime存活；close撤销并关闭模型入口，若仍在途则拒绝释放锁。模型token无启动/状态/续期权限。本步用loopback和模拟Task环境验证完整grant→activate→工具→revoke链路及失败窗口，不部署VM或切换P5；后续CLI必须核对VM身份与现有全局锁实际路径。
