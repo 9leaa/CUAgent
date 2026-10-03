@@ -6,6 +6,8 @@ CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepS
 
 ## 当前进度
 
+P6独立profile事务已实现：显式指定run/home/build-tools，准备只在本次run构建两个插件、保存原配置/候选与SHA；应用和恢复均要求App已停，配置/插件变化拒绝覆盖，恢复保留原字节。Node全量90项通过，含真实esbuild 0.28.1在临时配置构建/切换/恢复。未改真实App/P5配置；上层App启停、完整adapter及真实VM验收仍待接通，P6未验收。
+
 P6新增官方会话独立策略验收：核对原run/session/提示、唯一completed、全部请求Flash/off与五工具白名单、完整call/result、GUI输入/Save与guest轨迹及结果读回，并检查图片返回/请求审计。相关26项测试通过（合成证据），报告不直接登记整体成功。旧profile脚本硬编码原.runtime，不能直接复用于P6；安全配置切换和整体adapter仍未完成，P6未验收，P5未改。
 
 P6已补guest启动准备：先核对部署manifest与全部源码SHA，再单次启动控制服务，读取匹配原任务/自有PID的端口和独立token；宿主先落意图、私有保存回执，未确认不重启。相关40项测试通过（模拟VM/SSH/进程），尚未真实启动VM端服务；完整adapter、profile切换与真实验收仍待接通，P6未验收，P5未改。
