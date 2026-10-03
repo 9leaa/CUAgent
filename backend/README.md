@@ -93,6 +93,8 @@ API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使�
 
 ### 来源预览与七日回执（P5开发版）
 
+本次操作者额度约束比通用QuotaPermit更严格：每批实时查询当前窗口，已用必须<70%（剩余>30%）；达到70%停止，不用积分或重置卡，不自动等重置续用。底层5%余量只是通用拒绝门槛，不是本次允许消耗95%的授权。首日两报告已核验，下一批10-04 12:10；完整七日验收仍未完成。
+
 当前正式计划`1ab2e3a4-8426-48e8-bf1b-3452efa1fdfe`：北京时间2026-10-03 12:10开始、10-10 12:10满168h，每日一批两报告、最多7批。Codex当前聊天每日12:11跟进，每批新查额度，不能以自动化创建成功代替实际运行；需电脑和应用运行。仅P5分支保存开发进度，默认分支阶段验收等待真实观察。原短测计划不要重建或复用为正式观察。
 
 `python -m backend.workflow_preview --branch p5-personal-workflows --baseline 完整起始SHA --cutoff 带时区截止时刻 --output 新目录`仅采集本项目Git和截止前24h元数据，保存两份来源及batch.json，不调用模型。复核后用batch-submit提交batch.json，复用稳定key；来源目录不允许覆盖。应在后端虚拟环境中执行，不把预览当真实模型报告。

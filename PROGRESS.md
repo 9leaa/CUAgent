@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P5正式第1天完成（2026-10-03 12:11）：实时额度已用9%/剩余91%，积分62494.0260570000未变、卡1张未用。调度进程81383/session92548在12:10:01真实记录WAITING_PERMISSION；操作者单期授权后，原occurrence `fc4ad466-dc33-417e-9f44-436016f306b8`、batch `4e726e7f-544d-48da-a613-2f340dd6b1ab`唯一创建。task `948922ae-515a-4e72-8302-d6f0f45a31a6`/session-f89a43f2-7890-4751-b20c-4d18256d4e11为9raw/12638token，task `507294fc-bade-42d7-884e-e63fd38b2261`/session-bee12891-a56c-4036-a327-c3a6e645d20f为10raw/15995token；均Flash/off、各5模型工具调用、合计28633token。原源摘要、Git范围、冻结元数据载荷、会话/审计、API用量、通知与四下载独立核验VERIFIED；两任务各恢复基础配置一次/0告警，pending0，12:11:15许可已撤销。正式证据`.runtime/backend/p5-week-20261003-001/day1-attempt2/receipt`，完整七日结论仍INCOMPLETE，次日10-04 12:10到期；用户采用未评估。
+
+首日介入保留：初次私有控制脚本用证据文件的排他写入函数更新已有撤销许可，FileExistsError，finally同样拒绝覆盖；独立确认许可仍false且0发生后，改为原子替换运行时许可，在新attempt2目录继续同一期，不新建计划、不重试模型。day1原证据与day1-interventions.json保留。定时跟进cuagent-p5的额度文字收紧为已用严格小于70%（剩余>30%）才能放行；此前仅写保留5%不充分，不能用底层通用余量门槛取代用户70%停止要求。本轮模型费用未使用积分/重置卡；没有把人工到期授权称为Codex自动唤醒验证。
+
 P5正式七日计划已创建（2026-10-03 12:03）：schedule `1ab2e3a4-8426-48e8-bf1b-3452efa1fdfe`，北京时间10-03 12:10开始、10-10 12:10满168h；10-03至10-09各最多一批两任务，共7批14个新任务。固定p5-personal-workflows分支、基线2ca41a5、观察器版本102a8d5；源码哈希及原创建意图保存在私有`.runtime/backend/p5-week-20261003-001`，不上传。首次脚本因缺PYTHONPATH在任何写入前退出，补本项目导入路径后唯一创建成功。当前聊天定时跟进cuagent-p5已ACTIVE，每日12:11、共8次，最后一天只做最终核对；每次需新查额度、单期5分钟许可，不绕过配额或预派七天。12:03真实scheduler只返回NOT_DUE，原计划0发生/0任务，before-start回执INCOMPLETE；旧短测许可仍撤销，API80171/Worker80173保留。电脑/App需运行，未改睡眠/开机自启/共享服务；仍无用户阅读采用反馈。代码与短测已验证，真实一周未完成，不更新默认分支为P5验收。
 
 P5七日观察准备（2026-10-03）：先提交回执契约9a99914，再新增workflow_preview/week_observer及14项反例，完整后端155/155。来源预览真实运行零提交；初次人工填错完整Git SHA被拒，读取真实rev-parse后采集成功，没有改Git或放宽校验。新观察器首次误用整个usage对象比较，API额外models/monetaryCost导致CHECK_FAILED，保留diagnostic-001；修为逐项核对原token、模型和预算，diagnostic-003原短测两任务VERIFIED、四下载SHA一致，七日结论仍INCOMPLETE。回执位于私有.runtime/backend/p5-observer-diagnostic-20261003-003，预览位于.runtime/p5-preview-20261003-001；无新增模型调用/服务重启。正式七日尚未启用，P5未验收。
