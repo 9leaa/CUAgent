@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 后端证据包接收（实现前补充）
+
+新增纯内存decode_guest_bundle，只接可信SSH收集返回的有界原tar字节及冻结任务/执行身份；不直接解压到磁盘、不执行包内代码。限制包≤65MiB、普通文件≤65项、单文件≤8MiB及总内容≤64MiB，拒绝重复名、链接、特殊文件、任意路径/PAX扩展与白名单外文件；manifest有界且严格绑定run/owner/epoch、原输入摘要、每个文件SHA/大小、精确文件集合。文档/result再次逐字节核对冻结正文；返回内存快照与guest报告，始终sessionVerified=false，不能直接供finish登记成功。缺文件、改动、身份混用、tar截断及超限必须拒绝；后续实际adapter再结合官方会话/模型审计、安全落盘和全链路判据，不能将包校验当GUI真实性新增证明。
+
 ### Guest证据导出（实现前补充）
 
 新增VM专用只读导出命令，固定C0Evidence/p2-UUID，owner/epoch由可信调用端提供；正文期望从stdin有界JSON lines读取，不接受任意路径或shell。先核对私有lease固定身份且stopped=true，再运行已有guest独立验证器；所有调用必须完成。仅将核验清单中的trace/final_state/state-NN.json/png/固定文档/result及生成的无凭证manifest打包到stdout，不能导出token、lease、个人目录或任意额外文件。逐文件二次安全读取并比对核验SHA/大小，发送任何字节前完成全部校验，总原始内容≤64MiB，固定tar普通文件/0600、无链接；失败stderr固定代码、非零，不生成业务文件。此摘要仅证明VM证据核验，不替代官方会话/Flash-off；后端仍需通过可信SSH采集、验证包哈希和独立绑定。测试合成文件与真实内存tar，不调用VM/模型。
