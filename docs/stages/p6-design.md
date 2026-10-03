@@ -30,6 +30,8 @@
 
 新增独立DesktopWorker，不将桌面任务塞入日报prepare/verify。trusted adapter提供prepare/start/poll/cancel/verify/restore，仍由官方Harness执行推理；测试adapter只作故障编排验证。prepare只准备身份/目录/许可通道，不派发GUI或prompt；start唯一一次。共享宿主desktop-worker.lock必须由部署明确指定到同一实际文件，不能默认使用P6工作树另一把锁；先拿锁再领取显式desktop类型。
 
+无法确认会话终止或许可撤销时不调用finish释放资源，写入共享锁旁持久quarantine文件，后续P6 Worker拒绝领取，必须人工核对；不提供自动清除。旧P5 Worker不识别该隔离标记，因此生产切换必须停止旧领取者、验证版本，不能混跑。实际终止未知时也不自动切换App配置，恢复待人工核对。
+
 绑定run目录、session和控制客户端后，初次许可成功才start；心跳线程每3秒刷新，失败标记lost并关闭控制。poll只接受明确terminal、0–30连续不回退rawCalls及pendingCalls；结束仍有在途即BLOCKED，不验证成功。初版总执行观察期限300秒，取消只请求一次，不盲重复prompt或GUI。先确认本地和guest撤销，再允许独立verify和登记成功；不确认撤销或失权则不登记成功。取消不等于副作用回滚。finally退出心跳、保持控制关闭、尝试原配置恢复；恢复告警保留为独立结果，不以业务成功掩盖。隔离PG/模拟adapter验证以上时序，不冒充真实模型/VM。
 
 ### 类型化产物交付（实施前补充）
