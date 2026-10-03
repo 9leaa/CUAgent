@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### P6独立profile事务（实现前补充）
+
+新增显式root/official home/build-tools路径的profile模块和命令，不沿用旧脚本推导.runtime。prepare只在当前私有run下构建c0-vm-tools/desktop-tool-scope，按已审查real-app模板合并受控条目，保留不相关配置；原patch字节、候选patch和前后SHA独占保存，不启动/停止App、不改official home。apply/restore必须确认官方App进程不存在，使用profile目录独占操作锁，核对目标私有规范路径和原/候选SHA；apply前再次检查插件哈希，restore只在目标仍是本次候选时恢复原字节，发现外部修改拒绝覆盖。原子替换和fsync，意图/回执留在run；错误不自动重放或热切换，恢复不得跨home/run。测试临时profile和模拟App状态，真实切换仍受P5收口/另行批准门槛约束，App启停和版本核对将由上层适配完成。
+
 ### 官方会话独立策略验收（实现前补充）
 
 新增后端只读验收，绑定私有desktop-session-binding/prompt-request/session.jsonl与原提交、run/session；原会话必须唯一用户提示、唯一completed终态，全部request/header均Flash/off且恰好五个TextEdit工具，完整call/result配对。核对唯一vm_type正文与guest输入SHA、Save snapshot序列与guest attempted_save、最终vm_read_result完整正文；仅与guest rejected_write_result计数匹配的写结果拒绝可保留，其余工具错误不接受。要求官方observe返回含图片、原请求审计至少一次imageBlocks>0且模型/工具范围一致。返回会话策略验收报告而不是登记整体SUCCEEDED；图片存在/请求审计不等于逐像素视觉理解，原PNG/GUI/文档仍依赖guest独立核验，真实会话格式仍需端到端验证。旧切换脚本硬编码原.runtime，不直接调用以免误改P5；完整profile适配另补。
