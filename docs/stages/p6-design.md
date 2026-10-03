@@ -30,6 +30,8 @@
 
 ### 官方提醒与用户指令区分（真实失败后，修复前）
 
+原取消会话末尾还存在无usage的assistant/attempt（stream为空）。新分类允许归档该失败终态后，用量读取也不能只合计此前assistant/message就声称完整：存在未说明消费的assistant/attempt即保留available=false/null，不把空stream解释为零费用。先补此反例，再改P6专用usage；不修改原失败或P5用量代码。
+
 repair-entry-cohort-001第二例在11raw后被取消并隔离；原会话只有一条真实用户prompt，另有官方repeat-tool-reminder插件以user/message记录的notice。现P6复用了按行数统计userMessages的旧函数，运行态校验因此拒绝，随后终态归档也因同一条件失败。先保留原失败、原会话和未知用量，安全撤销/零在途/原终态独立确认后恢复P5，不将该例重新标成功。第三例尚未执行，不以新版本结果覆盖原冻结版记录。
 
 修复只落P6，P5冻结daily-report-runner源码不改，也不关闭官方重复提醒。区分真实用户prompt与经过核对的框架notice：原用户消息仍唯一且rpcId绑定；只接受已审查source.kind=repeat-tool-reminder、form=notice、固定工具/阈值、原提示模板和对应此前重复调用证据，其他来源或伪造内容继续拒绝。JS观测/归档与Python独立验收必须遵守同一分类，并显式报告框架提醒数量，不能删原会话行或把任何user/message笼统忽略。先用原失败脱敏结构和合成反例验证，再新建明确版本的修复回归；旧任务不resume、预算不清零，不承诺修正分类即可保证业务成功。
