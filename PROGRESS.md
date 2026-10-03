@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6正式入口repair-entry-cohort-001（2026-10-03 23:03—23:15北京时间）：方案7373f07先行，执行源码bb812b6/冻结host7373f07、guest原c448ae2。真实desktop_service init/serve新库/18100，原API进程5661；公开client先提交并冻结全部三例ID/输入SHA/源码SHA，再逐例新查Codex额度80%、积分未变/卡未用。第一例task 0cea134f-9a59-4b84-8395-9daed13ac097，session-97898c76-e148-4bf1-86fa-e96553333e1e，SUCCEEDED，11raw/9官方工具、392188 total tokens；公开CLI下载document/result逐字节符合原输入，独立重读VM全部原文件SHA、观察PNG/state及账本前缀、官方会话策略再次通过，停止后零派发。P5 Worker3522→6135，App原字节恢复。
+
+第二例task 33af564e-6abe-438a-b008-501ab5495b39，session-a62d893b-e7cf-48cc-b5f0-39834e0861c5，11raw后触发隔离。原会话9次工具中最后三次vm_observe相同参数，官方repeat-tool-reminder产生source.kind=repeat-tool-reminder/form=notice/summary="vm_observe × 3"的user/message（seq61），不是第二次prompt。P6按user/message总行数≤1校验因此拒绝并取消；终态归档又因“terminal evidence must belong to the one original prompt”拒绝。原prompt唯一、取消后aborted/user，guest撤销/零在途、原账本停止后零派发已独立核对。未补prompt、未改成功；完整usage仍unknown，原9条assistant消息及末尾assistant/attempt原文私有保留。
+
+在原共享锁内独立确认所有官方会话空闲、原guest已停止/零在途后，调用既有App/profile恢复及guest shutdown（closed=true），核对原profile完整字节相同；确认原隧道PID6192身份后关闭，仅将该任务的已审查host quarantine移入私有failure-02-recovery留存。按原执行权过期清理将旧任务置BLOCKED/OWNER_LEASE_EXPIRED，无新领取/产物；P5 Worker恢复6662，API80171/scheduler81383未停。第三例bae7cc9c-0df2-4958-9911-638298ac8717仍QUEUED，零raw/无session，未执行。原P5六个冻结源码SHA未变，原三例旧失败与本cohort分开保留。独立partial audit结论为1成功、1失败、1未执行，不能记3/3或完成P6。下一步仅修P6对已审查官方提醒的消息分类，先反例测试再新版本回归，不关闭安全提醒或修改冻结P5源码。
+
 P6单任务执行入口（2026-10-03）：方案a8c9d73先于实现，新增backend.desktop_operator worker-once。任务/私有profile原SHA/新鲜Codex额度严格绑定，五分钟内普通额度≥40%、积分基准不变且卡未用；真实触线在原共享运行目录持久锁止，禁止靠重置或换独立服务解除。原P5停止锁同样拒绝。原共享锁内先准入再按精确task ID领取，旧默认claim不变；无任务/非排队/已有attempt或启动意图拒绝，不换样本、不自动续批。LiveGate查真实PG原队列/资源/临近计划、旧Worker进程、SSH只读VM身份和解锁状态，原adapter在准备/切换/prompt前重复核对；启动器不自动停启P5、部署或解锁，仍需已授权窗口。独立操作意图/拒绝/结果留0600回执，模型执行仍是原Flash/off和30raw链路。
 
 验证：新增31项，隔离PG精确领取/前置拒绝零attempt、共享锁内准入、同任务单次组合、绑定/过期/40%边界/持久停止、P5在途/资源/临近计划/旧Worker和锁屏拒绝。SSH/VM/App边界在本轮模拟，不能称新入口真实模型通过；现有原adapter重复gate测试另保留。初跑一项新计划夹具缺last_commit，被数据库NOT NULL拒绝，修正夹具后后端全量451项通过（仅既有Starlette弃用提示）；CLI帮助及git diff --check通过。现场只读确认原build-tools为0755公开依赖目录，按当前用户所有且无组/他人写权限验证，不更改其权限；App home仍要求私有。P5原API80171/Worker3522/scheduler81383未改，本轮零模型/VM调用。README/后端说明已同步。下一步经正式独立API/CLI/worker-once冻结新修复版三例并实际验收，保留全部原失败；P6及总目标均未完成。
