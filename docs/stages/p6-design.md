@@ -28,6 +28,8 @@
 
 ### 官方会话适配（实现前补充）
 
+原会话读取补充：使用显式配置的私有official home，只读其sessions下一层分组中唯一匹配sessionId的session.v4.jsonl.zstd；拒绝符号链接/越界/重复匹配，压缩与解压数据各限64MiB，固定zstd解压命令、10秒超时、不执行shell。保留原JSONL字节，不重排或伪造官方事件。仅原请求已观察、唯一用户提示且当前明确terminal时独占保存session.jsonl；已存在时必须逐字节一致，不能覆盖旧记录。该读取器接入inspect adapter，不启动模型；真实压缩文件测试使用合成事件，后续仍须核对实际官方会话。
+
 复用已核对的官方session/list/create/selectModel/prompt/cancel协议及现有observedSession解析，新增独立desktop-session模块，不修改日报runner或复制上游循环。start必须全App空闲、唯一real-app preset、模型目录明确支持Flash/off；固定run/session/cwd，create/model-select/prompt都先独占保存意图，再只发一次RPC，响应另存；任何已有create意图禁止再次start。输入保存为不覆盖请求快照，提示只指向当前批准TextEdit文档及逐行正文，不允许附加工具。查询/取消基于原session及原request ID，只有明确running才cancel；idle不发重复取消。RPC固定loopback官方端口，读取显式私有cookie文件且不输出凭证，所有请求有超时、禁止自动重试副作用。此模块不激活profile或启动App；真实profile/VM/证据连接待下一步，先用协议模拟验证全部意图窗口与拒绝路径，不计真实模型验收。
 
 ### 桌面Worker编排（实现前补充）
