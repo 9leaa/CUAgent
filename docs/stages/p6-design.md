@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### SSH标准输入修复（实现前补充）
+
+只读确认P5旧vm-ssh最后使用`< /dev/null`，会丢弃P6部署包和导出请求。保留旧脚本原字节；新增P6专用包装器生成器，显式接收私有known-hosts和可执行askpass的路径（不读/复制凭证），在新私有目录独占写0700脚本。固定/usr/bin/ssh、VM地址/用户、严格host-key检查和认证超时，保持stdin原样；调用者既有有界I/O和命令/隧道参数不变。adapter配置改为known_hosts/askpass，在prepare生成本次独立包装器并传给bootstrap、隧道和采集；部署入口可使用同一生成器但不自动执行部署。测试以真实本机子进程回传大块stdin/参数、ssh -G无网络解析，以及私有路径/不可覆盖反例验证；不连接VM、不改P5运行环境。
+
 ### 完整执行适配与长准备续期（实现前补充）
 
 组合已有模块为DesktopTaskAdapter，显式配置已部署commit/manifest、SSH/Node/home/build-tools/base-tasks与cutover_authorized（默认拒绝）；该开关不替代实际P5/额度/环境验收，暂不提供生产启用入口。prepare创建新run/session、冻结输入、构建候选profile、启动guest控制并建隧道，不启动模型；start依次停空闲App、应用候选、启动P6 App、按实时DB执行权激活guest、单次官方prompt。poll融合官方终态与guest实际预算；verify只在撤销后采集原包、核验官方会话及guest证据，最后复制核验过的原文档/result至交付目录，不生成替代业务结果。restore恢复原App/profile后可信shutdown guest，再关自有隧道；任一步未知仍隔离，不自动重放。
