@@ -1,6 +1,6 @@
 # 单人本地任务服务（P2）
 
-## P6 独立队列服务（尚未接执行启动器）
+## P6 独立队列服务
 
 `backend.desktop_service init` 创建新私有目录、新数据库和独立token，只引用现有私有backend.env；不修改原库、不复制App凭据、不启动Worker/模型。新目录的父目录须已存在且仅当前用户可访问。端口只允许18100–18999，固定监听127.0.0.1；占用则拒绝，不停止已有服务。
 
@@ -9,7 +9,21 @@ python -m backend.desktop_service init --baseline-env /absolute/path/backend.env
 python -m backend.desktop_service serve --profile /absolute/private/parent/p6-service/service.json
 ```
 
-初始化失败保留新目录和初始化意图，不能删除重建或对同一目标盲目重试。服务进程前台运行，停止再以原profile启动会保留原任务。配置及token不能上传GitHub。此服务只接受桌面提交，拒绝日报/批次/定时任务写入；API能接收任务不代表有人执行，**当前新任务会排队，受控Worker命令仍待交付**。原P5环境和18089默认服务不变。
+初始化失败保留新目录和初始化意图，不能删除重建或对同一目标盲目重试。服务进程前台运行，停止再以原profile启动会保留原任务。配置及token不能上传GitHub。此服务只接受桌面提交，拒绝日报/批次/定时任务写入；API能接收任务不代表有人执行，**新任务先排队，需下方单任务Worker另行准入**。原P5环境和18089默认服务不变。
+
+## P6 受控单任务执行命令
+
+```sh
+python -m backend.desktop_operator worker-once --profile /absolute/private/parent/p6-service/service.json --execution /absolute/private/execution.json --quota /absolute/private/current-quota.json --task TASK_UUID --cutover-approved
+```
+
+这是可信操作者入口，不是模型工具。必须已进入批准的切换窗口、停下原P5领取者、确认VM就绪；命令不自行停启P5或解锁VM。它在原共享锁内检查后只领取指定任务，执行原官方App/Flash-off/30raw链路并独立核验、恢复App。不得用另一个共享锁绕开P5，不能因API已启动而批量授权。
+
+`execution.json` 为0600操作者配置，仅接受：`version=1`、`node`（规范可执行路径）、`officialHome`（原私有App home）、`buildTools`（当前用户所有且组/他人不可写的依赖目录）、`knownHosts`、`askpass`、`guestCommit`（已部署40位commit）、`guestManifestSha256`（原部署64位SHA）、`tunnelPort`（19000–19999）。不会自动部署或接受任务传入的路径/模型设置。
+
+`current-quota.json` 必须来自本次真实Codex用量工具读取，0600，不能复制示例/旧读数或填造数据。字段严格为：`version=1`、`taskId`、`profileSha256`（service.json原字节SHA256）、`source="Codex get_usage_limits"`、带时区的`checkedAt`/`expiresAt`（至多五分钟）、`remainingPercent`、`ordinaryUsageAllowed`、`creditsBalance`、`resetCardsUsed`。余额基准62494.0260570000，普通额度可用且剩余≥40%、卡未用方可进入；缺失/过期拒绝，真实触线在原共享运行目录持久写desktop-operator-stop.json，自然重置不解锁，禁止手动删除绕过。原P5 scheduler停止锁同样生效；这不限制DSH平台余额。
+
+准入、准备、App切换及正式prompt前会重新检查：原P5无排队/在途/未释放资源、未来30分钟无到期计划、旧Worker进程不存在、VM身份正确且已解锁、绑定额度未过期或变更。操作意图和结果存在独立service/admission目录；有attempt的任务或已有启动意图不能再次运行。`EXECUTION_RECORDED`只表示收到了结果，必须读取outcome.status、restoreConfirmed和quarantined；未知/隔离不得重放，不能换任务掩盖失败。确认原App恢复和无隔离后，由本次切换操作者恢复原P5领取者。本命令目前经过隔离PG/模拟VM边界测试，尚待通过正式命令运行同版三例，不把历史私有脚本验收当作新入口验收。
 
 ## P6 桌面提交命令（开发入口）
 
@@ -35,7 +49,7 @@ P6产物交付开发：桌面类型仅登记/下载`document.txt`和`result.txt`
 
 P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），旧默认API仍503、不创建桌面任务；上方独立服务显式开启提交，但没有自动执行。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，底层桌面从未领取的排队停止可恢复，但独立服务不开放resume；有执行证据则拒绝恢复，不能套用下方日报resume说明。不能用接口测试称完整桌面功能已上线。P5旧服务不得接入该新类型队列。
 
-P6专用SSH：`desktop_ssh.create_ssh_wrapper(root=私有目录, known_hosts=原私有主机密钥文件, askpass=原私有可执行认证脚本)`生成新的0700传输脚本，只引用凭证路径且保留stdin。`DesktopTaskAdapter`通过显式known_hosts/askpass自动生成；离线部署准备代码调用`deploy_guest`时也须传该生成器返回路径，不能复用旧vm-ssh（它丢弃stdin）。本机1MiB往返与ssh -G解析通过不等于VM连接通过。实际执行仍需可信实时门禁核对切换许可、VM状态、剩余额度≥40%，且遵守P5隔离；没有生产启动器或自动启用开关。
+P6专用SSH：`desktop_ssh.create_ssh_wrapper(root=私有目录, known_hosts=原私有主机密钥文件, askpass=原私有可执行认证脚本)`生成新的0700传输脚本，只引用凭证路径且保留stdin。`DesktopTaskAdapter`通过显式known_hosts/askpass自动生成；离线部署准备代码调用`deploy_guest`时也须传该生成器返回路径，不能复用旧vm-ssh（它丢弃stdin）。本机1MiB往返与ssh -G解析通过不等于VM连接通过。实际执行仍需上方操作者入口核对切换许可、VM状态、剩余额度≥40%，且遵守P5隔离；没有自动部署或自动启用开关。
 
 专业上是 FastAPI + PostgreSQL 持久队列 + 独立 Worker；直白说：提交后拿任务编号，后台执行，随后查日志、停止或下载核对过的报告。Harness 仍负责唯一的模型循环。仅日报模板、本机单用户；不是公网多租户服务。
 

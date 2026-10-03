@@ -1,7 +1,7 @@
 """Opt-in single-task lifecycle. Harness/VM adapters supply actual execution.
 
-No production launcher: shared lock, verified adapter and deployment cutover
-must be supplied explicitly; a simulator is never a production backend.
+The operator launcher supplies the shared lock, verified adapter and live
+admission; a simulator is never a production backend.
 """
 from dataclasses import dataclass
 import fcntl
@@ -29,7 +29,7 @@ class DesktopWorker:
         self.quarantine = self.shared_lock.with_name(self.shared_lock.name + '.quarantine')
         self.owner = str(uuid.uuid4())
 
-    def run_once(self):
+    def run_once(self, *, task_id=None, before_claim=None):
         parent = self.shared_lock.parent
         info = parent.stat()
         if (parent.resolve(strict=True) != parent or not stat.S_ISDIR(info.st_mode)
@@ -43,7 +43,11 @@ class DesktopWorker:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if os.path.lexists(self.quarantine):
                 raise RuntimeError('DESKTOP_QUARANTINED_REQUIRES_REVIEW')
-            task = self.service.claim(self.owner, kind='desktop-textedit')
+            if before_claim is not None:
+                if before_claim() is not True:
+                    raise RuntimeError('DESKTOP_ADMISSION_REFUSED')
+            options = {'task_id': task_id} if task_id is not None else {}
+            task = self.service.claim(self.owner, kind='desktop-textedit', **options)
             if task is None:
                 return None
             return self.execute(task)

@@ -11,8 +11,8 @@ class Settings:
     base_tasks: Path
     cookie_file: Path
     lease_seconds: int = 30
-    # Development construction only; production has no enablement until the
-    # VM execution adapter and its stop/lease gates have passed acceptance.
+    # The default report service stays closed. Only the explicitly isolated
+    # desktop service constructs this setting as true; it does not grant execution.
     desktop_tasks_enabled: bool = False
 
     @classmethod

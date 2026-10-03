@@ -59,12 +59,16 @@ class TaskService:
                 self.event(db, task, 'submitted')
             return task.id, bool(created)
 
-    def claim(self, owner, *, kind='daily-report'):
+    def claim(self, owner, *, kind='daily-report', task_id=None):
         if kind not in ('daily-report', 'desktop-textedit'):
             raise ValueError('UNSUPPORTED_TASK_KIND')
         # Missing discriminator means legacy report, not JSON null or unknown.
         selector = (~Task.payload.has_key('kind') if kind == 'daily-report' else
                     Task.payload['kind'].astext == 'desktop-textedit')
+        if task_id is not None:
+            if str(uuid.UUID(task_id)) != task_id:
+                raise ValueError('CANONICAL_TASK_ID_REQUIRED')
+            selector = and_(selector, Task.id == task_id)
         with self.sessions.begin() as db:
             resource = db.scalar(select(Resource).where(Resource.name == 'desktop').with_for_update(skip_locked=True))
             if resource is None:

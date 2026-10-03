@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6单任务执行入口（2026-10-03）：方案a8c9d73先于实现，新增backend.desktop_operator worker-once。任务/私有profile原SHA/新鲜Codex额度严格绑定，五分钟内普通额度≥40%、积分基准不变且卡未用；真实触线在原共享运行目录持久锁止，禁止靠重置或换独立服务解除。原P5停止锁同样拒绝。原共享锁内先准入再按精确task ID领取，旧默认claim不变；无任务/非排队/已有attempt或启动意图拒绝，不换样本、不自动续批。LiveGate查真实PG原队列/资源/临近计划、旧Worker进程、SSH只读VM身份和解锁状态，原adapter在准备/切换/prompt前重复核对；启动器不自动停启P5、部署或解锁，仍需已授权窗口。独立操作意图/拒绝/结果留0600回执，模型执行仍是原Flash/off和30raw链路。
+
+验证：新增31项，隔离PG精确领取/前置拒绝零attempt、共享锁内准入、同任务单次组合、绑定/过期/40%边界/持久停止、P5在途/资源/临近计划/旧Worker和锁屏拒绝。SSH/VM/App边界在本轮模拟，不能称新入口真实模型通过；现有原adapter重复gate测试另保留。初跑一项新计划夹具缺last_commit，被数据库NOT NULL拒绝，修正夹具后后端全量451项通过（仅既有Starlette弃用提示）；CLI帮助及git diff --check通过。现场只读确认原build-tools为0755公开依赖目录，按当前用户所有且无组/他人写权限验证，不更改其权限；App home仍要求私有。P5原API80171/Worker3522/scheduler81383未改，本轮零模型/VM调用。README/后端说明已同步。下一步经正式独立API/CLI/worker-once冻结新修复版三例并实际验收，保留全部原失败；P6及总目标均未完成。
+
 P6独立队列服务入口（2026-10-03）：方案f695d41先行，新增backend.desktop_service init/serve。显式私有baseline-env、全新cuagent_p6_service_UUID库及独立token，迁移仅新库；根目录必须独立、私有且不覆盖已有目录，失败保留初始化意图。serve固定127.0.0.1/18100–18999，端口占用拒绝，禁止日报/批次/定时/resume写入。client新增显式--desktop-service，省略仍走原环境/18089。新增12项测试，含真实临时PG创建/迁移、真实uvicorn进程/HTTP/独立CLI提交、重启保留原ID、同键去重、排队停止零raw/session、错误认证/配置/权限/链接/重复字段/占用端口拒绝；临时数据库和进程由测试仅清理自身实例。专项28项、后端全量420项通过（既有Starlette弃用警告）；git diff --check通过。未启动常驻P6实例、模型或VM，P5原API80171/Worker3522/scheduler81383仍在线。README与命令说明同步。此交付为完整入口的队列侧，受控单任务Worker启动器和同版三例仍待接通；P6未验收，不把QUEUED当业务成功。
 
 P6桌面提交CLI（2026-10-03）：先提交方案d218371，再新增desktop-submit --spec --key。普通UTF-8 JSON有界读取，拒绝链接/目录/FIFO、重复字段、未知字段、非法正文和非法幂等键；仅单次POST原/desktop-tasks，未知响应不重试。新增客户端经原FastAPI/独立PostgreSQL测试，覆盖中文、同键同任务、改正文冲突、排队停止零调用、默认503和本地拒绝零POST。后端全量404项通过；随后补4项非法/缺失键反例，提交CLI专项16项通过（全量404执行时尚无这4项，不冒称全量408）。仅既有Starlette弃用提示。README及后端示例同步；当前客户端仍固定18089，未启用生产桌面API或启动新Worker，未调用模型/VM，P5服务不改。独立服务启动入口、同版完整三例及P6验收总结仍待完成。

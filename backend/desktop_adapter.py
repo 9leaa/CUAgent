@@ -1,6 +1,6 @@
 """Composed P6 adapter. Deployment/cutover acceptance is mandatory and external.
 
-No production CLI or implicit activation: caller supplies a live execution gate
+No implicit activation: the operator supplies a live execution gate
 that verifies the approved cutover, VM readiness and current quota >=40%.
 """
 from dataclasses import dataclass
