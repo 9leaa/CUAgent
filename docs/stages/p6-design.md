@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### Guest命令入口（实现前补充）
+
+新增仅测试VM可执行的desktop_guest.py：先require_vm及显式--approve-task，固定当前mvpagent home/C0Evidence、原bridge.lock、模型192.168.64.3:8766；run必须p2-UUID、owner为UUID、epoch正整数。新run目录独占创建，随机生成两个私有token、不接受命令行凭证；仅控制端口用loopback动态分配，ready.json写绑定/端口/PID不含token，stdout仅固定就绪标记。启动不创建Task或模型会话，仍等待可信授权/activate。SIGINT/SIGTERM或一小时上限进入撤销与关闭，保留证据不删目录；在途未清空则持久写共享锁旁quarantine，新P6实例拒绝，返回非零供人工核对。旧C0不识别quarantine，禁止混跑旧版，不声称能抵御SIGKILL或系统崩溃。测试通过替换VM身份/环境和loopback工厂验证启动/信号路径，不在宿主启动真实GUI或生产服务。
+
 ### 后端guest生命周期客户端（实现前补充）
 
 在现有固定loopback控制客户端上新增status/activate，不增加模型调用。status严格验证run/owner/epoch、布尔状态、端口、0–30调用数与在途数，调用数不得回退。activate对象内一次尝试，先查未启动且零调用状态、核对guest许可未停未过期，再新查可信authority期限；只POST一次，ACK必须仍在执行权/guest保守期限内，且active、未停、零调用。错误身份/类型/迟到/丢失响应都保持未确认，不补发启动；实际启动后的未知状态交由已有Worker撤销与隔离处理。guest持久启动意图继续约束跨进程重放；本轮真实loopback连接guest runtime，但Driver/环境仍模拟，不计真实VM验收。
