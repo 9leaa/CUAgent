@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 官方App有界启停（实现前补充）
+
+新增独立App生命周期模块，复用已验证官方RPC；stop先查全部会话空闲、记录原preset，再核对唯一官方可执行路径/PID，持久意图后仅TERM一次，10秒未退出则未确认，不强杀。start须无官方App进程且版本0.2.0-rc.2，确认本次profile apply/restore回执与当前patch SHA；P6只用原run私有连接及审计路径，恢复只用显式且验证过的原A1任务配置。open命令显式DSH_HOME并清空另一模式环境变量，先写启动意图再调用一次；45秒RPC就绪且preset精确匹配才确认，失败不重启。原配置preset清单从activate前快照读取，不猜恢复值。所有测试模拟系统命令/RPC，无实际App启停；P5未收口前不执行真实切换，上层仍须持共享桌面锁并停止旧领取者。
+
 ### P6独立profile事务（实现前补充）
 
 新增显式root/official home/build-tools路径的profile模块和命令，不沿用旧脚本推导.runtime。prepare只在当前私有run下构建c0-vm-tools/desktop-tool-scope，按已审查real-app模板合并受控条目，保留不相关配置；原patch字节、候选patch和前后SHA独占保存，不启动/停止App、不改official home。apply/restore必须确认官方App进程不存在，使用profile目录独占操作锁，核对目标私有规范路径和原/候选SHA；apply前再次检查插件哈希，restore只在目标仍是本次候选时恢复原字节，发现外部修改拒绝覆盖。原子替换和fsync，意图/回执留在run；错误不自动重放或热切换，恢复不得跨home/run。测试临时profile和模拟App状态，真实切换仍受P5收口/另行批准门槛约束，App启停和版本核对将由上层适配完成。
