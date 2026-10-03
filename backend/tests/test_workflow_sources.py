@@ -24,6 +24,8 @@ def test_operations_keeps_all_usage_categories_without_private_fields():
         'rawCalls', 'inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'totalTokens'}
     assert 'must not be copied' not in json.dumps(value)
     assert 'credential' not in json.dumps(value)
+    note = value['payload']['notes'][0]['content']
+    assert 'SUCCEEDED=1' in note and 'FAILED=0' in note and 'UNVERIFIED=0' in note
 
 
 @pytest.mark.parametrize('usage', [None, {}, {'available': False}, {'available': True, 'inputTokens': 3}])

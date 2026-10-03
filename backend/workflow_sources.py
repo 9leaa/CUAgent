@@ -99,11 +99,13 @@ def operations_snapshot(records, start, end, day):
                       'usage': {k: usage[k] for k in TOKEN_FIELDS} if known else None})
     facts.sort(key=lambda r: r['id'])
     unknown = sum(not f['usageKnown'] for f in facts)
+    counts = {state: sum(f['status'] == state for f in facts) for state in sorted(STATES)}
     headers = ['task', 'state', 'rawCalls', 'usageKnown', *TOKEN_FIELDS]
     rows = [[f['id'], f['status'], f['calls'], int(f['usageKnown']),
              *[f['usage'][k] if f['usageKnown'] else '' for k in TOKEN_FIELDS]] for f in facts]
     body = payload(day, '任务运行与用量日报',
-        f'窗口[{start.isoformat()}, {end.isoformat()})；按updatedAt选择，共{len(facts)}个任务。\n状态和用量为采集时快照，不推断未记录的历史状态。',
+        f'窗口[{start.isoformat()}, {end.isoformat()})；按updatedAt选择，共{len(facts)}个任务。\n状态和用量为采集时快照，不推断未记录的历史状态。\n'
+        + '状态数量：' + '；'.join(f'{state}={count}' for state, count in counts.items()) + '。',
         f'{unknown}个任务用量不完整；空白表示未知，不是零。缓存不等于现金费用。',
         '复核FAILED、BLOCKED、UNVERIFIED、STOPPED及缺失用量的任务；不自动重跑。',
         table(headers, rows), ['rawCalls', 'inputTokens', 'outputTokens', 'totalTokens'])
