@@ -76,3 +76,20 @@ class Resource(Base):
     task_id: Mapped[str | None] = mapped_column(ForeignKey('tasks.id'))
     epoch: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Batch(Base):
+    __tablename__ = 'batches'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(80), unique=True)
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class BatchItem(Base):
+    __tablename__ = 'batch_items'
+    __table_args__ = (UniqueConstraint('batch_id', 'position'), UniqueConstraint('task_id'))
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    batch_id: Mapped[str] = mapped_column(ForeignKey('batches.id'), index=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey('tasks.id'))
+    position: Mapped[int] = mapped_column(Integer)

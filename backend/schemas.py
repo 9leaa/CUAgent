@@ -56,3 +56,8 @@ class Submission(BaseModel):
         if len(report.splitlines()) >= 180 or len(report.encode()) >= 50000:
             raise ValueError('report exceeds complete readback limit')
         return self
+
+
+class BatchSubmission(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    tasks: list[Submission] = Field(min_length=2, max_length=3)

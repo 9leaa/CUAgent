@@ -8,13 +8,15 @@ from sqlalchemy import select, text
 from backend.config import Settings
 from backend.db import database
 from backend.models import Artifact, Event, Task
-from backend.schemas import Submission
+from backend.schemas import BatchSubmission, Submission
+from backend.batches import BatchService
 from backend.service import Conflict, NotFound, TaskService
 
 
 def create_app(settings):
     engine, sessions = database(settings.database_url)
     service = TaskService(sessions, settings)
+    batches = BatchService(service)
     app = FastAPI(title='CUAgent Tasks', docs_url=None, redoc_url=None)
     app.state.service = service
 
@@ -61,6 +63,21 @@ def create_app(settings):
         with sessions() as db:
             ids = list(db.scalars(select(Task.id).order_by(Task.created_at, Task.id).offset(offset).limit(limit)))
         return {'items': [service.view(task_id) for task_id in ids]}
+
+    @app.post('/batches', dependencies=[Depends(authenticated)])
+    def submit_batch(body: BatchSubmission, idempotency_key: str = Header()):
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
+            raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
+        identity, created = batches.submit(body.model_dump(mode='json', exclude_none=True), idempotency_key)
+        return JSONResponse({'id': identity, 'created': created}, status_code=201 if created else 200)
+
+    @app.get('/batches/{batch_id}', dependencies=[Depends(authenticated)])
+    def view_batch(batch_id: str):
+        return batches.view(batch_id)
+
+    @app.post('/batches/{batch_id}/stop', dependencies=[Depends(authenticated)])
+    def stop_batch(batch_id: str):
+        return batches.stop(batch_id)
 
     @app.get('/tasks/{task_id}', dependencies=[Depends(authenticated)])
     def view(task_id: str):
