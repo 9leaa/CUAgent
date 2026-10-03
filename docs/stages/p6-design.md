@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### 宿主控制隧道（实现前补充）
+
+复用已核对的私有vm-ssh开发包装器（固定mvpagent@192.168.64.3、严格known-hosts），不新建凭证或修改SSH配置。新增GuestControlTunnel，可信部署显式提供wrapper、固定绑定的DesktopControlClient和guest控制端口；仅-N/-T及127.0.0.1:hostPort→127.0.0.1:guestPort，ExitOnForwardFailure、禁agent/X11转发和复用连接。先校验私有规范路径及本地端口未占用，再独占落盘启动意图、单次Popen，不自动重启。最多10秒只读查询原lease binding确认身份和进程仍存活，监听存在本身不算就绪；错误/超时仅终止自己创建的进程，不杀已有服务。stdout/stderr不公开凭证，关闭限时TERM后KILL自有句柄；隧道关闭不代表guest许可已撤销。测试用模拟进程与控制客户端验证参数、身份、冲突、失败与不重放，不连接VM；真实隧道及部署仍需后续验收。
+
 ### Guest命令入口（实现前补充）
 
 新增仅测试VM可执行的desktop_guest.py：先require_vm及显式--approve-task，固定当前mvpagent home/C0Evidence、原bridge.lock、模型192.168.64.3:8766；run必须p2-UUID、owner为UUID、epoch正整数。新run目录独占创建，随机生成两个私有token、不接受命令行凭证；仅控制端口用loopback动态分配，ready.json写绑定/端口/PID不含token，stdout仅固定就绪标记。启动不创建Task或模型会话，仍等待可信授权/activate。SIGINT/SIGTERM或一小时上限进入撤销与关闭，保留证据不删目录；在途未清空则持久写共享锁旁quarantine，新P6实例拒绝，返回非零供人工核对。旧C0不识别quarantine，禁止混跑旧版，不声称能抵御SIGKILL或系统崩溃。测试通过替换VM身份/环境和loopback工厂验证启动/信号路径，不在宿主启动真实GUI或生产服务。
