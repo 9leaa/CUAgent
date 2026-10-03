@@ -107,3 +107,10 @@ class DesktopTask(RealAppTask):
                 self.stop()
             raise
         return super()._admit(tool)
+
+    def charge_rejection(self, op, prior_used, reason):
+        # Even a pre-dispatch refusal consumes the observation's single-action
+        # authority. Retain the original budget/audit path, never replay input.
+        with self.dispatch_lock:
+            self.snapshot = None
+            return super().charge_rejection(op, prior_used, reason)

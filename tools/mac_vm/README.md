@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+2026-10-03 P6已有真实SSH/VM/App最小闭环11raw通过；固定正式第一例因拒绝输入后复用旧观察而UNVERIFIED，独立验证未放行。DesktopTask现已在拒绝路径作废snapshot，不改旧C0实现或预算；176项本地测试和36子测试通过，修复版真实回归仍待运行。下方“尚未真实部署”等描述是历史快照，不代表完整P6已验收。
+
 P6 `desktop_bootstrap.py`仅由可信后端通过固定SSH/Python调用：验证部署清单及源码SHA后，单次启动guest控制服务，日志写私有P6Launch目录。其stdout包含本次新建的模型/控制token，只能由后端有界接收并保存私有回执，禁止打印或上传。未知就绪不重启/不自动杀进程，且不授权GUI；当前仅模拟环境测试，真实启动仍待验收。
 
 P6 `desktop_install.py`为可信部署端传送的独立安装器：仅普通mvpagent/VirtualMac，完整校验固定源码包后新建CUAgent-p6-commit目录，保留来源许可证和部署清单；已有目录拒绝，不覆盖旧文件、不启动服务。host使用backend.desktop_deploy从明确Git commit取包，不打包.runtime或凭证。当前仅本地安装/模拟传输验证，真实VM部署仍待门槛核对。

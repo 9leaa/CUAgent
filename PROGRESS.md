@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6真实闭环与正式首例失败（2026-10-03 21:38—21:44北京时间）：807c18a的live-005原task 482c1796-5465-41c1-99f2-01e1441228da、session-84203498-e434-49bc-8641-705b7a77099c通过；9次官方工具/11raw，独立VM与官方会话核对、ASGI下载SHA均通过（不是部署新HTTP服务），375305 total token，Flash/off。App/profile/guest/隧道恢复成功。固定formal-01 task f859f7bb-4791-4a88-8a7e-9a00bafdbe50为UNVERIFIED，14raw、617445 total token；观察s0000003e→拒绝输入→沿用旧观察Save，guest verifier第115行拒绝。原失败不覆盖、不重跑，formal-02/03未执行。方案38287ec后仅P6拒绝路径清空snapshot，保留原计数/审计；176执行层测试及36子测试通过。P5原Worker恢复为1026；待新版本真实拒绝边界、正式用例及停止/执行权验收，P6与总目标均未完成。
+
 P6修正回归与当前边界（2026-10-03）：后端386通过（独立临时PG库）、VM本地174及36子测试通过、Node99通过（真实本地编译，无模型）。补官方V4元数据身份反例、格式恢复/语义变化拒绝、preset存在但工具未就绪拒绝；TextEdit请求必须五工具完整才进入provider。live-004在任何VM部署/停Worker之前被VM锁屏检查拒绝；进一步ioreg确认宿主zhangchengjie和guest mvpagent均锁屏，CUA屏幕共享返回cgWindowNotFound，因此无法通过已授权VM凭据自行解锁。未读取宿主密码、未改锁屏/睡眠策略。P5 API80171、scheduler81383、Worker93912在线，活动任务0，原profile逐字节相同，计划ACTIVE且下次2026-10-04 12:10北京时间。live-003用量另存核对记录303 token，旧unknown/失败不覆盖，恢复隔离标记仍保留供后续持锁复核。P6三组正式用例/真实停止与执行权测试仍待运行；未用mock冒充完成。
 
 P6真实首次失败与恢复（2026-10-03）：按追加授权自行解锁测试VM，保留known-hosts权限/共享锁目录/guest旧空锁等前置失败。live-003首次真实Flash/off请求输入267+输出36=303 token，VM raw=0，UNVERIFIED，不替换为成功。App重排YAML使原严格字节恢复拒绝；在App已停、语义一致和摘要复核后保存原现场字节、恢复原profile，关闭已撤销guest及其隧道，恢复P5 Worker93912和原preset。修正V4首行元数据解析（原unknown不覆盖）、语义等同格式恢复、profile范围插件安装和五工具ready门禁；Python19、Node17相关测试通过。修复后真实验收未完成，公开API默认关闭，七日P5计划未取消。

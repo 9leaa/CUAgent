@@ -88,6 +88,26 @@ class DesktopLeaseTests(unittest.TestCase):
             DesktopTask(self.root / 'other', lease=self.gate(), approved=True, environment=lambda: None)
         self.assertFalse((self.root / 'other').exists())
 
+    def test_rejected_request_invalidates_snapshot_before_next_action(self):
+        task = self.task()
+        task.snapshot = {'snapshot_id': 'old'}
+        task.charge_rejection('type_text', task.used, 'refused')
+        self.assertIsNone(task.snapshot)
+        self.assertEqual(task.used, 1)
+        with self.assertRaises(StopRun): task.save({'snapshot_id': 'old'})
+        with self.assertRaises(StopRun):
+            task.type_text({'snapshot_id': 'old', 'element_index': 1, 'element_token': 'old', 'text': 'x'})
+        self.assertEqual(self.sent, [])
+
+    def test_already_charged_failure_also_invalidates_without_double_count(self):
+        task = self.task()
+        task.raw('launch_app', task.launch_args)
+        task.snapshot = {'snapshot_id': 'old'}
+        task.charge_rejection('observe', 0, 'refused')
+        self.assertIsNone(task.snapshot)
+        self.assertEqual(task.used, 1)
+        self.assertEqual(self.sent, ['launch_app'])
+
 
 if __name__ == '__main__':
     unittest.main()
