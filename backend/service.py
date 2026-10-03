@@ -3,7 +3,8 @@ import hashlib
 import json
 from pathlib import Path
 import uuid
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, func
+import time
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
 from backend.desktop_contract import DesktopSubmission
@@ -103,6 +104,21 @@ class TaskService:
             resource.expires_at = utcnow() + timedelta(seconds=self.settings.lease_seconds)
             self.control(task, resource.expires_at, stopped=stop)
             return stop
+
+    def desktop_authority(self, task_id, owner, epoch, *, clock=time.monotonic):
+        # Start before querying/locking: DB latency shortens rather than extends
+        # the monotonic deadline. No network I/O may occur inside this transaction.
+        started = clock()
+        with self.sessions.begin() as db:
+            resource = db.get(Resource, 'desktop', with_for_update=True)
+            task = db.get(Task, task_id, with_for_update=True)
+            now = db.scalar(select(func.clock_timestamp()))
+            if (resource is None or task is None or task.payload.get('kind') != 'desktop-textedit'
+                    or task.status != 'RUNNING' or task.owner != owner or task.epoch != epoch
+                    or resource.owner != owner or resource.epoch != epoch or resource.task_id != task_id
+                    or resource.expires_at is None or resource.expires_at <= now):
+                raise Conflict('DESKTOP_EXECUTION_AUTHORITY_UNAVAILABLE')
+            return started + min((resource.expires_at - now).total_seconds(), self.settings.lease_seconds)
 
     def stop(self, task_id):
         with self.sessions.begin() as db:

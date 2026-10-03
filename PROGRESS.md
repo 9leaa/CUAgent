@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6数据库authority联动（2026-10-03）：方案2da1553先于实现；TaskService.desktop_authority在短事务锁定资源/任务，校验运行类型/状态和同owner/epoch/task绑定，用数据库clock_timestamp计算剩余许可并保守映射monotonic截止。新增DesktopExecutionControl协调heartbeat、guest查询、新查authority、单次授权；异常后对象永久关闭、host许可停止并尝试guest撤销，分别保存localRevoked/guestRevoked，明确inflightCancellationConfirmed=false。11项新增隔离PG+真实loopback测试，包括停止联动、六类身份/类型/过期拒绝、短剩余期限、DB失败、网络不可达不伪造撤销、绑定错误；全后端237/237通过，1项既有弃用提示。并未修改旧日报Worker、接生产VM或创建模型任务；真实SSH通道、桌面Worker及端到端仍待完成。额度实时剩余89%，积分基准未变，重置卡未用。P5运行环境未改。
+
 P6通信期限最终回归：后端226/226通过，执行层143/143通过；保留1项既有Starlette/httpx弃用提示。无生产部署或真实桌面授权。
 
 P6后端控制客户端（2026-10-03）：先提交期限细则63a22f9，网络续期强制notAfterMs，guest到达已过期拒绝，expires取绝对截止与本地TTL较早者；同序号变期限拒绝。GET返回固定binding和guest时钟，客户端在任何修改前核对身份（包括尚无许可时），查时钟后调用可信authority拿monotonic执行权截止，扣查询耗时及500ms余量；HTTP修改只发送一次，校验响应身份/序号/截止，迟到ACK不报有效。7项客户端真实loopback测试通过：许可/撤销与门禁联动、迟到首授、权限失效/DB回调异常、身份/序号冲突、真实写入后ACK丢失无自动重发、ACK迟到、空guest错误绑定零修改。执行层143/143通过；后端中间完整225/225通过，最终新增空guest反例后再跑全量。所有测试均无模型、无VM；尚未接Worker数据库authority或SSH隧道，不能视为真实任务执行通过。P5运行环境未改。
