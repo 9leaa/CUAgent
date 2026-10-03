@@ -142,6 +142,44 @@ class DesktopWorker:
                     cancelled = True
                 except Exception:
                     pass
+            # A pre-error terminal observation alone does not authorize
+            # restoration after failed ownership/revocation checks.
+            terminal = False
+            if prepared is not None and started and control is not None:
+                try:
+                    if thread:
+                        thread.join(timeout=8)
+                    if thread is not None and thread.is_alive():
+                        raise RuntimeError('DESKTOP_PULSE_UNCONFIRMED')
+                    if self.service.view(task.id)['status'] == 'STOP_REQUESTED':
+                        closed = control.close()
+                        if not closed['localRevoked'] or not closed['guestRevoked']:
+                            raise RuntimeError('DESKTOP_REVOCATION_UNCONFIRMED')
+                        deadline = time.monotonic() + 30
+                        while True:
+                            state = self.adapter.poll(prepared)
+                            if (type(state.get('terminal')) is not bool
+                                    or state.get('guestStopped') is not True
+                                    or type(state.get('pendingCalls')) is not int or state['pendingCalls'] < 0
+                                    or type(state.get('rawCalls')) is not int or not 0 <= state['rawCalls'] <= 30):
+                                raise RuntimeError('DESKTOP_STOP_OBSERVATION_UNCONFIRMED')
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError('DESKTOP_STOP_DEADLINE_EXCEEDED')
+                            # Refresh DB ownership only; never renew guest dispatch.
+                            if self.service.heartbeat(task.id, self.owner, task.epoch, dispatch_stopped=True) is not True:
+                                raise RuntimeError('DESKTOP_STOP_REQUEST_MISSING')
+                            if state['terminal'] and state['pendingCalls'] == 0:
+                                self.service.progress(task.id, self.owner, task.epoch, state['rawCalls'])
+                                if callable(getattr(self.adapter, 'usage', None)):
+                                    usage = self.adapter.usage(prepared)
+                                self.service.finish(task.id, self.owner, task.epoch, 'STOPPED', result={'usage': usage})
+                                terminal = True
+                                outcome['status'] = 'STOPPED'
+                                outcome.pop('errorCode', None)
+                                break
+                            time.sleep(.2)
+                except Exception:
+                    pass  # Missing proof retains quarantine and original task.
         finally:
             done.set()
             if prepared is not None and callable(getattr(self.adapter, 'usage', None)):

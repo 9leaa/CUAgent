@@ -129,6 +129,47 @@ def test_verification_failure_does_not_deliver_artifacts(service):
     assert service.view(result['taskId'])['artifacts'] == []
 
 
+def test_requested_stop_settles_only_after_terminal_stopped_idle_proof(service):
+    instance, adapter = worker(service, 'stopped')
+    original = adapter.poll
+    adapter.poll = lambda prepared: {**original(prepared), 'guestStopped': True}
+    adapter.usage = lambda prepared: {'available': True, 'totalTokens': 7}
+    result = instance.run_once()
+    assert result['status'] == 'STOPPED' and result['restoreConfirmed'] and not result['quarantined']
+    assert 'verify' not in adapter.calls and adapter.calls.count('start') == 1
+    state = service.view(result['taskId'])
+    assert state['status'] == 'STOPPED' and not state['artifacts'] and state['usage']['totalTokens'] == 7
+
+
+@pytest.mark.parametrize('fault', ['not-stopped', 'pending', 'not-terminal', 'owner-lost', 'bad-raw'])
+def test_stop_ack_without_required_proof_keeps_quarantine(service, fault):
+    instance, adapter = worker(service, 'stopped')
+    original = adapter.poll
+    count = 0
+    def poll(prepared):
+        nonlocal count
+        count += 1
+        if count > 2: raise RuntimeError('observation unavailable')
+        value = {**original(prepared), 'guestStopped': True}
+        if count == 2:
+            if fault == 'not-stopped': value['guestStopped'] = False
+            if fault == 'pending': value['pendingCalls'] = 1
+            if fault == 'not-terminal': value['terminal'] = False
+            if fault == 'bad-raw': value['rawCalls'] = True
+            if fault == 'owner-lost':
+                from sqlalchemy import update
+                from backend.models import Resource, utcnow
+                from datetime import timedelta
+                with service.sessions.begin() as db:
+                    db.execute(update(Resource).values(expires_at=utcnow() - timedelta(seconds=1)))
+        return value
+    adapter.poll = poll
+    result = instance.run_once()
+    assert result['quarantined'] and result['status'] == 'BLOCKED'
+    assert 'restore' not in adapter.calls and 'verify' not in adapter.calls
+    assert service.view(result['taskId'])['status'] == 'STOP_REQUESTED'
+
+
 def test_restore_failure_is_separate_from_business_success_and_blocks_reuse(service):
     instance, adapter = worker(service, 'restore')
     result = instance.run_once()
