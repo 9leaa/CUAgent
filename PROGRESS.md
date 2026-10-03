@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6提醒修复版002准备（2026-10-03 23:37—23:40北京时间）：方案c2d74a3先提交；旧001第三例通过原API停止并查询确认STOPPED、0raw、无session/产物，前两例保持成功/失败历史。确认旧P6 API5661身份后TERM关闭，保留原库与私有证据。公开init/serve创建独立002库，API7756使用18100；client提交原三组正文，冻结host c2d74a3854408896cf9f7ff82fe711c08a017bd1、guest c448ae2、全部执行源码与正文SHA及任务ID。新三例分别726fe85f-7219-47a1-a9c3-0eb7baf6c897、8a18161f-c28d-4993-9556-a176280fad4e、3797c39e-bc69-4b44-8a11-9c0822ab21a3，查询均QUEUED/0raw/无session，未调用模型、未生成额度许可。
+
+前检宿主/VM ioreg均IOConsoleLocked=Yes，CUA屏幕共享cgWindowNotFound，桌面枚举亦无可见窗口，无法用已有测试凭据解锁VM；未尝试宿主密码或改变锁屏策略。原P5 Worker6662/API80171/scheduler81383仍在线，数据库活动任务0/资源owner为空，原计划ACTIVE/下次北京时间10月4日12:10；六冻结源码SHA、原App profile字节不变，无host quarantine。私有0600 preflight-001.json保留本次状态与旧任务停止介入；本次没有P5停启。待宿主桌面恢复后继续同一002任务，不新建替代样本，P6与总目标未完成。
+
 P6官方提醒分类修复（2026-10-03）：先按966a9f9方案区分用户prompt与已审查框架notice；ba25d33另明确取消attempt的未知用量保护。新增P6专用JS/Python分类器及共享desktop-notices.json：只认五工具、默认3/5/8阈值、kind/form/summary、固定提示全文及前序已完成同名同参数调用链，拒绝来源/文本/计数/顺序/配对伪造和重复提醒；真实额外用户消息仍计数，原rpcId与唯一prompt条件不变。详细提示按UTF-16的500单位预览与原模板核对，原会话所有行保留；未改P5冻结daily-report-runner或关闭官方插件。模板来源参考639ed015的repeat-tool-reminder，MIT完整许可及THIRD_PARTY_NOTICES同步。
 
 真实旧失败只读复核：原session-a62d893b-e7cf-48cc-b5f0-39834e0861c5在新分类下正确识别userMessages=1/rawUserMessages=2/frameworkNotices=1，仍为aborted/user。原JSONL完整SHA be9a0447d0128cb08d6de594cd64964393f6e327b9af7406b71e1e09bb49fda9不变，经正式inspect归档与恢复前快照逐字节一致；Python分类相同。原task仍BLOCKED/11raw/无产物，未prompt、未恢复执行。由于末尾assistant/attempt无完整usage，P6用量读取新增保守拒绝，保持available=false/null，不把此前消息合计当完整消费。
