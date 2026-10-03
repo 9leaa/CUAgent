@@ -16,9 +16,10 @@ from backend.desktop_contract import DesktopSubmission
 GUEST_PYTHON = '/Users/mvpagent/.local/cuagent-python-3.12.14-20260929/python/bin/python3.12'
 
 
-def run_bounded(args, payload, *, limit=65 * 1024 * 1024, timeout=45):
+def run_bounded(args, payload, *, limit=65 * 1024 * 1024, timeout=45, input_limit=32768):
     """Bound both pipe directions and elapsed time; never invoke a local shell."""
-    if not isinstance(payload, bytes) or len(payload) > 32768 or limit < 1 or timeout <= 0:
+    if (type(input_limit) is not int or not 1 <= input_limit <= 1024 * 1024
+            or not isinstance(payload, bytes) or len(payload) > input_limit or limit < 1 or timeout <= 0):
         raise ValueError('invalid collection bounds')
     process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, start_new_session=True)
