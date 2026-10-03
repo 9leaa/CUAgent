@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6 VM命令入口（2026-10-03）：方案ebf9228先于实现。新增desktop_guest.py，身份检查require_vm位于所有写文件/监听之前，要求显式审批、p2-UUID/ownerUUID及正epoch；固定home/C0Evidence及原bridge.lock，新run独占创建。独立随机模型/控制token以0600写入，不接收命令行secret；ready仅绑定/控制端口/固定模型URL/PID，不含token，stdout固定就绪标记。准备不构造Task/不授予许可，SIGINT/SIGTERM/一小时上限撤销关入口；DesktopGuestRuntime若关闭时仍在途，会fsync持久quarantine，新P6实例拒绝且不自动清除。旧C0不识别该标记、SIGKILL/系统崩溃不在此保证内，生产禁止混跑旧版。新增5项测试核对宿主拒绝先于写入、参数/授权边界、真实loopback准备与私有输出、不复用、期限/异常清理、信号处理恢复；另扩展在途重建隔离测试。执行层169/169、后端相关17/17通过，git diff --check通过。测试替换VM身份检查，未构造真实桌面Task、未部署VM或调用模型；P5原工作树干净，生产adapter/隧道/可信收集与真实验收仍待完成。
+
 P6后端guest启动/查询（2026-10-03）：先提交方案610f695，再扩展DesktopControlClient.status/activate。状态严格检查binding、布尔类型、端口、预算/在途数及调用数不回退；启动先读未激活零调用状态与有效guest许可，再实时authority确认执行权。对象内一次尝试且POST不重试，ACK要求当前执行权和保守guest期限仍有效、active且未停/零调用；未知结果交由Worker撤销/隔离，guest持久意图防跨进程重放。新增10项参数化用例覆盖真实loopback grant/activate/status/revoke、身份、缺许可、无效authority、丢ACK/迟ACK、异常状态与回退；Driver/环境模拟，无模型/VM操作。后端全量267通过（1项既有Starlette弃用提示）；随后补缺许可反例，相关客户端17项通过。git diff --check通过，生产adapter/launcher/可信收集和端到端未接通，P6未验收，P5环境未改。
 
 P6 guest运行生命周期（2026-10-03）：先提交方案84c7b24，再新增DesktopGuestRuntime。构造仅持私有、显式共享bridge锁并绑定run/owner/epoch及独立token；不构造Task或开放模型端口。控制HTTP显式附加runtime后支持GET /status、空POST /activate，默认旧控制工厂行为不变；activate先独占fsync意图再检查许可、构造DesktopTask、启动模型服务，失败撤销并保留意图，跨重建不可重放。revoke持久撤销后stop，不等待Driver；状态区分端口活动、停止、真实调用数与在途数。close撤销/关入口后只有零在途才释放锁，未知状态保留锁待核对。6项新增本机HTTP/模拟环境测试覆盖grant→activate→原工具→status→revoke、无许可持久拒绝、凭证隔离、共享锁、绑定失败及在途保锁；执行层164/164通过，git diff --check通过。没有生产launcher、SSH部署、真实模型/VM操作；尚需后端客户端/实际adapter接入。P5原工作树仍干净，运行环境未改。

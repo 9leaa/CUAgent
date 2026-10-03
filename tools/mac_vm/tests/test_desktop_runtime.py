@@ -127,6 +127,9 @@ class DesktopRuntimeTests(unittest.TestCase):
         self.runtime.task.inflight.clear()
         self.runtime.close()
         self.assertTrue(self.runtime.status()['stopped'])
+        self.assertTrue((self.root / 'bridge.lock.quarantine').is_file())
+        with self.assertRaisesRegex(ValueError, 'quarantined'):
+            DesktopGuestRuntime(self.run, self.controller, **self.kwargs)
 
 
 if __name__ == '__main__':

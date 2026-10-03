@@ -34,10 +34,13 @@ class DesktopGuestRuntime:
         try:
             LeaseGate.private(os.fstat(fd))
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if os.path.lexists(lock_path.with_name(lock_path.name + '.quarantine')):
+                raise ValueError('guest shared lock quarantined; manual review required')
         except Exception:
             os.close(fd)
             raise
         self.lock_fd = fd
+        self.quarantine = lock_path.with_name(lock_path.name + '.quarantine')
         self.controller = controller
         self.model_token, self.control_token = model_token, control_token
         self.port, self.loopback_test, self.task_factory = port, loopback_test, task_factory
@@ -111,6 +114,13 @@ class DesktopGuestRuntime:
             if self.task is not None:
                 with self.task.dispatch_lock:
                     if self.task.inflight:
+                        if not os.path.lexists(self.quarantine):
+                            fd = os.open(self.quarantine, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                            with os.fdopen(fd, 'w') as file:
+                                json.dump({'runId': self.controller.gate.run_id,
+                                           'reason': 'GUEST_INFLIGHT_REQUIRES_REVIEW'}, file)
+                                file.flush()
+                                os.fsync(file.fileno())
                         raise RuntimeError('guest in-flight calls require review; shared lock retained')
             self.closed = True
             os.close(self.lock_fd)
