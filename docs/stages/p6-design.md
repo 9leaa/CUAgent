@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### Guest受控启动生命周期（实现前补充）
+
+新增DesktopGuestRuntime，构造时仅持有显式共享bridge.lock并绑定run/controller/token；不构造DesktopTask、不打开模型端口。可信控制HTTP可显式附加runtime，新增空参数POST /activate与GET /status，默认旧工厂无此能力。activate先独占保存启动意图，再检查有效许可、构造DesktopTask和固定地址模型HTTP；任何失败撤销许可并保留意图，不自动重试/重建。状态仅返回固定binding、active、stopped、rawCalls/pendingCalls及模型端口，不泄漏凭证/文件内容。revoke先持久停止许可，再停止已建Task；不等待在途Driver，也不宣称回滚。共享锁跨整个runtime存活；close撤销并关闭模型入口，若仍在途则拒绝释放锁。模型token无启动/状态/续期权限。本步用loopback和模拟Task环境验证完整grant→activate→工具→revoke链路及失败窗口，不部署VM或切换P5；后续CLI必须核对VM身份与现有全局锁实际路径。
+
 ### VM只读证据核验（实现前补充）
 
 旧TextEdit离线验证器仅接收内存数据，未绑定原PNG与完整账本。P6 DesktopTask在成功observe返回前追加observation_evidence：绑定snapshot、实际调用序号、原state/PNG文件SHA与大小；记录失败即停止，不向模型补造成功。新增只读guest核验器，不构造Task、不发GUI、不写业务文件；从固定run内有界读取原trace/final_state/文档/result及被账本引用的state/PNG，拒绝链接、特殊文件、身份不符、缺失/改动或超限。固定路径从序号生成，不采信账本里的任意路径。核对完整调用配对、顺序、停止后零新派发、原PNG哈希、输入/Save来源及保存后新观察，再复用原业务验证器。返回vmStatus与原字节哈希，不返回整体SUCCEEDED或会话已验证；官方session、Flash/off及可信收集后端仍需分别核验。测试使用明确合成的状态/截图/轨迹，不能冒充真实视觉或VM验收。
