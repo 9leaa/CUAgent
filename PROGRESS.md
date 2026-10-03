@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+停止修正后回归：后端392项通过（独立临时PG库），VM本地177项及36子测试通过；只有既有Starlette测试客户端弃用提示。P5只读复核活动任务0、原profile逐字节恢复、API80171/scheduler81383/Worker2406在线。
+
+P6真实停止（2026-10-03 21:57北京时间）：方案d2ca8cb→实现0f22590；同目录原STOP_REQUESTED仅在原会话terminal、guestStopped、零在途、撤销确认与DB原owner/epoch仍有效时finish STOPPED；缺证明/失权仍隔离。23项Worker测试通过，另修异常后不能沿用旧terminal标记恢复。stop-live-001独立PG/API创建排队任务并停止，session=null、budget=0；运行任务96a428f3-5f49-4ed6-82a2-bbac5481f273，首次观察3raw后API于1791035821.1804512返回STOP_REQUESTED，guest于1791035822.912292记录stop，约1.73秒；全轨迹3raw且stop后无dispatch，原官方会话aborted/user，最终STOPPED无产物、无quarantine、恢复成功。完整usage缺失保留null，原第一段已报告907 token，不据此估算完整消耗。宿主0f22590/guest c448ae2，P5 Worker恢复2406。真实失权、拒绝边界及完整同版业务回归未完成，不将这次停止测试替代业务成功。
+
 P6修复版后两例与诊断失败（2026-10-03 21:45—21:51北京时间）：c448ae2已部署并经bootstrap校验源SHA。formal-02 task a6c62d4b-6b7d-4b9e-9d14-3276ba271305、session-466fd59c-f4e3-4755-b894-6d01a077f8fc，中文正文通过，11raw/9官方工具、381031 total token。formal-03 task fcf3d0c1-5f13-45a7-a337-111586f46faf，混合文本通过、382833 total token；两例独立核对和API下载均通过，Flash/off，原profile恢复且P5 Worker1981在线。formal-01失败未改，跨版本结果不拼成同版3/3。boundary-live-001的Python直连报No route to host，002的Node直连亦未确认；两次shutdown均closed且rawCalls=0，未重发原请求、未改网络/隐私权限，不算真实边界通过。增加真实本地HTTP/模拟Driver的旧snapshot拒绝反例，与lease相关19测试/10子测试通过。真实停止、失权、拒绝边界和完整同版业务回归仍未完成。
 
 P6真实闭环与正式首例失败（2026-10-03 21:38—21:44北京时间）：807c18a的live-005原task 482c1796-5465-41c1-99f2-01e1441228da、session-84203498-e434-49bc-8641-705b7a77099c通过；9次官方工具/11raw，独立VM与官方会话核对、ASGI下载SHA均通过（不是部署新HTTP服务），375305 total token，Flash/off。App/profile/guest/隧道恢复成功。固定formal-01 task f859f7bb-4791-4a88-8a7e-9a00bafdbe50为UNVERIFIED，14raw、617445 total token；观察s0000003e→拒绝输入→沿用旧观察Save，guest verifier第115行拒绝。原失败不覆盖、不重跑，formal-02/03未执行。方案38287ec后仅P6拒绝路径清空snapshot，保留原计数/审计；176执行层测试及36子测试通过。P5原Worker恢复为1026；待新版本真实拒绝边界、正式用例及停止/执行权验收，P6与总目标均未完成。
