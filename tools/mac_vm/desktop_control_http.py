@@ -8,9 +8,11 @@ import json
 import re
 
 
-def control_server(controller, token, *, port=0):
+def control_server(controller, token, *, port=0, runtime=None):
     if not isinstance(token, str) or not re.fullmatch(r'[A-Za-z0-9_-]{43,128}', token):
         raise ValueError('independent URL-safe control token required')
+    if runtime is not None and (runtime.controller is not controller or runtime.control_token != token):
+        raise ValueError('runtime control binding mismatch')
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
@@ -38,6 +40,11 @@ def control_server(controller, token, *, port=0):
         def do_GET(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
+            if self.path == '/status' and runtime is not None:
+                try:
+                    return self.reply(200, runtime.status())
+                except Exception:
+                    return self.reply(409, {'error': 'CONTROL_STATUS_UNAVAILABLE'})
             if self.path != '/lease':
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
@@ -50,7 +57,7 @@ def control_server(controller, token, *, port=0):
         def do_POST(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
-            if self.path not in ('/renew', '/revoke'):
+            if self.path not in (('/renew', '/revoke', '/activate') if runtime is not None else ('/renew', '/revoke')):
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
                 sizes = self.headers.get_all('Content-Length', [])
@@ -69,12 +76,16 @@ def control_server(controller, token, *, port=0):
                     if set(body) != {'sequence', 'ttlMs', 'notAfterMs'} or type(body['notAfterMs']) is not int:
                         raise ValueError('invalid renewal fields')
                     result = controller.renew(body['sequence'], body['ttlMs'], not_after_ms=body['notAfterMs'])
+                elif self.path == '/activate':
+                    if body:
+                        raise ValueError('activate requires empty body')
+                    return self.reply(200, runtime.activate())
                 else:
                     if body:
                         raise ValueError('revoke requires empty body')
-                    result = controller.revoke()
+                    result = runtime.revoke() if runtime is not None else controller.revoke()
                 return self.reply(200, {'lease': result})
-            except (OSError, ValueError, TypeError):
+            except Exception:
                 return self.reply(409, {'error': 'CONTROL_REQUEST_REJECTED'})
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)

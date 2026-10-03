@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+P6 `DesktopGuestRuntime`负责显式共享bridge锁、许可后单次activate、工具服务及撤销/在途状态；配合control_server(runtime=...)开放可信/activate和/status，模型凭证不能访问。准备时不启动工具服务，失败保留意图并撤销；close遇在途拒绝释放锁。164项本地执行层测试通过。仍无生产启动CLI，后续部署必须核对VM身份与旧服务所用同一实际锁，不能拿另一个文件当全局互斥。
+
 P6的`desktop_evidence.inspect_guest_evidence`只读核验固定run原始轨迹、界面/PNG哈希、TextEdit文档和result；不构造Task或补发观察。可信调用者必须先撤销许可、确认无在途，再收集核验；返回vmStatus与sessionVerified=false，不能替代官方会话/Flash-off验证。DesktopTask仅在P6增加观察哈希记录，旧RealAppTask未改；158项本地测试通过，合成PNG不是视觉验收证据。
 
 P6新增`desktop_tools_http.tools_server`仅为独立工厂，须由可信端先授权并构造DesktopTask，模型token必须与控制token不同。默认固定192.168.64.3:8766/来源192.168.64.1；显式loopback_test仅供测试。只接受原TextEdit五工具与stop，不开放在线verify或许可修改；逐次最终准入和原30次预算不变。当前无生产launcher，不要用它替换P5服务；153项本地执行层测试通过不代表真实VM验收。
