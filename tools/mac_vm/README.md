@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+P6 `desktop_bootstrap.py`仅由可信后端通过固定SSH/Python调用：验证部署清单及源码SHA后，单次启动guest控制服务，日志写私有P6Launch目录。其stdout包含本次新建的模型/控制token，只能由后端有界接收并保存私有回执，禁止打印或上传。未知就绪不重启/不自动杀进程，且不授权GUI；当前仅模拟环境测试，真实启动仍待验收。
+
 P6 `desktop_install.py`为可信部署端传送的独立安装器：仅普通mvpagent/VirtualMac，完整校验固定源码包后新建CUAgent-p6-commit目录，保留来源许可证和部署清单；已有目录拒绝，不覆盖旧文件、不启动服务。host使用backend.desktop_deploy从明确Git commit取包，不打包.runtime或凭证。当前仅本地安装/模拟传输验证，真实VM部署仍待门槛核对。
 
 P6 `desktop_export.py --run p2-<task-uuid> --owner <worker-uuid> --epoch <positive-int>`仅供可信SSH采集端使用，stdin为`{"lines":["本次批准正文"]}`，stdout为核验后的原始证据tar，不是JSON日志。必须先撤销许可、确认零在途；固定run内只导出白名单证据，token/lease不导出，错误仅stderr固定代码并非零退出。后端不得把manifest当官方会话验收，仍须核对原任务及Flash/off。174项本地执行层测试通过，尚无真实SSH导出验收。
