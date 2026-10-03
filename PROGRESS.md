@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6独立队列服务入口（2026-10-03）：方案f695d41先行，新增backend.desktop_service init/serve。显式私有baseline-env、全新cuagent_p6_service_UUID库及独立token，迁移仅新库；根目录必须独立、私有且不覆盖已有目录，失败保留初始化意图。serve固定127.0.0.1/18100–18999，端口占用拒绝，禁止日报/批次/定时/resume写入。client新增显式--desktop-service，省略仍走原环境/18089。新增12项测试，含真实临时PG创建/迁移、真实uvicorn进程/HTTP/独立CLI提交、重启保留原ID、同键去重、排队停止零raw/session、错误认证/配置/权限/链接/重复字段/占用端口拒绝；临时数据库和进程由测试仅清理自身实例。专项28项、后端全量420项通过（既有Starlette弃用警告）；git diff --check通过。未启动常驻P6实例、模型或VM，P5原API80171/Worker3522/scheduler81383仍在线。README与命令说明同步。此交付为完整入口的队列侧，受控单任务Worker启动器和同版三例仍待接通；P6未验收，不把QUEUED当业务成功。
+
 P6桌面提交CLI（2026-10-03）：先提交方案d218371，再新增desktop-submit --spec --key。普通UTF-8 JSON有界读取，拒绝链接/目录/FIFO、重复字段、未知字段、非法正文和非法幂等键；仅单次POST原/desktop-tasks，未知响应不重试。新增客户端经原FastAPI/独立PostgreSQL测试，覆盖中文、同键同任务、改正文冲突、排队停止零调用、默认503和本地拒绝零POST。后端全量404项通过；随后补4项非法/缺失键反例，提交CLI专项16项通过（全量404执行时尚无这4项，不冒称全量408）。仅既有Starlette弃用提示。README及后端示例同步；当前客户端仍固定18089，未启用生产桌面API或启动新Worker，未调用模型/VM，P5服务不改。独立服务启动入口、同版完整三例及P6验收总结仍待完成。
 
 P6真实HTTP拒绝与数据库失权（2026-10-03 22:17—22:24北京时间）：先提交a21a29d/63eee5f两方案。系统curl只读探测可收到VM SSH响应，随后原生产模型HTTP GET405确认连通；不修改网络/TCC或推断旧EHOSTUNREACH根因。boundary-live-003原run p2-85bfc346-bf7e-40dd-b2e7-34034dc60e34，c448ae2 guest，真实观察3raw→缺参输入拒绝4→旧snapshot保存拒绝5→新观察6；无type_text/hotkey派发，原两个state/PNG及完整调用配对核对，revoke后observe409/预算6不增，直接guest renew拒绝，不以客户端预检冒充。guest关闭、P5 Worker恢复3328。原001/002连接失败保留。

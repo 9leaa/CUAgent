@@ -1,5 +1,16 @@
 # 单人本地任务服务（P2）
 
+## P6 独立队列服务（尚未接执行启动器）
+
+`backend.desktop_service init` 创建新私有目录、新数据库和独立token，只引用现有私有backend.env；不修改原库、不复制App凭据、不启动Worker/模型。新目录的父目录须已存在且仅当前用户可访问。端口只允许18100–18999，固定监听127.0.0.1；占用则拒绝，不停止已有服务。
+
+```sh
+python -m backend.desktop_service init --baseline-env /absolute/path/backend.env --root /absolute/private/parent/p6-service --port 18100
+python -m backend.desktop_service serve --profile /absolute/private/parent/p6-service/service.json
+```
+
+初始化失败保留新目录和初始化意图，不能删除重建或对同一目标盲目重试。服务进程前台运行，停止再以原profile启动会保留原任务。配置及token不能上传GitHub。此服务只接受桌面提交，拒绝日报/批次/定时任务写入；API能接收任务不代表有人执行，**当前新任务会排队，受控Worker命令仍待交付**。原P5环境和18089默认服务不变。
+
 ## P6 桌面提交命令（开发入口）
 
 客户端新增 `desktop-submit --spec --key`。JSON 只接受下面两个字段；1–10 条单行文本，拼接正文含末尾换行最多4096 UTF-8字节。文件必须为普通UTF-8 JSON且不超过32768字节，不接受链接、重复字段或额外权限参数。
@@ -11,18 +22,18 @@
 已配置隔离后端的开发环境中，用其 Python 运行：
 
 ```sh
-python -m backend.client desktop-submit --spec /absolute/path/desktop.json --key desktop-001
-python -m backend.client status --task TASK_UUID
-python -m backend.client stop --task TASK_UUID
-python -m backend.client download --task TASK_UUID --name document.txt --output .runtime/document.txt
-python -m backend.client download --task TASK_UUID --name result.txt --output .runtime/result.txt
+python -m backend.client desktop-submit --desktop-service /absolute/private/parent/p6-service/service.json --spec /absolute/path/desktop.json --key desktop-001
+python -m backend.client status --desktop-service /absolute/private/parent/p6-service/service.json --task TASK_UUID
+python -m backend.client stop --desktop-service /absolute/private/parent/p6-service/service.json --task TASK_UUID
+python -m backend.client download --desktop-service /absolute/private/parent/p6-service/service.json --task TASK_UUID --name document.txt --output .runtime/document.txt
+python -m backend.client download --desktop-service /absolute/private/parent/p6-service/service.json --task TASK_UUID --name result.txt --output .runtime/result.txt
 ```
 
-提交只发送一次；超时不代表未创建，先查列表/原任务，必要时沿用原内容及原键核对，不换键制造重复任务。下载须任务成功且原文件哈希一致。**这不是生产启动步骤**：当前客户端固定本机18089，默认API仍503；独立API/Worker启动器尚未交付，不能把这组命令对着P5执行或自行开启其桌面队列。现有日报命令与默认行为不变。
+提交只发送一次；超时不代表未创建，先查列表/原任务，必要时沿用原内容及原键核对，不换键制造重复任务。下载须任务成功且原文件哈希一致。每条命令显式指定同一`--desktop-service`；省略时仍走旧环境/18089，不自动选择P6。默认API仍503，只有显式独立服务开放提交；不能自行开启P5桌面队列。现有日报命令与默认行为不变。
 
 P6产物交付开发：桌面类型仅登记/下载`document.txt`和`result.txt`，需独立结果kind/session匹配、两文件齐全、SHA及冻结正文一致；STOP_REQUESTED不能转成功。CLI download新增这两个名字，需显式`--name`；日报名字/媒体类型保留。通知只列已登记且符合任务类型的文件，缺文件不会凭成功状态制造链接。桌面Worker、VM证据采集及独立核验代码已组合，但只完成本地/合成证据/隔离PG验证，真实GUI闭环尚未验收。
 
-P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），但默认503、不创建任务。只有隔离测试通过Settings程序构造开启，不提供生产环境开关。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，桌面从未领取的排队停止可恢复；有执行证据则拒绝恢复，不能套用下方日报resume说明。不能用接口测试称桌面功能已上线。P5旧服务不得接入该新类型队列。
+P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），旧默认API仍503、不创建桌面任务；上方独立服务显式开启提交，但没有自动执行。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，底层桌面从未领取的排队停止可恢复，但独立服务不开放resume；有执行证据则拒绝恢复，不能套用下方日报resume说明。不能用接口测试称完整桌面功能已上线。P5旧服务不得接入该新类型队列。
 
 P6专用SSH：`desktop_ssh.create_ssh_wrapper(root=私有目录, known_hosts=原私有主机密钥文件, askpass=原私有可执行认证脚本)`生成新的0700传输脚本，只引用凭证路径且保留stdin。`DesktopTaskAdapter`通过显式known_hosts/askpass自动生成；离线部署准备代码调用`deploy_guest`时也须传该生成器返回路径，不能复用旧vm-ssh（它丢弃stdin）。本机1MiB往返与ssh -G解析通过不等于VM连接通过。实际执行仍需可信实时门禁核对切换许可、VM状态、剩余额度≥40%，且遵守P5隔离；没有生产启动器或自动启用开关。
 

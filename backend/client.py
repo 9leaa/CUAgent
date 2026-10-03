@@ -42,6 +42,8 @@ def main():
                                            'batch-submit', 'batch-status', 'batch-stop', 'notifications', 'notification-read',
                                            'schedule-create', 'schedule-list', 'schedule-status', 'schedule-pause'])
     parser.add_argument('--spec')
+    parser.add_argument('--desktop-service', type=Path,
+                        help='explicit private P6 service profile; never changes the default backend')
     parser.add_argument('--key')
     parser.add_argument('--task')
     parser.add_argument('--batch')
@@ -52,9 +54,15 @@ def main():
     parser.add_argument('--output')
     parser.add_argument('--name', choices=['report.json', 'report.md', 'document.txt', 'result.txt'], default='report.md')
     args = parser.parse_args()
-    env = load_env()
-    with httpx.Client(base_url='http://127.0.0.1:18089', trust_env=False, timeout=20,
-                      headers={'Authorization': 'Bearer ' + env['CUAGENT_BACKEND_TOKEN']}) as client:
+    if args.desktop_service:
+        from backend.desktop_service import load_profile
+        profile = load_profile(args.desktop_service)
+        url, token = 'http://127.0.0.1:' + str(profile.port), profile.settings.api_token
+    else:
+        env = load_env()
+        url, token = 'http://127.0.0.1:18089', env['CUAGENT_BACKEND_TOKEN']
+    with httpx.Client(base_url=url, trust_env=False, timeout=20,
+                      headers={'Authorization': 'Bearer ' + token}) as client:
         if args.command == 'desktop-submit':
             if not args.spec or not args.key or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', args.key):
                 parser.error('desktop-submit requires --spec and a stable --key; reuse the key after an ambiguous request')
