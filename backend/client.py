@@ -2,16 +2,43 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import stat
 import httpx
 from agent.daily_report import text_file
 from backend.manage import load_env
 
 
+def desktop_spec(path):
+    """Read bounded data, never task-supplied authority or executable commands."""
+    from backend.desktop_contract import DesktopSubmission
+    path = Path(path).absolute()
+    if path.resolve(strict=True) != path:
+        raise ValueError('desktop spec must not traverse symbolic links')
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 32768:
+            raise ValueError('desktop spec must be a regular file of at most 32768 bytes')
+        raw = stream.read(32769)
+    if len(raw) > 32768 or len(raw) != info.st_size:
+        raise ValueError('desktop spec changed or exceeds size limit')
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError('duplicate desktop spec field')
+            value[key] = item
+        return value
+    body = json.loads(raw.decode('utf-8'), object_pairs_hook=unique)
+    return DesktopSubmission.model_validate(body).model_dump(mode='json')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['submit', 'list', 'status', 'events', 'stop', 'resume', 'download',
+    parser.add_argument('command', choices=['submit', 'desktop-submit', 'list', 'status', 'events', 'stop', 'resume', 'download',
                                            'batch-submit', 'batch-status', 'batch-stop', 'notifications', 'notification-read',
                                            'schedule-create', 'schedule-list', 'schedule-status', 'schedule-pause'])
     parser.add_argument('--spec')
@@ -28,7 +55,12 @@ def main():
     env = load_env()
     with httpx.Client(base_url='http://127.0.0.1:18089', trust_env=False, timeout=20,
                       headers={'Authorization': 'Bearer ' + env['CUAGENT_BACKEND_TOKEN']}) as client:
-        if args.command == 'schedule-create':
+        if args.command == 'desktop-submit':
+            if not args.spec or not args.key or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', args.key):
+                parser.error('desktop-submit requires --spec and a stable --key; reuse the key after an ambiguous request')
+            body = desktop_spec(args.spec)
+            response = client.post('/desktop-tasks', json=body, headers={'Idempotency-Key': args.key})
+        elif args.command == 'schedule-create':
             if not args.spec or not args.key:
                 parser.error('schedule-create requires --spec and --key; this does not grant execution quota')
             from backend.schemas import ScheduleSubmission

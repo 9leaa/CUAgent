@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6桌面提交CLI（2026-10-03）：先提交方案d218371，再新增desktop-submit --spec --key。普通UTF-8 JSON有界读取，拒绝链接/目录/FIFO、重复字段、未知字段、非法正文和非法幂等键；仅单次POST原/desktop-tasks，未知响应不重试。新增客户端经原FastAPI/独立PostgreSQL测试，覆盖中文、同键同任务、改正文冲突、排队停止零调用、默认503和本地拒绝零POST。后端全量404项通过；随后补4项非法/缺失键反例，提交CLI专项16项通过（全量404执行时尚无这4项，不冒称全量408）。仅既有Starlette弃用提示。README及后端示例同步；当前客户端仍固定18089，未启用生产桌面API或启动新Worker，未调用模型/VM，P5服务不改。独立服务启动入口、同版完整三例及P6验收总结仍待完成。
+
 P6真实HTTP拒绝与数据库失权（2026-10-03 22:17—22:24北京时间）：先提交a21a29d/63eee5f两方案。系统curl只读探测可收到VM SSH响应，随后原生产模型HTTP GET405确认连通；不修改网络/TCC或推断旧EHOSTUNREACH根因。boundary-live-003原run p2-85bfc346-bf7e-40dd-b2e7-34034dc60e34，c448ae2 guest，真实观察3raw→缺参输入拒绝4→旧snapshot保存拒绝5→新观察6；无type_text/hotkey派发，原两个state/PNG及完整调用配对核对，revoke后observe409/预算6不增，直接guest renew拒绝，不以客户端预检冒充。guest关闭、P5 Worker恢复3328。原001/002连接失败保留。
 
 authority-live-001在数据库创建/Worker停启前因VM仍锁屏拒绝，零派发；重新聚焦屏幕共享并用原测试凭据解锁，保留该前置失败。authority-live-002独立数据库/API提交task 458ee3e4-ad5a-4f27-910c-f727553ac374，真实TaskService领取及DesktopExecutionControl经SSH授予原guest；一次实际观察3raw后，仅在诊断库把desktop资源expires_at改为已过期。未经替换的refresh由数据库拒绝，自动localRevoked/guestRevoked，原HTTP observe409且仍3；原owner heartbeat/authority和重建control都拒绝，guest sequence仍2。正常claim清理登记BLOCKED/OWNER_LEASE_EXPIRED，resume拒绝、无产物/无官方session；未调用finish假成功。独立重读数据库、原PNG/state/终止后trace前缀和许可一致，零停止后派发。guest关闭零在途，P5 Worker恢复3522，API80171/scheduler81383保留，原DSH配置SHA与此前一致。两诊断均零模型调用，Codex剩余82%、积分未变/卡未用；不冒充官方模型取消或完整Worker失权故障。后端执行控制/Worker34项通过（隔离临时PG），HTTP11项本地测试通过。P6完整同版三例与实际可用入口仍待收口，不能把已有跨版本结果拼成3/3。
