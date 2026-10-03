@@ -26,6 +26,10 @@
 
 ## 验收和证据
 
+### Guest启动准备与私有回执（实现前补充）
+
+后端新增单次启动准备：先写原run部署/启动意图，通过固定SSH/Python运行审查过的启动脚本。脚本先校验普通VM身份、部署manifest SHA与全部源码SHA、固定run/owner/epoch，再独占新建私有启动日志并启动desktop_guest.py；stdin关闭、输出只入私有日志、无GUI/模型启动。最多10秒读原guest-ready及两份新token，必须绑定原run/owner/epoch和自有子进程PID、控制loopback/模型固定URL；准备回执含新任务凭证，仅保存到宿主私有文件，不打印/公开日志。超时/中断不重启/不猜PID杀进程，保留未确认状态待原run核对。宿主校验字段/令牌及回执身份，后续才能构造控制客户端/隧道；还不授权GUI。先用模拟VM/进程验证，不部署生产或切换P5。
+
 ### Python到官方会话适配（实现前补充）
 
 新增DesktopSessionClient，固定已审查desktop-session-command.mjs入口，可信部署显式指定Node、私有official home/cookie及原run/session；不复制凭证、不激活profile。prepare只独占保存冻结输入、cwd/run/session请求，start/cancel各先写Python侧意图，再一次有界子进程调用已有官方命令，失败不重发。start回执必须同session、accepted=true、Flash/off精确匹配；inspect严格验证原session与终态/运行态/原prompt唯一性，poll同时读取guest rawCalls/pendingCalls，禁止把官方工具调用数当实际Driver预算。未知/缺会话或异常状态不当完成，cancelRequested只表示请求取消。运行命令有输出/时间限制，原Node会话模块继续保存官方意图/响应和原JSONL；本轮模拟命令响应与真实参数边界测试，不触发App/模型。
