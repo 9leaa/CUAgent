@@ -28,6 +28,12 @@
 
 ## 验收和证据
 
+### 启动前失败零模型现场诊断（90af0cf后、执行前）
+
+独立prebootstrap-failure-live-001数据库/目录、单个原诊断任务，沿正式worker_once/LiveGate/QuotaGate及共享锁执行。真实profile.prepare返回后，在端口选择函数注入一次EADDRINUSE，明确为受控故障，不声称现场占满1000端口；不调用bootstrap/模型、不构造业务产物。要求原adapter生成not-started证明、原Worker结束FAILED/0raw/session空、usage未知且没有新隔离。独立SSH核对原guest目录与launch目录不存在、原共享锁可取、无guest隔离；App所有会话仍空闲、原配置字节与P5冻结源码不变。
+
+每次实查Codex额度/原P5空闲与计划30分钟外，只按已有批准临时停止准确旧Worker，API/scheduler不动；完成核对后恢复原P5，记录全部介入。新诊断失败保留不重跑，不以现场安全收尾替代新版三例真实业务或日报兼容。私有意图/回执独占0600保存，不上传运行数据。
+
 ### guest启动前失败的安全终态（实现前）
 
 ec1f65e已解决常见端口竞争，但全部端口忙等bootstrap前失败仍被隔离。新增明确`guest_state=not-started`的准备证明，与已有`closed`区分：只接受当前adapter本次调用，在profile.prepare成功之后、进入bootstrap之前的`tunnel-port-preflight`阶段失败。不能仅凭磁盘缺少ready推断未启动；adapter必须记录自身尚未调用bootstrap，失败回执写成功后才注册本次task对象身份。
