@@ -61,6 +61,62 @@ class DesktopEvidenceTests(unittest.TestCase):
         self.assertEqual(result['rawCalls'], 10)
         self.assertEqual(before, {str(path): path.read_bytes() for path in self.root.rglob('*') if path.is_file()})
 
+    def add_missing_read(self):
+        position = next(i for i, row in enumerate(self.rows) if row.get('tool') == 'get_window_state'
+                        and row['event'] == 'dispatch' and row['at'] == 8)
+        self.rows[position:position] = [
+            dict(event='dispatch', run_id='task', call_id='missing-read', tool='read_result', used=8, at=7.3),
+            dict(event='error', run_id='task', call_id='missing-read', tool='read_result', error='FileNotFoundError', at=7.4)]
+        self.reindex_observations()
+        self.save_trace()
+
+    def reindex_observations(self):
+        used = 0
+        for row in self.rows:
+            if row['event'] == 'dispatch':
+                used += 1
+                row['used'] = used
+            if row['event'] == 'result' and row['tool'] == 'get_window_state':
+                state = row['value']
+            if row['event'] == 'observation_evidence':
+                row['used'] = used
+                for extension, data in [('json', json.dumps(state).encode()), ('png', self.png)]:
+                    (self.root / ('state-%02d.' % used + extension)).write_bytes(data)
+
+    def test_missing_read_before_fresh_observation_is_retained_and_counted(self):
+        self.add_missing_read()
+        before = (self.root / 'trace.jsonl').read_bytes()
+        result = self.inspect()
+        self.assertEqual(result['rawCalls'], 11)
+        self.assertEqual(result['business']['recovered_missing_reads'], 1)
+        self.assertEqual((self.root / 'trace.jsonl').read_bytes(), before)
+        from real_app_verifier import verify_evidence
+        final = json.loads((self.root / 'final_state.json').read_text())
+        legacy = verify_evidence(self.rows, self.expected, self.expected, self.expected+b'\n', final)
+        self.assertEqual(legacy['status'], 'UNVERIFIED')
+
+    def test_other_errors_stale_observation_or_missing_final_read_still_rejected(self):
+        self.add_missing_read()
+        original = copy.deepcopy(self.rows)
+        for fault in ('permission', 'successful-early', 'unknown', 'duplicate', 'no-final', 'no-fresh', 'late-error'):
+            self.rows = copy.deepcopy(original)
+            bad = next(row for row in self.rows if row['event'] == 'error')
+            if fault == 'permission': bad['error'] = 'PermissionError'
+            if fault == 'successful-early': bad.update(event='result', value=(self.expected+b'\n').decode())
+            if fault == 'unknown': bad['event'] = 'UNKNOWN'
+            if fault == 'duplicate': self.rows.insert(self.rows.index(bad)+1, dict(bad))
+            if fault == 'no-final': self.rows = self.rows[:-2]
+            if fault == 'no-fresh':
+                pair = [row for row in self.rows if row.get('call_id') == 'missing-read']
+                self.rows = [row for row in self.rows if row not in pair]
+                pos = next(i for i, row in enumerate(self.rows) if row.get('tool') == 'write_result')
+                pair[0]['at'], pair[1]['at'] = 8.3, 8.4
+                self.rows[pos:pos] = pair
+                self.reindex_observations()
+            if fault == 'late-error': self.rows[-1].update(event='error', error='FileNotFoundError')
+            self.save_trace()
+            with self.subTest(fault=fault), self.assertRaises(ValueError): self.inspect()
+
     def test_tampered_png_state_document_and_result_rejected(self):
         for name in ['state-01.png', 'state-01.json', 'final_state.json', 'artifacts/handoff-task.txt', 'result.txt']:
             path = self.root / name

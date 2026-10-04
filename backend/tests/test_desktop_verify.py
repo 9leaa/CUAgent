@@ -24,7 +24,11 @@ def evidence(tmp_path):
     rows.append({'type': 'turn/end', 'data': {'reason': {'kind': 'completed'}}})
     for index, row in enumerate(rows): row['seq'] = index
     trace = [{'event': 'attempted_input', 'snapshot_id': 'a', 'sha256': hashlib.sha256(expected).hexdigest()},
-             {'event': 'attempted_save', 'snapshot_id': 'b'}]
+             {'event': 'attempted_save', 'snapshot_id': 'b'},
+             {'event': 'dispatch', 'tool': 'write_result', 'call_id': 'write'},
+             {'event': 'result', 'tool': 'write_result', 'call_id': 'write', 'value': expected.decode()},
+             {'event': 'dispatch', 'tool': 'read_result', 'call_id': 'read'},
+             {'event': 'result', 'tool': 'read_result', 'call_id': 'read', 'value': (expected + b'\n').decode()}]
     bundle = {'binding': {'runId': 'run'}, 'guest': {'vmStatus': 'VERIFIED', 'rawCalls': 12},
               'files': {'trace.jsonl': b'\n'.join(json.dumps(row).encode() for row in trace)}}
     files = {'desktop-session-binding.json': {'runId': 'run', 'sessionId': 'session', 'cwd': str(root / 'workspace'), 'lines': ['交接']},
@@ -49,6 +53,41 @@ def test_synthetic_session_policy_and_guest_correlation(evidence):
     assert result['sessionVerified'] is True
     assert result['officialToolCalls'] == 7 and result['rawCalls'] == 12
     assert 'status' not in result
+
+
+@pytest.mark.parametrize('fault', [None, 'wrong-error', 'guest-success', 'official-success', 'late-error',
+                                 'missing-guest', 'duplicate-result', 'missing-final', 'extra-official'])
+def test_read_failure_requires_matching_original_guest_order_and_late_readback(evidence, fault):
+    _, _, bundle, rows, _ = evidence
+    trace = [json.loads(line) for line in bundle['files']['trace.jsonl'].splitlines()]
+    call = {'type': 'tool/call', 'data': {'callId': 'probe', 'name': 'vm_read_result', 'arguments': '{}'}}
+    result = {'type': 'tool/result', 'data': {'message': {'toolCallId': 'probe', 'isError': True,
+               'content': [{'type': 'text', 'text': 'Error: DESKTOP_REQUEST_REJECTED'}]}}}
+    index = next(i for i, row in enumerate(rows) if row['type'] == 'tool/call' and row['data']['name'] == 'vm_write_result')
+    rows[index:index] = [call, result]
+    early = [{'event': 'dispatch', 'tool': 'read_result', 'call_id': 'probe'},
+             {'event': 'error', 'tool': 'read_result', 'call_id': 'probe', 'error': 'FileNotFoundError'}]
+    trace[2:2] = early
+    if fault == 'wrong-error': early[1]['error'] = 'PermissionError'
+    if fault == 'guest-success': early[1]['event'] = 'result'
+    if fault == 'official-success': result['data']['message']['isError'] = False
+    if fault == 'late-error':
+        trace.remove(early[0]); trace.remove(early[1]); trace.extend(early)
+    if fault == 'missing-guest': trace.remove(early[1])
+    if fault == 'duplicate-result': trace.insert(4, dict(early[1]))
+    if fault == 'missing-final':
+        trace[:] = trace[:-2]
+        rows[:] = [row for row in rows if not (row.get('type') == 'tool/call' and row['data']['callId'] == '6')
+                   and not (row.get('type') == 'tool/result' and row['data']['message']['toolCallId'] == '6')]
+    if fault == 'extra-official':
+        rows[index:index] = [{'type': 'tool/call', 'data': {**call['data'], 'callId': 'extra'}},
+                            {'type': 'tool/result', 'data': {'message': {**result['data']['message'], 'toolCallId': 'extra'}}}]
+    for index, row in enumerate(rows): row['seq'] = index
+    bundle['files']['trace.jsonl'] = b'\n'.join(json.dumps(row).encode() for row in trace)
+    if fault is None:
+        assert verify(evidence)['recoveredMissingReads'] == 1
+    else:
+        with pytest.raises(ValueError): verify(evidence)
 
 
 @pytest.mark.parametrize('fault', [None, 'id', 'cwd', 'version', 'duplicate'])

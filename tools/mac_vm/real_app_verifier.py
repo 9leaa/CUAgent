@@ -3,13 +3,30 @@ import hashlib
 from real_app_bridge import body_from_state
 
 
-def verify_evidence(rows, expected, document, result, fresh_state):
+def verify_evidence(rows, expected, document, result, fresh_state, *, allow_missing_result_read=False):
     dispatched = [row for row in rows if row['event'] == 'dispatch']
     returned = [row for row in rows if row['event'] in ('result', 'error')]
     inputs = [row for row in rows if row['event'] == 'attempted_input']
     saves = [row for row in rows if row['event'] == 'attempted_save']
     states = [row for row in returned if row['event'] == 'result' and row.get('tool') == 'get_window_state']
     calls = {row['call_id']: row for row in dispatched}
+    missing_reads = set()
+    if allow_missing_result_read is True:
+        writes = [row for row in dispatched if row['tool'] == 'write_result']
+        if len(writes) == 1:
+            write = writes[0]
+            written = [row for row in returned if row['call_id'] == write['call_id']]
+            fresh = [row for row in states if row['value'].get('snapshot_id') == fresh_state.get('snapshot_id')]
+            readback = [row for row in returned if row['event'] == 'result' and row.get('tool') == 'read_result'
+                        and row.get('value') == result.decode('utf8') and row['at'] > write['at']]
+            if len(written) == len(fresh) == 1 and written[0]['event'] == 'result' and readback:
+                for row in returned:
+                    call = calls.get(row['call_id'], {})
+                    if (row['event'] == 'error' and row.get('tool') == 'read_result'
+                            and row.get('error') == 'FileNotFoundError' and call.get('tool') == 'read_result'
+                            and call['at'] <= row['at'] < fresh[0]['at'] < write['at']
+                            and sum(item['call_id'] == row['call_id'] for item in returned) == 1):
+                        missing_reads.add(row['call_id'])
     native = body_from_state(fresh_state).encode('utf8')
     permitted = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey',
                  'bring_to_front', 'write_result', 'read_result', 'rejected_write_result'}
@@ -17,7 +34,8 @@ def verify_evidence(rows, expected, document, result, fresh_state):
                 and {row['call_id'] for row in returned} == set(calls)
                 and [row['used'] for row in dispatched] == list(range(1, len(dispatched) + 1))
                 and all(row.get('tool') in permitted for row in dispatched)
-                and not any(row['event'] == 'UNKNOWN' or (row['event'] == 'error' and row.get('tool') != 'get_window_state') for row in rows))
+                and not any(row['event'] == 'UNKNOWN' or (row['event'] == 'error'
+                    and row.get('tool') != 'get_window_state' and row.get('call_id') not in missing_reads) for row in rows))
     grounded = True
     for attempt in inputs + saves:
         sources = [row for row in states if row['value'].get('snapshot_id') == attempt['snapshot_id']]
@@ -47,4 +65,5 @@ def verify_evidence(rows, expected, document, result, fresh_state):
             'inputs': len(inputs), 'saves': len(saves), 'fresh_display': native.decode('utf8'),
             'document_bytes': len(document), 'document_sha256': hashlib.sha256(document).hexdigest(),
             'rejected_calls': sum(row['tool'].startswith('rejected_') for row in dispatched),
+            'recovered_missing_reads': len(missing_reads),
             'rule': 'all attempts retained; Save may repeat only after a new grounded observation; no edit replay'}

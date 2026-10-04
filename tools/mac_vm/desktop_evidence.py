@@ -127,8 +127,18 @@ def inspect_guest_evidence(directory, *, run_id, expected):
     require(bool(saves) and final_index > max(saves))
     writes = [key for key, row in calls.items() if row['tool'] == 'write_result']
     reads = [key for key, row in calls.items() if row['tool'] == 'read_result']
-    require(len(writes) == 1 and reads and final_index < positions[writes[0]] < min(positions[key] for key in reads))
+    require(len(writes) == 1 and reads and final_index < positions[writes[0]])
     write_index = positions[writes[0]]
+    require(returned[writes[0]]['event'] == 'result')
+    late_reads = [key for key in reads if positions[key] > write_index]
+    require(bool(late_reads))
+    for key in reads:
+        if positions[key] < write_index:
+            require(returned[key]['event'] == 'error' and returned[key].get('error') == 'FileNotFoundError'
+                    and rows.index(returned[key]) < final_index)
+        else:
+            require(returned[key]['event'] == 'result'
+                    and returned[key].get('value') == (expected + b'\n').decode('utf8'))
     # final_state is captured by write_result, not by subsequent observations.
     require(final_index == max(index for index, _ in observations.values() if index < write_index))
     require(not any(row['event'] == 'dispatch' for row in rows[final_index + 1:write_index]))
@@ -145,7 +155,7 @@ def inspect_guest_evidence(directory, *, run_id, expected):
             require(expected in (displayed, displayed + b'\n'))
     document = read('artifacts/handoff-' + run_id + '.txt', 4096)
     result_bytes = read('result.txt', 4097)
-    business = verify_evidence(rows, expected, document, result_bytes, final)
+    business = verify_evidence(rows, expected, document, result_bytes, final, allow_missing_result_read=True)
     require(business['status'] == 'SUCCEEDED')
     # Catch concurrent ledger changes; production collection additionally freezes
     # the source after revocation and confirms all admitted calls have returned.

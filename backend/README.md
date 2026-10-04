@@ -2,6 +2,8 @@
 
 P6消息证据：原用户prompt必须唯一且rpcId匹配。官方默认repeat-tool-reminder的3/5/8次提醒，只有来源/form、完整固定模板、已完成的同名同参数调用链均匹配才单独计为frameworkNotices；未知来源、自定义阈值/模板或额外用户指令继续拒绝。JS观测/原字节归档与Python独立验收共享模板策略，不删除会话行、不关闭提醒。归档被取消的会话不代表业务成功；若含无完整用量的assistant/attempt，usage仍unknown/null，不将此前部分token冒充完整总量。
 
+P6读回错误：官方与guest全部读写调用按顺序逐项对应。只有唯一写入之前的guest原read_result/FileNotFoundError及对应官方错误可保留为recoveredMissingReads，且随后必须重新观察、写入和正确读回；guest错误缺失/类型不符、写后失败或缺最终读回均拒绝。只读失败继续计原raw预算、不删会话/账本行；旧TextEdit验收默认规则不变。新规则离线通过不改变旧任务UNVERIFIED，也不能替代当前版本真实回归。
+
 ## P6 独立队列服务
 
 `backend.desktop_service init` 创建新私有目录、新数据库和独立token，只引用现有私有backend.env；不修改原库、不复制App凭据、不启动Worker/模型。新目录的父目录须已存在且仅当前用户可访问。端口只允许18100–18999，固定监听127.0.0.1；占用则拒绝，不停止已有服务。

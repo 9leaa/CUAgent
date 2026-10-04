@@ -63,8 +63,8 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
         message = matches[0]['data']['message']
         require(type(message.get('isError', False)) is bool)
         if message.get('isError'):
-            require(data['name'] == 'vm_write_result')
-            errors.append(call)
+            require(data['name'] in ('vm_write_result', 'vm_read_result'))
+            if data['name'] == 'vm_write_result': errors.append(call)
         parsed.append((data['name'], json.loads(data['arguments']), message))
     require(len(errors) == sum(row['event'] == 'dispatch' and row.get('tool') == 'rejected_write_result' for row in trace))
     typed = [args for name, args, _ in parsed if name == 'vm_type']
@@ -77,7 +77,29 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
             [row['snapshot_id'] for row in trace if row['event'] == 'attempted_save'])
     observations = [message for name, _, message in parsed if name == 'vm_observe']
     require(bool(observations) and all(any(block.get('type') == 'image' for block in message['content']) for message in observations))
-    reads = [message for name, _, message in parsed if name == 'vm_read_result']
+    # Match ordered reads/writes across the two independent logs; guest call
+    # IDs differ from official IDs, so counts alone cannot establish ordering.
+    names = {'read_result': 'vm_read_result', 'write_result': 'vm_write_result',
+             'rejected_write_result': 'vm_write_result'}
+    guest_io = [row for row in trace if row['event'] == 'dispatch' and row.get('tool') in names]
+    official_io = [(name, message) for name, _, message in parsed if name in names.values()]
+    require([names[row['tool']] for row in guest_io] == [name for name, _ in official_io])
+    writes = [index for index, row in enumerate(guest_io) if row['tool'] == 'write_result']
+    require(len(writes) == 1)
+    reads, recovered = [], 0
+    for index, (call, (name, message)) in enumerate(zip(guest_io, official_io)):
+        if name != 'vm_read_result': continue
+        matches = [row for row in trace if row['event'] in ('result', 'error') and row.get('call_id') == call.get('call_id')]
+        require(len(matches) == 1 and matches[0].get('tool') == 'read_result'
+                and trace.index(call) < trace.index(matches[0]))
+        result = matches[0]
+        if message.get('isError', False):
+            require(index < writes[0] and result['event'] == 'error' and result.get('error') == 'FileNotFoundError')
+            recovered += 1
+            continue
+        require(index > writes[0] and result['event'] == 'result'
+                and result.get('value') == (expected + b'\n').decode())
+        reads.append(message)
     require(bool(reads))
     for message in reads:
         texts = [json.loads(block['text']) for block in message['content'] if block.get('type') == 'text']
@@ -90,4 +112,4 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
     require(any(row['imageBlocks'] > 0 for row in audit))
     return {'sessionVerified': True, 'sessionId': session_id, 'sessionSha256': hashlib.sha256(raw).hexdigest(),
             'model': MODEL.copy(), 'officialToolCalls': len(calls), 'rawCalls': guest_bundle['guest']['rawCalls'],
-            'frameworkNotices': framework_notices}
+            'frameworkNotices': framework_notices, 'recoveredMissingReads': recovered}

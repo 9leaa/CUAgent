@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6读取缺失结果恢复规则（2026-10-04）：按593b981先行方案修三层契约。guest要求唯一成功write_result前的read_result仅允许真实FileNotFoundError，错误后必须有完整新观察；写后全部读均成功且内容一致，至少一个最终读回。real_app_verifier新增仅P6显式启用的allow_missing_result_read，原默认仍拒绝该失败；所有原调用/error保留并计数。host新增官方/guest全部读写顺序匹配、逐个read的唯一原结果及错误类型核对，不以通用官方错误文字或数量代替guest证据，报告recoveredMissingReads。
+
+验证：相关48项/26子测试通过，随后补强“无新观察”反例避免由调用计数错误先行拒绝；执行层全190项通过，后端全532项通过，仅既有Starlette弃用警告。反例覆盖早期成功读取、PermissionError、UNKNOWN、重复/缺失结果、无新观察、写后读失败、缺最终读回、官方/guest状态或顺序不一致和额外官方调用。旧默认TextEdit仍拒绝新增只读失败，未修改budget/lease/执行工具。
+
+原003中文任务的全部观察PNG/state、trace/final_state/文档/result通过SSH只读复制到新的missing-read-rule-review，四份先前留证原文件SHA完全一致。新规则本地inspect_guest_evidence为VERIFIED/11raw，原官方会话核验sessionVerified=true/recoveredMissingReads=1；原最后中文截图已查看，三行正确。原数据库再次确认仍UNVERIFIED/11raw/零产物，未重新prompt、未修改VM原证据或部署新guest；P5六冻结源码/profile不变。此仅离线同字节规则复核，不倒填003的2/3结果；README、后端及VM说明同步，新版真实回归、旧日报兼容及P6总结仍待完成。
+
 P6同版三例003（2026-10-04 09:32—09:39北京时间）：按ae47829事前方案冻结host/guest ae47829e7eebad991e0d522099430a1a72a1064b，guest新目录manifest d0bff038220a37a09fb1b37ffaf282082f31729a251dfa592b7b27026f4c0f49，不覆盖c448ae2。独立API18102/PID22754和新数据库，旧002服务保留；三项先经正式client/API提交冻结，每例新查Codex77%/积分不变/卡未用和私有绑定记录，原Flash/off/30raw，未重复派发。
 
 01 task31ae6a79-8975-4d11-9a69-2cf6ba2447d7/session-6b686777-370a-492d-9827-8533ab2ecd30成功，9raw/7官方工具/248513 total tokens。02 task33077a36-ea8b-486e-9fdb-5f9c3f9fddec/session-2e5ab1c0-eb8a-481e-baf0-dc9cb6749bd3为UNVERIFIED，11raw/395441 total；原GUI文档和result字节匹配，但raw8的read_result真实FileNotFoundError，raw9新观察、raw10首次写、raw11读回成功。原guest desktop_evidence:130把早期失败读也纳入“所有读晚于write”，且旧business verifier禁止非观察error、host仅允许写结果错误；先记录三层契约差异，未修改原任务/账本。03 taske5400ccb-5da0-4001-8129-735d2e82e01b/session-3749f523-e245-4ee8-a684-1f5e9ed79cc1成功，11raw/9官方工具/397544 total。三例合计31raw、1041498 token，货币费用未知；003整体2/3，不能称验收通过。

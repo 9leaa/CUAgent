@@ -54,6 +54,8 @@ C1 扩展为 `c1_cases.py` 和 `c1_bridge.py`，复用同一准入/预算/审计
 - `driver_smoke.py`：在指定测试VM内固定执行12×34，检查计算器PID/窗口、新AX显示和执行证据。
 - `tests/test_driver_smoke.py`：7项mock边界测试；`--live`另在测试VM执行固定流程与独立smoke断言。
 
+P6缺结果文件恢复：desktop_evidence显式启用real_app_verifier的allow_missing_result_read，默认旧TextEdit调用不启用。仅原完整配对的read_result/FileNotFoundError早于唯一写入，且错误后有新鲜原观察、成功写入和正确读回，才允许该失败留在成功证据中；原账本/预算完整不变。其他错误、写后失败、缺读回/新观察等仍拒绝，host另对照官方读写顺序和错误。此项离线核验不登记旧任务成功。
+
 根目录无模型测试：
 
 ```bash
