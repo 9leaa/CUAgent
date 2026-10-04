@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6正式三例005（2026-10-04）：冻结65f62146e2403aa458e5193f08a87091656c5fac，host/guest同版，manifest 8fbaedcfdc3612494f344b8eed45cf61491431650f689d4bf0abfbbac11cea5f，独立API18105。英文cf7a1bc2 SUCCEEDED/13raw/576132token，中文46e09510 UNVERIFIED/13raw/581694token，混合45eef8c2 UNVERIFIED/2raw/4182token；总28raw/1162008token，费用未知。英文原文件/下载/官方会话/guest截图与停止后零派发独立通过；失败同样SSH重读原轨迹/文件并保留未通过状态。
+
+中文首次vm_type的snapshot_id误填s00000079:1，被原执行层拒绝；新观察s0000007a后唯一真实输入，原document/result字节正确，但business whitelist及host仅一次vm_type契约不支持此恢复。混合例launch返回原PID30824，首次list_windows没有本任务可见窗口，只有历史标题；原执行停止，后两次模型观察请求也拒绝，预算仍2，无正文/result，不能猜具体系统原因或补跑。三例实际控制口19099/19100/19099，第二例原首选占用时成功改用固定范围内19100；旧004失败不变。P5 Worker26552→27079→27422→27659，API80171/scheduler81383未动，原配置恢复与六项冻结源一致。本轮1/3，不是验收通过；已写拒绝后恢复核验及初始窗口有限只读等待方案，尚未实现。日报旧runner依赖原安装目录，兼容验证需先核对使用源与当前P6一致，不能在空worktree运行时盲切App。
+
 P6启动前失败现场诊断（2026-10-04）：方案2643fcd先于执行，执行源码90af0cf；独立prebootstrap-failure-live-001原任务573ada6f-558b-4695-ae4d-3e8e0feaffb6。正式worker_once/实时额度75%/原共享锁，真实profile.prepare后在端口选择入口注入一次EADDRINUSE（不声称占满端口），原adapter/证明/Worker结束FAILED、0raw、session空、usage未知、无产物/新隔离。回执明确guestNotStarted=true、guestRevoked=false、cleanupConfirmed=false、profileUnchanged=true、restoreRequired=false。独立SSH核对原guest目录与launch日志不存在、共享bridge锁可用、无guest隔离；App前后会话空闲、原profile及P5六项源SHA一致。P5 Worker25312→26552，API80171/scheduler81383未动，私有介入回执0600保留。该受控故障证明安全收尾，不是业务成功；正常新版三例、日报兼容及P6总结仍待。
 
 P6启动前失败终态（2026-10-04）：按05a1e2f先行方案，为PreparationClosed增加明确closed/not-started状态。adapter只在profile.prepare返回后、bootstrap调用前的本次端口预检失败注册原task对象；回执独占保存失败则不注册。独立复核原binding、严格布尔、全部启动/切换/隧道/清理意图缺失（断链也拒绝）及原profile-plan/before/当前配置一致。Worker仅在心跳确认退出、原执行权仍有效、正常finish后免新隔离，结果FAILED或STOPPED，usage未知；guestNotStarted与guestRevoked/cleanupConfirmed分开，不伪称未启动guest已被撤销。旧隔离/失败不动，bootstrap未知/失权/DB异常仍保守隔离。
