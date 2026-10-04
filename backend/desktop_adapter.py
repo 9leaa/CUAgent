@@ -15,7 +15,7 @@ from backend.desktop_collect import collect_guest_bundle, private_path, run_boun
 from backend.desktop_contract import DesktopSubmission
 from backend.desktop_session import DesktopSessionClient
 from backend.desktop_ssh import create_ssh_wrapper
-from backend.desktop_tunnel import GuestControlTunnel
+from backend.desktop_tunnel import GuestControlTunnel, check_tunnel_port
 from backend.desktop_verify import verify_desktop_session
 from backend.desktop_usage import desktop_usage
 from backend.desktop_worker import PreparedDesktop
@@ -72,22 +72,45 @@ class DesktopTaskAdapter:
         submission = DesktopSubmission.model_validate(task.payload)
         root = private_path(self.service.settings.root, directory=True) / ('p2-' + task.id)
         root.mkdir(mode=0o700)
+        stage = ['local-preparation']
+        try:
+            return self.prepare_at_root(task, submission, root, stage)
+        except Exception as error:
+            # Never serialize exception text/args: external errors may contain
+            # credentials, URLs or process command lines.
+            record = {'taskId': task.id, 'runId': root.name, 'stage': stage[0],
+                      'category': 'OS_ERROR' if isinstance(error, OSError) else 'PREPARATION_ERROR',
+                      'errno': error.errno if isinstance(error, OSError) and type(error.errno) is int else None,
+                      'guestStartAttempted': (root / 'desktop-guest-start-intent.json').exists(),
+                      'guestReceiptPresent': (root / 'guest-private-receipt.json').exists(),
+                      'cleanupConfirmed': False}
+            save_exclusive(root / 'desktop-prepare-failure.json', json.dumps(record).encode())
+            raise
+
+    def prepare_at_root(self, task, submission, root, stage):
         (root / 'workspace').mkdir(mode=0o700)
         wrapper = create_ssh_wrapper(root=root, known_hosts=self.settings.known_hosts, askpass=self.settings.askpass)
         session_id = 'session-' + str(uuid.uuid4())
         session = DesktopSessionClient(root=root, session_id=session_id, node=self.settings.node,
                                        official_home=self.settings.official_home, cookie=self.settings.cookie)
         session.prepare(submission)
+        stage[0] = 'profile-prepare'
         self.command(root, 'profile', 'prepare')
+        stage[0] = 'tunnel-port-preflight'
+        check_tunnel_port(self.settings.tunnel_port)
+        stage[0] = 'guest-bootstrap'
         ready = bootstrap_guest(root=root, ssh_wrapper=wrapper,
                                 commit=self.settings.guest_commit, manifest_sha=self.settings.guest_manifest_sha,
                                 owner=task.owner, epoch=task.epoch)
+        stage[0] = 'control-client'
         client = DesktopControlClient(port=self.settings.tunnel_port, token=ready['controlToken'],
                                       run_id=root.name, owner=task.owner, epoch=task.epoch)
         tunnel = GuestControlTunnel(root=root, ssh_wrapper=wrapper,
                                     guest_port=ready['controlPort'], client=client)
         try:
+            stage[0] = 'tunnel-start'
             tunnel.start()
+            stage[0] = 'connection-record'
             save_exclusive(root / 'c0-connection.json', json.dumps({'runId': root.name, 'caseId': 'real_textedit',
                              'url': ready['modelUrl'], 'token': ready['modelToken']}).encode())
         except Exception:

@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6准备失败定位第一步（2026-10-04）：沿134ddff方案新增check_tunnel_port，adapter在bootstrap前保守检查固定loopback端口；隧道启动时仍再次检查并由SSH实际绑定/核对身份，不开启SO_REUSEADDR、不占用其他服务、不绕过冲突。新增私有desktop-prepare-failure.json记录阶段、固定错误类别、整数errno、启动意图/guest回执是否存在及cleanupConfirmed=false；不写外部异常文本/参数，原异常仍抛出，Worker隔离保持。覆盖真实本机监听冲突在guest启动前拒绝、监听不受影响，以及profile/bootstrap/tunnel三阶段含假凭据错误脱敏；14项专项通过，无真实VM或模型请求。
+
+本轮全后端473通过/1失败：既有test_database_remaining_lifetime_caps_monotonic_deadline返回103.000536，超过断言103；该夹具以应用utcnow设置过期时刻，生产读取数据库clock_timestamp，存在跨时钟边界敏感性，尚未据此改生产/放宽测试。单独复核执行权模块11项通过，原失败保留，不能称本轮全量全绿。guest启动后失败自动清理、清理确认到Worker终态的契约仍待实现；本改动仅提前拒绝和留可追踪证据，不声称完整准备失败恢复。
+
 P6结果快照修复（2026-10-04）：按134ddff先行方案，仅改desktop_evidence及对应测试。final_state保持原write_result时捕获的界面，要求它为写结果前最后一个完整观察、与write_result间无其他派发且≤30秒；仍晚于全部Save。write_result后仅允许成功的observe/read_result，所有成功观察必须一一具有原PNG/state哈希记录，后续观察额外核对正文/PID/window，不忽略尾部证据、拒绝再次编辑/保存或观察失败。新增7项测试含写后读前观察、读后观察、改正文/窗口/PID、缺记录/改图、尾部写动作、结果快照来自写后或过期。首轮测试因新增方法插入原用例中间出现NameError，修正测试布局后执行层全188通过；后端全470通过（既有Starlette弃用提示）。
 
 将002首例VM原trace/final_state/文档/result及账本引用的原PNG/state只读采集到新的私有snapshot-rule-review；四份已留证文件SHA与原失败复核一致，新核验vmStatus=VERIFIED/12raw。此仅离线规则复核，原数据库任务仍UNVERIFIED，无新模型调用、无产物登记、未部署新guest。P5六冻结源码SHA不变。本机独立随机loopback端口复现连接关闭后无SO_REUSEADDR的bind返回errno48，但002第三例原异常缺失，仍不能定因；准备阶段预检/失败回执及安全清理留待下一步。

@@ -11,6 +11,14 @@ import time
 from backend.desktop_client import ControlUnconfirmed, DesktopControlClient
 
 
+def check_tunnel_port(port):
+    """Conservative preflight, not a reservation or proof of SSH ownership."""
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError('loopback tunnel port required')
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(('127.0.0.1', port))
+
+
 class GuestControlTunnel:
     def __init__(self, *, root, ssh_wrapper, guest_port, client):
         self.root = Path(root).absolute()
@@ -40,8 +48,7 @@ class GuestControlTunnel:
             self.attempted = True
             # Never claim or terminate an existing listener. The bind check is
             # not ownership proof; SSH must bind itself and pass identity probe.
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-                probe.bind(('127.0.0.1', self.client.port))
+            check_tunnel_port(self.client.port)
             args = [str(self.wrapper), '-F', '/dev/null', '-N', '-T', '-o', 'ExitOnForwardFailure=yes',
                     '-o', 'ForwardAgent=no', '-o', 'ForwardX11=no', '-o', 'ControlMaster=no',
                     '-o', 'ControlPath=none', '-o', 'ServerAliveInterval=5', '-o', 'ServerAliveCountMax=2',
