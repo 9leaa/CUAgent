@@ -30,6 +30,8 @@
 
 ### 旧日报最小实际兼容（执行前）
 
+启动入口修正（2026-10-04，尚无task/session/model）：desktop_service.serve外层明确只允许desktop-tasks/stop，因此原18107三次日报提交均被DESKTOP_ONLY_SERVICE拒绝，不能把独立库初始化器等同通用服务启动器。保留原提交失败；核对库为空后，仅精确停本次私有API，使用backend.api.create_app与同一隔离profile.settings（desktop_tasks_enabled=false）启动普通任务API；不修改或放宽产品桌面专用入口，不变更P5服务。私有笔记本地验证发现缺标题/固定三节，保留两份错误输入后按原日报契约补齐；正式新任务仍用原幂等键，冻结最终输入。先前将HTTP失败解释为输入验证错误的私有记录另作更正，不能隐去。
+
 006同版三例通过后，另开daily-report-compat-001私有证据根与独立服务/数据库（候选API18107），不向P5原队列建任务。固定一份短笔记与数值2、4的CSV，派发前冻结原输入和独立期望count=2/sum=6/mean=3；正式旧日报提交、原task一次执行、正式查询及report.json/report.md下载。仅测普通日报，不混入聚合、定时、恢复或新业务；失败不换样本、不重发prompt，费用未知保留null。
 
 P6 worktree没有原官方App安装运行目录。先逐文件核对P6与原安装的日报runner、A1插件及其本地依赖、build/configure/start脚本、任务配置加载器完全一致，冻结哈希清单。由P6导入Worker及新版服务，私有诊断启动器只显式绑定原安装PROJECT路径以复用同字节旧runner和既有运行依赖；不复制凭证、不建伪安装、不改原P5源码。若依赖闭包不一致则不执行。此结果仅证明已安装环境下的新服务兼容旧执行链，不冒充C3全新安装复现，也不将诊断路径绑定算作新增产品安装能力。
