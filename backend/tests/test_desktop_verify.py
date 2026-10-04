@@ -23,7 +23,9 @@ def evidence(tmp_path):
                      {'type': 'tool/result', 'data': {'message': {'toolCallId': str(index), 'isError': False, 'content': content}}}])
     rows.append({'type': 'turn/end', 'data': {'reason': {'kind': 'completed'}}})
     for index, row in enumerate(rows): row['seq'] = index
-    trace = [{'event': 'attempted_input', 'snapshot_id': 'a', 'sha256': hashlib.sha256(expected).hexdigest()},
+    trace = [{'event': 'dispatch', 'tool': 'type_text', 'call_id': 'type'},
+             {'event': 'result', 'tool': 'type_text', 'call_id': 'type', 'value': {}},
+             {'event': 'attempted_input', 'snapshot_id': 'a', 'sha256': hashlib.sha256(expected).hexdigest()},
              {'event': 'attempted_save', 'snapshot_id': 'b'},
              {'event': 'dispatch', 'tool': 'write_result', 'call_id': 'write'},
              {'event': 'result', 'tool': 'write_result', 'call_id': 'write', 'value': expected.decode()},
@@ -53,6 +55,44 @@ def test_synthetic_session_policy_and_guest_correlation(evidence):
     assert result['sessionVerified'] is True
     assert result['officialToolCalls'] == 7 and result['rawCalls'] == 12
     assert 'status' not in result
+
+
+@pytest.mark.parametrize('fault', [None, 'official-success', 'guest-not-refused', 'guest-error',
+    'missing-result', 'duplicate-result', 'no-observe', 'late-refusal', 'extra-type', 'missing-guest'])
+def test_input_refusal_requires_ordered_guest_proof_and_fresh_observe(evidence, fault):
+    _, _, bundle, rows, _ = evidence
+    trace = [json.loads(line) for line in bundle['files']['trace.jsonl'].splitlines()]
+    original = next(row for row in rows if row['type'] == 'tool/call' and row['data']['name'] == 'vm_type')
+    call = {'type': 'tool/call', 'data': {**original['data'], 'callId': 'refused'}}
+    result = {'type': 'tool/result', 'data': {'message': {'toolCallId': 'refused', 'isError': True,
+              'content': [{'type': 'text', 'text': 'Error: DESKTOP_REQUEST_REJECTED'}]}}}
+    observe = [{'type': 'tool/call', 'data': {'callId': 'fresh', 'name': 'vm_observe', 'arguments': '{}'}},
+               {'type': 'tool/result', 'data': {'message': {'toolCallId': 'fresh', 'content': [{'type': 'image'}]}}}]
+    index = rows.index(original)
+    rows[index:index] = [call, result, *observe]
+    pair = [{'event': 'dispatch', 'tool': 'rejected_type_text', 'call_id': 'refused'},
+            {'event': 'result', 'tool': 'rejected_type_text', 'call_id': 'refused',
+             'value': {'status': 'refused', 'reason': 'DESKTOP_REQUEST_REJECTED'}}]
+    trace[:0] = pair
+    if fault == 'official-success': result['data']['message']['isError'] = False
+    if fault == 'guest-not-refused': pair[1]['value']['status'] = 'ok'
+    if fault == 'guest-error': pair[1]['event'] = 'error'
+    if fault == 'missing-result': trace.remove(pair[1])
+    if fault == 'duplicate-result': trace.insert(2, dict(pair[1]))
+    if fault == 'no-observe':
+        for row in observe: rows.remove(row)
+    if fault == 'late-refusal':
+        trace.remove(pair[0]); trace.remove(pair[1]); trace.extend(pair)
+    if fault == 'extra-type':
+        trace[2:2] = [{'event': 'dispatch', 'tool': 'type_text', 'call_id': 'extra'},
+                      {'event': 'result', 'tool': 'type_text', 'call_id': 'extra', 'value': {}}]
+    if fault == 'missing-guest':
+        trace.remove(pair[0]); trace.remove(pair[1])
+    for index, row in enumerate(rows): row['seq'] = index
+    bundle['files']['trace.jsonl'] = b'\n'.join(json.dumps(row).encode() for row in trace)
+    if fault is None: assert verify(evidence)['recoveredInputRefusals'] == 1
+    else:
+        with pytest.raises(ValueError): verify(evidence)
 
 
 @pytest.mark.parametrize('fault', [None, 'wrong-error', 'guest-success', 'official-success', 'late-error',

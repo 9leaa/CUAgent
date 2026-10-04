@@ -155,7 +155,8 @@ def inspect_guest_evidence(directory, *, run_id, expected):
             require(expected in (displayed, displayed + b'\n'))
     document = read('artifacts/handoff-' + run_id + '.txt', 4096)
     result_bytes = read('result.txt', 4097)
-    business = verify_evidence(rows, expected, document, result_bytes, final, allow_missing_result_read=True)
+    business = verify_evidence(rows, expected, document, result_bytes, final,
+                               allow_missing_result_read=True, allow_rejected_input=True)
     require(business['status'] == 'SUCCEEDED')
     # Catch concurrent ledger changes; production collection additionally freezes
     # the source after revocation and confirms all admitted calls have returned.

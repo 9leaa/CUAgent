@@ -4,6 +4,8 @@ P6消息证据：原用户prompt必须唯一且rpcId匹配。官方默认repeat-
 
 P6读回错误：官方与guest全部读写调用按顺序逐项对应。只有唯一写入之前的guest原read_result/FileNotFoundError及对应官方错误可保留为recoveredMissingReads，且随后必须重新观察、写入和正确读回；guest错误缺失/类型不符、写后失败或缺最终读回均拒绝。只读失败继续计原raw预算、不删会话/账本行；旧TextEdit验收默认规则不变。新规则离线通过不改变旧任务UNVERIFIED，也不能替代当前版本真实回归。
 
+P6输入参数拒绝恢复：原guest的rejected_type_text必须完整配对并明确refused，且全部早于新的完整观察及唯一实际type_text；真实输入error/UNKNOWN、重复实际输入、拒绝后沿用旧观察均不允许。host按顺序对应每项官方vm_type和原guest拒绝/实际输入及错误状态，成功正文/快照/哈希仍严格核对，报告recoveredInputRefusals。失败保留并计预算，不能只凭官方错误文本放行。
+
 ## P6 独立队列服务
 
 `backend.desktop_service init` 创建新私有目录、新数据库和独立token，只引用现有私有backend.env；不修改原库、不复制App凭据、不启动Worker/模型。新目录的父目录须已存在且仅当前用户可访问。端口只允许18100–18999，固定监听127.0.0.1；占用则拒绝，不停止已有服务。

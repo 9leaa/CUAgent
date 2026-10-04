@@ -70,6 +70,50 @@ class DesktopEvidenceTests(unittest.TestCase):
         self.reindex_observations()
         self.save_trace()
 
+    def add_input_refusal(self):
+        self.rows[:0] = [
+            dict(event='dispatch', run_id='task', call_id='refused-input', tool='rejected_type_text', used=1, at=.5),
+            dict(event='result', run_id='task', call_id='refused-input', tool='rejected_type_text',
+                 value={'status': 'refused', 'reason': 'DESKTOP_REQUEST_REJECTED'}, at=.6)]
+        self.reindex_observations()
+        self.save_trace()
+
+    def test_refused_input_then_new_observe_is_retained_and_counted(self):
+        self.add_input_refusal()
+        before = (self.root / 'trace.jsonl').read_bytes()
+        result = self.inspect()
+        self.assertEqual(result['rawCalls'], 11)
+        self.assertEqual(result['business']['recovered_input_refusals'], 1)
+        self.assertEqual((self.root / 'trace.jsonl').read_bytes(), before)
+        from real_app_verifier import verify_evidence
+        final = json.loads((self.root / 'final_state.json').read_text())
+        self.assertEqual(verify_evidence(self.rows, self.expected, self.expected,
+                         self.expected+b'\n', final)['status'], 'UNVERIFIED')
+
+    def test_refusal_not_permission_for_replay_or_missing_observation(self):
+        self.add_input_refusal()
+        original = copy.deepcopy(self.rows)
+        for fault in ('error', 'unknown', 'not-refused', 'missing', 'duplicate', 'no-fresh', 'after-input', 'actual-input'):
+            with self.subTest(fault=fault):
+                self.rows = copy.deepcopy(original)
+                pair = [row for row in self.rows if row.get('call_id') == 'refused-input']
+                if fault == 'error': pair[1]['event'] = 'error'
+                if fault == 'unknown': pair[1]['event'] = 'UNKNOWN'
+                if fault == 'not-refused': pair[1]['value']['status'] = 'ok'
+                if fault == 'missing': self.rows.remove(pair[1])
+                if fault == 'duplicate': self.rows.insert(2, dict(pair[1]))
+                if fault == 'actual-input':
+                    for row in pair: row['tool'] = 'type_text'
+                if fault in ('no-fresh', 'after-input'):
+                    for row in pair: self.rows.remove(row)
+                    at = 1.5 if fault == 'no-fresh' else 2.5
+                    pair[0]['at'], pair[1]['at'] = at, at+.1
+                    position = next(i for i, row in enumerate(self.rows) if row['at'] > at+.1)
+                    self.rows[position:position] = pair
+                    self.reindex_observations()
+                self.save_trace()
+                with self.assertRaises(ValueError): self.inspect()
+
     def reindex_observations(self):
         used = 0
         for row in self.rows:

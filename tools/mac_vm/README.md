@@ -56,6 +56,8 @@ C1 扩展为 `c1_cases.py` 和 `c1_bridge.py`，复用同一准入/预算/审计
 
 P6缺结果文件恢复：desktop_evidence显式启用real_app_verifier的allow_missing_result_read，默认旧TextEdit调用不启用。仅原完整配对的read_result/FileNotFoundError早于唯一写入，且错误后有新鲜原观察、成功写入和正确读回，才允许该失败留在成功证据中；原账本/预算完整不变。其他错误、写后失败、缺读回/新观察等仍拒绝，host另对照官方读写顺序和错误。此项离线核验不登记旧任务成功。
 
+P6输入拒绝恢复：desktop_evidence显式启用allow_rejected_input，旧TextEdit默认仍拒绝。只允许实际输入前、完整配对且明确refused的rejected_type_text；之后必须有原文件/PNG绑定的新观察以及唯一实际输入，不能接纳输入error/UNKNOWN、重复编辑、晚于输入的拒绝或旧观察。全部原调用仍计数，报告recovered_input_refusals；host另逐项对应官方vm_type与guest序列。旧失败仅可离线复核，不改任务状态或补交付。
+
 根目录无模型测试：
 
 ```bash

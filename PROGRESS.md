@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6输入拒绝恢复核验（2026-10-04）：按4441300方案实施，real_app_verifier增加默认关闭的allow_rejected_input，P6显式启用；仅完整配对、明确refused、早于新观察和唯一真实输入的rejected_type_text可接受，真实输入失败/UNKNOWN及重复编辑仍拒绝。host逐项对应官方vm_type和guest拒绝/真实输入的顺序与错误状态，至少一次新官方观察，成功正文/快照/哈希严格核对，分别报告恢复拒绝次数；不删错误行或清预算。39项host专项、16项guest专项（含8个子反例）、执行层全192项、后端全584项通过，既有Starlette警告1项。
+
+只读复核005中文：独立SSH复制原state/PNG/trace/document/result到新私有目录，四份原文件SHA与原失败审计完全一致；新guest/host规则均通过，13raw、1次输入拒绝恢复，原PNG正文人工视觉核对一致。原数据库任务保持UNVERIFIED、未补产物交付、未重发模型/GUI或部署VM。初始窗口就绪问题仍待实现，之后才冻结新版真实回归；P6未验收。
+
 P6正式三例005（2026-10-04）：冻结65f62146e2403aa458e5193f08a87091656c5fac，host/guest同版，manifest 8fbaedcfdc3612494f344b8eed45cf61491431650f689d4bf0abfbbac11cea5f，独立API18105。英文cf7a1bc2 SUCCEEDED/13raw/576132token，中文46e09510 UNVERIFIED/13raw/581694token，混合45eef8c2 UNVERIFIED/2raw/4182token；总28raw/1162008token，费用未知。英文原文件/下载/官方会话/guest截图与停止后零派发独立通过；失败同样SSH重读原轨迹/文件并保留未通过状态。
 
 中文首次vm_type的snapshot_id误填s00000079:1，被原执行层拒绝；新观察s0000007a后唯一真实输入，原document/result字节正确，但business whitelist及host仅一次vm_type契约不支持此恢复。混合例launch返回原PID30824，首次list_windows没有本任务可见窗口，只有历史标题；原执行停止，后两次模型观察请求也拒绝，预算仍2，无正文/result，不能猜具体系统原因或补跑。三例实际控制口19099/19100/19099，第二例原首选占用时成功改用固定范围内19100；旧004失败不变。P5 Worker26552→27079→27422→27659，API80171/scheduler81383未动，原配置恢复与六项冻结源一致。本轮1/3，不是验收通过；已写拒绝后恢复核验及初始窗口有限只读等待方案，尚未实现。日报旧runner依赖原安装目录，兼容验证需先核对使用源与当前P6一致，不能在空worktree运行时盲切App。

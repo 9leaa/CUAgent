@@ -63,11 +63,30 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
         message = matches[0]['data']['message']
         require(type(message.get('isError', False)) is bool)
         if message.get('isError'):
-            require(data['name'] in ('vm_write_result', 'vm_read_result'))
+            require(data['name'] in ('vm_write_result', 'vm_read_result', 'vm_type'))
             if data['name'] == 'vm_write_result': errors.append(call)
         parsed.append((data['name'], json.loads(data['arguments']), message))
     require(len(errors) == sum(row['event'] == 'dispatch' and row.get('tool') == 'rejected_write_result' for row in trace))
-    typed = [args for name, args, _ in parsed if name == 'vm_type']
+    guest_inputs = [row for row in trace if row['event'] == 'dispatch'
+                    and row.get('tool') in ('type_text', 'rejected_type_text')]
+    official_inputs = [(index, args, message) for index, (name, args, message) in enumerate(parsed) if name == 'vm_type']
+    require(len(guest_inputs) == len(official_inputs) and bool(guest_inputs))
+    typed, input_refusals = [], 0
+    for call, (index, args, message) in zip(guest_inputs, official_inputs):
+        matches = [row for row in trace if row['event'] in ('result', 'error')
+                   and row.get('call_id') == call.get('call_id')]
+        require(len(matches) == 1 and matches[0].get('tool') == call['tool']
+                and matches[0]['event'] == 'result' and trace.index(call) < trace.index(matches[0]))
+        if call['tool'] == 'rejected_type_text':
+            require(message.get('isError') is True and not typed
+                    and matches[0].get('value') == {'status': 'refused', 'reason': 'DESKTOP_REQUEST_REJECTED'})
+            input_refusals += 1
+        else:
+            require(message.get('isError', False) is False)
+            if input_refusals:
+                last_refused = max(i for i, _, m in official_inputs if i < index and m.get('isError') is True)
+                require(any(name == 'vm_observe' for name, _, _ in parsed[last_refused + 1:index]))
+            typed.append(args)
     expected = submission.expected_document()
     require(len(typed) == 1 and typed[0].get('text', '').encode() == expected)
     inputs = [row for row in trace if row['event'] == 'attempted_input']
@@ -112,4 +131,5 @@ def verify_desktop_session(root, *, session_id, submission, guest_bundle):
     require(any(row['imageBlocks'] > 0 for row in audit))
     return {'sessionVerified': True, 'sessionId': session_id, 'sessionSha256': hashlib.sha256(raw).hexdigest(),
             'model': MODEL.copy(), 'officialToolCalls': len(calls), 'rawCalls': guest_bundle['guest']['rawCalls'],
-            'frameworkNotices': framework_notices, 'recoveredMissingReads': recovered}
+            'frameworkNotices': framework_notices, 'recoveredMissingReads': recovered,
+            'recoveredInputRefusals': input_refusals}
