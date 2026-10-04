@@ -28,6 +28,12 @@
 
 ## 验收和证据
 
+### 控制端口与未启动收尾修复版三例005（执行前）
+
+在ec1f65e端口选择、90af0cf准备收尾、574项后端测试及prebootstrap-failure-live-001现场零模型诊断通过后，冻结repair-entry-cohort-005。沿原三组英文/中文/混合文本、正式API提交和worker-once协议；host与guest固定本方案提交后的同一commit，部署新版本目录及独立库/API18105，不覆盖004的2/3或旧证据。实际首选/选中控制端口记录独立核对；未发生端口切换则如实记录，不冒充实测了切换。
+
+全部任务先提交冻结；逐项新查额度、原P5空闲/计划30分钟外、VM/App/锁与原配置，单任务30raw、单次派发，失败不替换。每例确认原执行结束和配置恢复才恢复P5。逐一下载并独立读原guest截图/文件/轨迹及官方会话，保留全用量（未知不填零）和介入。三例结束再安排最小实际日报兼容及P6总验收，不用纯单元替代；原P5每日模型计划不变。
+
 ### 启动前失败零模型现场诊断（90af0cf后、执行前）
 
 独立prebootstrap-failure-live-001数据库/目录、单个原诊断任务，沿正式worker_once/LiveGate/QuotaGate及共享锁执行。真实profile.prepare返回后，在端口选择函数注入一次EADDRINUSE，明确为受控故障，不声称现场占满1000端口；不调用bootstrap/模型、不构造业务产物。要求原adapter生成not-started证明、原Worker结束FAILED/0raw/session空、usage未知且没有新隔离。独立SSH核对原guest目录与launch目录不存在、原共享锁可取、无guest隔离；App所有会话仍空闲、原配置字节与P5冻结源码不变。
