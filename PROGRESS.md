@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+P6同版三例003（2026-10-04 09:32—09:39北京时间）：按ae47829事前方案冻结host/guest ae47829e7eebad991e0d522099430a1a72a1064b，guest新目录manifest d0bff038220a37a09fb1b37ffaf282082f31729a251dfa592b7b27026f4c0f49，不覆盖c448ae2。独立API18102/PID22754和新数据库，旧002服务保留；三项先经正式client/API提交冻结，每例新查Codex77%/积分不变/卡未用和私有绑定记录，原Flash/off/30raw，未重复派发。
+
+01 task31ae6a79-8975-4d11-9a69-2cf6ba2447d7/session-6b686777-370a-492d-9827-8533ab2ecd30成功，9raw/7官方工具/248513 total tokens。02 task33077a36-ea8b-486e-9fdb-5f9c3f9fddec/session-2e5ab1c0-eb8a-481e-baf0-dc9cb6749bd3为UNVERIFIED，11raw/395441 total；原GUI文档和result字节匹配，但raw8的read_result真实FileNotFoundError，raw9新观察、raw10首次写、raw11读回成功。原guest desktop_evidence:130把早期失败读也纳入“所有读晚于write”，且旧business verifier禁止非观察error、host仅允许写结果错误；先记录三层契约差异，未修改原任务/账本。03 taske5400ccb-5da0-4001-8129-735d2e82e01b/session-3749f523-e245-4ee8-a684-1f5e9ed79cc1成功，11raw/9官方工具/397544 total。三例合计31raw、1041498 token，货币费用未知；003整体2/3，不能称验收通过。
+
+成功两例正式下载SHA/字节及独立SSH原文件、PNG/state、停止许可/停止后零派发、官方会话模型/工具/图片审计均通过，原最后截图已查看，英文和混合三行正确；标题仍显示Edited，实际保存文件另行逐字节核对，不把标题当文件证据。成功例frameworkNotices均0，不称真实触发了提醒修复。失败例新增failure-02-audit保留原文件SHA/错误和停止后零派发；原中文document SHA3bc9288cec7208b4007aed65e901562e0922a50df7d980bfd2e9a687bbdb46b9/result SHAdbf3373912d3a6ca40198e8ed6eefc5f4a632071d88ff417eb4db815176a5c31，与预定内容一致但不发交付产物。审计脚本一次无害Python正则转义SyntaxWarning留存，无验收异常或重跑。
+
+每例恢复P5，Worker22627→23148→23452→23877，原API80171/scheduler81383未动；原profile与六冻结源码核对，无隔离。私有周观察目录记录全部切换和失败，不算用户实际采用。README同步，先补“写入前缺文件只读失败”方案再改代码；新版真实回归、旧日报兼容及P6总结仍待，目标保持未完成。
+
 P6真实准备失败收尾诊断（2026-10-04 09:26北京时间）：按ea5d76e事前方案，在独立prepare-cleanup-live-001服务库/私有目录创建原任务7c57cfe0-c694-46f6-bb5e-ee33e25f8a97；host执行5be7615，guest沿用c448ae2和原manifest。当前Codex剩余77%、原积分不变/卡未用，任务/profile绑定私有记录五分钟内使用；P5空闲、下一正式计划12:10、六源码SHA/原profile一致，App会话空闲、VM已解锁。原P5 Worker20401单次TERM退出，API80171和scheduler81383未动。
 
 原bootstrap真实启动guest PID28118（owner0b498e8c-d8d1-41d9-8059-6cab4bea89ba/epoch1）后，诊断程序只在tunnel.start前持有自己19097端口监听制造实际bind冲突；原tunnel.start抛errno48，未替换清理/Worker/guest响应。adapter实际通过SSH到guest loopback撤销并关闭，failure回执stage=tunnel-start/cleanupConfirmed=true；Worker独立核对原配置和清理证据后，原任务FAILED/DESKTOP_PREPARATION_FAILED、0raw、无session/产物、usage unavailable，无quarantine，profileUnchanged=true/restoreRequired=false。该故障为明确程序注入，不证明002原异常原因。

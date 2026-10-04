@@ -28,6 +28,12 @@
 
 ## 验收和证据
 
+### 写入前不存在结果的只读失败（003真实失败后、修复前）
+
+003中文例在正确GUI保存后先read_result，得到真实FileNotFoundError；随后重新观察、首次write_result和成功read_result，原文档与结果字节均正确。但guest要求全部read都晚于write，旧business verifier拒绝非观察error，host也只接受vm_write_result错误，三层契约同时不支持这种无副作用的恢复。保留原UNVERIFIED、11raw/完整用量和原官方错误，不重发、不修改旧任务。
+
+修正只允许窄范围、可独立证明的缺文件读取：原完整调用配对中read_result的FileNotFoundError必须早于唯一成功write_result；之后必须有新鲜真实观察、成功写入和成功读回。早期成功读回、写后读取错误、其他错误/UNKNOWN、缺配对、缺最终读回和身份/内容变化均拒绝，所有失败保留原账本且计预算，不过滤掉错误行。P6 guest显式启用该验收选项，旧TextEdit验证默认规则保持不变；host按官方read调用顺序与guest原dispatch/result/error逐项对应，错误状态和数量一致，不仅比较总数，更不能仅凭官方通用错误文本认定FileNotFound。各次成功读回都必须匹配最终原字节；官方模型/唯一prompt/五工具/图片审计继续独立验证。先覆盖合成反例及原失败字节只读离线复核，再冻结新版本真实回归；不把离线新规则通过倒填003成功或宣告P6完成。
+
 ### 结果快照/准备收尾修复版三例003（执行前）
 
 在d7a1971结果快照修正、5be7615收尾实现及prepare-cleanup-live-001真实故障诊断后，冻结新的repair-entry-cohort-003。host与guest使用本方案提交后的同一完整commit；guest只通过已有deploy_guest把该commit的白名单文件部署到新的版本目录，不覆盖c448ae2或旧证据。部署仅装源码、不启动服务/GUI/模型。独立服务库和loopback18102，保留002服务/数据库不停止或复用。
