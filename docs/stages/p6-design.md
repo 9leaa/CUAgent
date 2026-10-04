@@ -34,6 +34,12 @@
 
 002第三例已启动未激活guest，但在保存隧道意图前失败，adapter尚无prepared对象，Worker只能隔离，无法自动清理已启动guest。当前未保存原异常，不能将端口TIME_WAIT猜测写成确定原因。先补安全错误分类/阶段回执及准备阶段所有权收尾设计，再实现：预检端口在启动guest之前；guest已启动而后续失败时，只可用原绑定控制通道撤销/确认零在途/关闭，失败继续隔离，不新建guest、不重放模型、不猜PID杀进程。用真实loopback端口占用/关闭复用与模拟guest启动后失败覆盖资源泄漏和未知响应；不得放宽端口归属、许可、预算或旧P5隔离。后续部署冻结新版本并单独回归，不能覆盖002样本。
 
+### 准备失败的未激活guest清理（实现前细化）
+
+本步只补adapter清理，不改变Worker的保守隔离/非成功判定，不自动恢复P5、清除旧隔离或修改旧失败。bootstrap已返回并验证原ready后，后续control-client/tunnel/connection准备失败才可进入清理；bootstrap响应未知或非法时不猜身份、不重启guest。先关闭本次自有隧道，再沿原SSH包装器直接访问guest loopback控制口，不依赖失败的host转发端口。
+
+清理复用同一DesktopControlClient源码及固定协议函数，以可信SSH单次运行；固定guest Python、普通mvpagent/VirtualMac核对，token仅有界stdin，不入argv。原run/owner/epoch严格绑定，必须未激活、raw/pending均0、modelPort为空，且尚未发放有效许可；然后只执行revoke和shutdown，不renew/activate、不操作GUI、不按PID杀进程。新私有清理意图先独占落盘，操作未知不重试；仅收到并重新验证原身份、停止且已关闭的回执才记录cleanupConfirmed=true。只保存固定字段，异常原文和远端额外字段不写回执；原prepare异常继续抛出，Worker仍隔离供后续核对。验证用真实loopback协议、模拟SSH/失败注入，不冒充真实VM收尾或完整P6通过。
+
 ### 官方提醒修复版回归 002（执行前）
 
 在17ead3c修复和470项后端、113项Node测试通过后，冻结新的repair-entry-cohort-002，仍使用原三组文本及guest c448ae2。旧001的成功和失败不变；其第三项从未执行，先通过原API停止并确认零调用、无session，保留未执行记录。核对身份后只停止旧P6 API，原数据库与证据保留；新实例使用独立库及原18100端口。新批次全部任务先提交冻结，再按既有逐例额度、切换、独立核验及恢复协议执行。不把新批次成功覆盖旧失败，不因再次失败自动替换样本；P5进程和冻结源码约束不变。
