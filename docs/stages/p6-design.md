@@ -28,6 +28,14 @@
 
 ## 验收和证据
 
+### guest启动前失败的安全终态（实现前）
+
+ec1f65e已解决常见端口竞争，但全部端口忙等bootstrap前失败仍被隔离。新增明确`guest_state=not-started`的准备证明，与已有`closed`区分：只接受当前adapter本次调用，在profile.prepare成功之后、进入bootstrap之前的`tunnel-port-preflight`阶段失败。不能仅凭磁盘缺少ready推断未启动；adapter必须记录自身尚未调用bootstrap，失败回执写成功后才注册本次task对象身份。
+
+独立证明要求私有原run/owner/epoch、失败阶段/严格布尔值、无guest启动/ready/隧道/清理/App切换/会话派发意图（包含断链）、profile-before/plan与当前配置原字节一致。bootstrap阶段即使无ready也一律未知；profile.prepare未完成也不适用。Worker确认心跳退出、原执行权有效后，以原数据库入口停派并finish FAILED（已收到停止则STOPPED），不调用guest撤销、App恢复或模型，不填零usage。回执明确guestNotStarted=true、guestRevoked=false、preparationCleanupConfirmed=false，不能把未发生操作记成成功清理。只有本次证明并正常finish后可免新隔离；旧隔离不自动清除，丢执行权/线程未退/DB失败仍隔离。
+
+测试覆盖两种证明、断链/缺失/篡改/profile变化、bootstrap未知与跨task拒绝、真实隔离数据库FAILED/STOPPED、失权/finish失败保留隔离。接着安排零模型、受控失败诊断验证生产adapter和Worker组合；不替代新版真实业务三例及日报兼容验收。
+
 ### 004控制端口冲突修复（实现前）
 
 004原三例为2/3：英文和混合文本各11raw成功；中文在guest启动前的控制端口预检出现EADDRINUSE（errno48），0raw、无会话，原任务保留BLOCKED。没有原现场socket状态，不能断言是TIME_WAIT。独立核对guest未启动、配置未变和共享锁可用后才归档隔离并恢复P5；不重跑中文原任务。
