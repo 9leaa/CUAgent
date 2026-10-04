@@ -26,6 +26,11 @@ def bootstrap_guest(*, root, ssh_wrapper, commit, manifest_sha, owner, epoch):
     raw = run_bounded(args, b'', limit=4096, timeout=25)
     save_exclusive(root / 'guest-private-receipt.json', raw)
     ready = json.loads(raw)
+    return validate_ready(ready, identity)
+
+
+def validate_ready(ready, identity):
+    """Shared validation; never return or log a partially validated receipt."""
     if (not isinstance(ready, dict) or ready.get('binding') != identity
             or type(ready['binding'].get('version')) is not int or type(ready['binding'].get('epoch')) is not int
             or ready.get('activated') is not False or ready.get('controlHost') != '127.0.0.1'

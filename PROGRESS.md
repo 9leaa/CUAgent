@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6准备失败收尾第二步（2026-10-04）：先提交050ed55细化方案，再新增desktop_prepare_cleanup/desktop_cleanup_protocol，复用原DesktopControlClient及bootstrap回执校验。adapter仅在已收到合法原ready后，遇到后续准备失败才关闭自有隧道并单次SSH清理原guest；固定普通VM身份/解释器，控制token只经有界stdin，未激活/无有效许可/零raw/零在途才撤销和关闭。原异常仍抛出，回执只保存固定字段，未知响应不重试，清理意图与确认独占0600。bootstrap未知或自有隧道关闭不明不启动后续清理；不按PID杀进程、不renew/activate、不自动重启P5或清除隔离。
+
+验证：51项相关测试通过，包含真实本机loopback控制HTTP、原身份/有效许可拒绝、revoke或shutdown响应丢失不重试、非法回执/字段类型/额外字段、凭据仅stdin、私有意图与确认、原异常保留及清理失败。全后端497通过，仅既有Starlette弃用警告；使用原Python和独立cuagent_test_UUID数据库，不迁移P5库。开发时测试插入位置错误导致2个NameError、参数名request被pytest保留导致一次收集错误，均修正后重新执行；上轮时钟边界失败本次未复现，未修改相关生产或测试，不能算已修复。git diff --check通过，P5原工作树干净，无真实SSH/VM/模型操作。
+
+本步仍保守保留Worker quarantine；cleanupConfirmed只说明原guest关闭确认，不等于App恢复、任务成功或可恢复P5。清理证据到有执行权的非成功终态衔接、真实VM失败收尾、新版同版本业务回归仍待完成；旧002状态和证据不变，P6未验收。README和backend/README已同步。
+
 P6准备失败定位第一步（2026-10-04）：沿134ddff方案新增check_tunnel_port，adapter在bootstrap前保守检查固定loopback端口；隧道启动时仍再次检查并由SSH实际绑定/核对身份，不开启SO_REUSEADDR、不占用其他服务、不绕过冲突。新增私有desktop-prepare-failure.json记录阶段、固定错误类别、整数errno、启动意图/guest回执是否存在及cleanupConfirmed=false；不写外部异常文本/参数，原异常仍抛出，Worker隔离保持。覆盖真实本机监听冲突在guest启动前拒绝、监听不受影响，以及profile/bootstrap/tunnel三阶段含假凭据错误脱敏；14项专项通过，无真实VM或模型请求。
 
 本轮全后端473通过/1失败：既有test_database_remaining_lifetime_caps_monotonic_deadline返回103.000536，超过断言103；该夹具以应用utcnow设置过期时刻，生产读取数据库clock_timestamp，存在跨时钟边界敏感性，尚未据此改生产/放宽测试。单独复核执行权模块11项通过，原失败保留，不能称本轮全量全绿。guest启动后失败自动清理、清理确认到Worker终态的契约仍待实现；本改动仅提前拒绝和留可追踪证据，不声称完整准备失败恢复。

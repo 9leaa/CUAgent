@@ -10,6 +10,7 @@ from desktop_control_http import control_server
 from desktop_lease import DesktopTask
 from desktop_runtime import DesktopGuestRuntime
 from backend.desktop_client import DesktopControlClient, ControlUnconfirmed
+from backend.desktop_cleanup_protocol import cleanup_unactivated
 
 
 @pytest.fixture
@@ -85,6 +86,42 @@ def test_missing_lease_never_activates(lifecycle):
         client.activate(lambda: 65)
     assert runtime.task is None
     assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+def test_preparation_cleanup_real_loopback_never_grants_or_activates(lifecycle):
+    client, runtime, _ = lifecycle
+    requests = []
+    original = client.request
+    def tracked(method, path, body=None):
+        requests.append((method, path))
+        return original(method, path, body)
+    client.request = tracked
+    result = cleanup_unactivated(client)
+    assert result == {'binding': client.identity, 'closed': True, 'stopped': True,
+                      'active': False, 'rawCalls': 0, 'pendingCalls': 0}
+    assert [path for method, path in requests if method == 'POST'] == ['/revoke', '/shutdown']
+    assert runtime.closed and runtime.task is None
+    assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+@pytest.mark.parametrize('state', ['granted', 'active', 'wrong-identity', 'revoke-lost', 'shutdown-lost'])
+def test_preparation_cleanup_rejects_or_preserves_unknown(lifecycle, state):
+    client, runtime, _ = lifecycle
+    if state in ('granted', 'active'):
+        client.renew(1, lambda: 65)
+    if state == 'active': client.activate(lambda: 65)
+    if state == 'wrong-identity': client.identity['owner'] = 'other'
+    mutations = []
+    original = client.request
+    def dropped(method, path, body=None):
+        result = original(method, path, body)
+        if method == 'POST': mutations.append(path)
+        if path == '/' + state.removesuffix('-lost') and state.endswith('-lost'):
+            raise ControlUnconfirmed('lost')
+        return result
+    client.request = dropped
+    with pytest.raises((ValueError, ControlUnconfirmed)): cleanup_unactivated(client)
+    assert mutations == ({'revoke-lost': ['/revoke'], 'shutdown-lost': ['/revoke', '/shutdown']}.get(state, []))
 
 
 @pytest.mark.parametrize('deadline', [50, True, float('nan'), None])

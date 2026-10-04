@@ -15,6 +15,8 @@ python -m backend.desktop_service serve --profile /absolute/private/parent/p6-se
 
 ## P6 受控单任务执行命令
 
+准备失败收尾：`desktop-prepare-failure.json`记录脱敏阶段和`cleanupConfirmed`。只有bootstrap已验证原身份的未激活guest，才沿原SSH直接访问guest loopback，单次撤销并关闭；启动响应未知、已有调用/在途、身份不符或通信失败不自动清理/重试。新`desktop-prepare-cleanup-intent.json`及确认后的`desktop-prepare-cleanup.json`均私有且不覆盖。`cleanupConfirmed=true`仅说明该guest清理确认，不代表任务成功、App恢复或允许恢复P5；当前Worker仍保留quarantine，不能删除隔离或重跑原任务。
+
 ```sh
 python -m backend.desktop_operator worker-once --profile /absolute/private/parent/p6-service/service.json --execution /absolute/private/execution.json --quota /absolute/private/current-quota.json --task TASK_UUID --cutover-approved
 ```
