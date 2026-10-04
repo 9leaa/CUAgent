@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6准备失败有证据收尾（2026-10-04）：先提交395a7b4方案，再新增PreparationClosed只读证明及Worker分支。只有当前adapter原任务对象、本次清理已确认，且私有原guest启动/ready/cleanup意图与回执匹配run/owner/epoch、无App/profile应用/会话启动意图、当前profile与原before/plan SHA及字节一致才可返回证明。拒绝缺失、公开权限、链接、布尔冒充epoch/计数、额外清理字段、错误阶段及配置变化。Worker先停止并确认心跳线程退出，任何lost标记拒绝；再用原owner/epoch刷新停止态DB控制，由正常finish结束FAILED，已观察用户停止则STOPPED。无guest续权、App恢复动作、session登记或业务产物，用量仍unknown。
+
+outcome使用profileUnchanged/appSwitchAttempted/restoreRequired明确区分“配置未变且没有切换、无需恢复”和“已执行恢复”，保存原profile SHA；不笼统声称整个环境没变化，准备文件及未启用插件副本仍保留。仅此正向证明路径避免创建新隔离；未知/失权/DB失败继续quarantine，不删除既有标记、不恢复P5，不改旧002失败。
+
+验证：首轮相关59项通过；全后端523项通过（既有Starlette弃用警告）。随后最终状态字段细化按当前代码复核相关61项通过，含真实独立PG的FAILED/STOPPED、错误证明、缺失、过期owner、finish异常以及prepare期间心跳失权；没有真实VM/App/SSH或模型调用。git diff --check通过，P5原工作树干净。README和backend/README同步；真实VM故障收尾与新版固定业务回归、P6总结仍待完成，不将此本地验证当阶段验收。
+
 P6准备失败收尾第二步（2026-10-04）：先提交050ed55细化方案，再新增desktop_prepare_cleanup/desktop_cleanup_protocol，复用原DesktopControlClient及bootstrap回执校验。adapter仅在已收到合法原ready后，遇到后续准备失败才关闭自有隧道并单次SSH清理原guest；固定普通VM身份/解释器，控制token只经有界stdin，未激活/无有效许可/零raw/零在途才撤销和关闭。原异常仍抛出，回执只保存固定字段，未知响应不重试，清理意图与确认独占0600。bootstrap未知或自有隧道关闭不明不启动后续清理；不按PID杀进程、不renew/activate、不自动重启P5或清除隔离。
 
 验证：51项相关测试通过，包含真实本机loopback控制HTTP、原身份/有效许可拒绝、revoke或shutdown响应丢失不重试、非法回执/字段类型/额外字段、凭据仅stdin、私有意图与确认、原异常保留及清理失败。全后端497通过，仅既有Starlette弃用警告；使用原Python和独立cuagent_test_UUID数据库，不迁移P5库。开发时测试插入位置错误导致2个NameError、参数名request被pytest保留导致一次收集错误，均修正后重新执行；上轮时钟边界失败本次未复现，未修改相关生产或测试，不能算已修复。git diff --check通过，P5原工作树干净，无真实SSH/VM/模型操作。

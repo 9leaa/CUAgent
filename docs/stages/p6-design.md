@@ -36,6 +36,8 @@
 
 ### 准备失败的未激活guest清理（实现前细化）
 
+字段细化：仅证明当前profile原字节未变及没有App切换意图，实际使用`profileUnchanged=true`和`appSwitchAttempted=false`；不笼统称整个环境未改变，准备目录和未启用的插件副本仍保留。`restoreConfirmed=true, restoreRequired=false`表示该路径无需App恢复动作。
+
 收尾衔接（f9924dd之后、实现前）：仅当前adapter本次prepare失败且清理确认的原上下文可以返回结构化PreparationClosed证明。Worker先停止/确认心跳线程退出，独立复核固定run/owner/epoch、私有失败/清理意图与确认、无App/profile应用/会话启动意图、原profile-before/plan SHA与当前实际配置字节一致。任何缺失、篡改、执行权丢失或线程未退出都保持原隔离，不读取旧任务回执自动解锁。随后只刷新数据库停止态控制（不续guest），由原owner/epoch正常finish为FAILED；已观察到用户停止则STOPPED，usage仍unknown、无session/业务产物。确认原配置未变明确标environmentUnchanged，不执行App恢复动作；正向证据充足时避免新建隔离，绝不删除既有quarantine。不自动恢复P5；真实VM验收和原002失败状态均不受本补充替代。
 
 本步只补adapter清理，不改变Worker的保守隔离/非成功判定，不自动恢复P5、清除旧隔离或修改旧失败。bootstrap已返回并验证原ready后，后续control-client/tunnel/connection准备失败才可进入清理；bootstrap响应未知或非法时不猜身份、不重启guest。先关闭本次自有隧道，再沿原SSH包装器直接访问guest loopback控制口，不依赖失败的host转发端口。

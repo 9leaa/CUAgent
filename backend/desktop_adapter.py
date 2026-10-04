@@ -19,6 +19,7 @@ from backend.desktop_tunnel import GuestControlTunnel, check_tunnel_port
 from backend.desktop_verify import verify_desktop_session
 from backend.desktop_usage import desktop_usage
 from backend.desktop_prepare_cleanup import cleanup_prepared_guest
+from backend.desktop_preparation import confirm_preparation_closed
 from backend.desktop_worker import PreparedDesktop
 
 
@@ -43,6 +44,7 @@ class DesktopTaskAdapter:
             raise ValueError('explicit settings and live execution gate required')
         self.service, self.settings, self.execution_gate = service, settings, execution_gate
         self.contexts = {}
+        self.cleaned_preparations = {}
 
     def gate(self, task):
         if self.settings.cutover_authorized is not True:
@@ -97,7 +99,15 @@ class DesktopTaskAdapter:
                       'guestReceiptPresent': (root / 'guest-private-receipt.json').exists(),
                       'cleanupConfirmed': cleanup_confirmed}
             save_exclusive(root / 'desktop-prepare-failure.json', json.dumps(record).encode())
+            if cleanup_confirmed:
+                self.cleaned_preparations[task.id] = (task, root)
             raise
+
+    def confirm_prepare_failure(self, task):
+        original, root = self.cleaned_preparations[task.id]
+        if original is not task:
+            raise ValueError('current preparation invocation required')
+        return confirm_preparation_closed(root=root, home=self.settings.official_home, task=task)
 
     def prepare_at_root(self, task, submission, root, stage, resources):
         (root / 'workspace').mkdir(mode=0o700)

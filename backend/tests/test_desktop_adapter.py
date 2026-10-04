@@ -109,6 +109,20 @@ def test_unknown_guest_identity_or_local_close_prevents_cleanup(assembled, failu
     session.start.assert_not_called()
 
 
+def test_prepare_settlement_requires_current_adapter_invocation(assembled):
+    adapter, task, _, _, tunnel, _ = assembled
+    with pytest.raises(KeyError): adapter.confirm_prepare_failure(task)
+    tunnel.start.side_effect = RuntimeError('prepare failure')
+    with patch('backend.desktop_adapter.cleanup_prepared_guest'):
+        with pytest.raises(RuntimeError): adapter.prepare(task)
+    with patch('backend.desktop_adapter.confirm_preparation_closed', return_value='proof') as confirm:
+        assert adapter.confirm_prepare_failure(task) == 'proof'
+        assert confirm.call_args.kwargs['task'] is task
+        confirm.reset_mock()
+        with pytest.raises(ValueError): adapter.confirm_prepare_failure(SimpleNamespace(**vars(task)))
+        confirm.assert_not_called()
+
+
 def test_failed_live_gate_prevents_app_switch_and_model_start(assembled):
     adapter, task, session, client, _, gate = assembled
     prepared = adapter.prepare(task)

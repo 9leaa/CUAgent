@@ -13,6 +13,7 @@ import threading
 import time
 import uuid
 from backend.desktop_execution_control import DesktopExecutionControl
+from backend.desktop_preparation import PreparationClosed
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class DesktopWorker:
         prepared = control = thread = None
         started = terminal = False
         cancelled = False
+        preparation_closed = False
         usage = {'available': False}
         outcome = {'taskId': task.id, 'status': 'BLOCKED', 'quarantined': False,
                    'restoreConfirmed': False}
@@ -149,6 +151,31 @@ class DesktopWorker:
             # A pre-error terminal observation alone does not authorize
             # restoration after failed ownership/revocation checks.
             terminal = False
+            if (prepared is None and control is None and not started
+                    and callable(getattr(self.adapter, 'confirm_prepare_failure', None))):
+                try:
+                    if thread:
+                        thread.join(timeout=8)
+                    if lost.is_set() or (thread is not None and thread.is_alive()):
+                        raise RuntimeError('DESKTOP_PREPARATION_AUTHORITY_UNCONFIRMED')
+                    proof = self.adapter.confirm_prepare_failure(task)
+                    if (not isinstance(proof, PreparationClosed)
+                            or proof.run != self.service.settings.root / ('p2-' + task.id)
+                            or proof.owner != self.owner or type(proof.epoch) is not int or proof.epoch != task.epoch):
+                        raise ValueError('DESKTOP_PREPARATION_PROOF_MISMATCH')
+                    stopped = self.service.heartbeat(task.id, self.owner, task.epoch, dispatch_stopped=True)
+                    if type(stopped) is not bool:
+                        raise ValueError('DESKTOP_PREPARATION_STOP_STATE_UNCONFIRMED')
+                    status = 'STOPPED' if stopped else 'FAILED'
+                    self.service.finish(task.id, self.owner, task.epoch, status,
+                        result={'usage': usage}, error_code='DESKTOP_PREPARATION_FAILED')
+                    preparation_closed = terminal = True
+                    outcome.update(status=status, errorCode='DESKTOP_PREPARATION_FAILED',
+                                   preparationCleanupConfirmed=True, profileUnchanged=True, appSwitchAttempted=False,
+                                   restoreConfirmed=True, restoreRequired=False,
+                                   profileSha256=proof.profile_sha256)
+                except Exception:
+                    pass  # Missing evidence/ownership never releases quarantine.
             if prepared is not None and started and control is not None:
                 try:
                     if thread:
@@ -195,6 +222,9 @@ class DesktopWorker:
             if thread:
                 thread.join(timeout=8)
             closed = control.close() if control else {'localRevoked': False, 'guestRevoked': False}
+            if preparation_closed:
+                closed = {'localRevoked': True, 'guestRevoked': True, 'closed': True,
+                          'inflightCancellationConfirmed': False}
             outcome['revocation'] = closed
             outcome['cancelRequested'] = cancelled
             unresolved = (not terminal or not closed['localRevoked'] or not closed['guestRevoked']
