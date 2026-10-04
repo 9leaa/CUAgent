@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6真实准备失败收尾诊断（2026-10-04 09:26北京时间）：按ea5d76e事前方案，在独立prepare-cleanup-live-001服务库/私有目录创建原任务7c57cfe0-c694-46f6-bb5e-ee33e25f8a97；host执行5be7615，guest沿用c448ae2和原manifest。当前Codex剩余77%、原积分不变/卡未用，任务/profile绑定私有记录五分钟内使用；P5空闲、下一正式计划12:10、六源码SHA/原profile一致，App会话空闲、VM已解锁。原P5 Worker20401单次TERM退出，API80171和scheduler81383未动。
+
+原bootstrap真实启动guest PID28118（owner0b498e8c-d8d1-41d9-8059-6cab4bea89ba/epoch1）后，诊断程序只在tunnel.start前持有自己19097端口监听制造实际bind冲突；原tunnel.start抛errno48，未替换清理/Worker/guest响应。adapter实际通过SSH到guest loopback撤销并关闭，failure回执stage=tunnel-start/cleanupConfirmed=true；Worker独立核对原配置和清理证据后，原任务FAILED/DESKTOP_PREPARATION_FAILED、0raw、无session/产物、usage unavailable，无quarantine，profileUnchanged=true/restoreRequired=false。该故障为明确程序注入，不证明002原异常原因。
+
+独立SSH读回原guest ready/停止lease，确认只有启动/许可文件，没有激活意图/trace/业务文件；原PID已退出，实际独立flock确认原guest共享锁可用。关闭自己注入socket后，原配置和P5六源码再次核对，App仍空闲，恢复P5 Worker22627并确认存活；P5私有周观察目录新增本次介入记录，不将程序读取算用户采用。原诊断失败和全部证据留.runtime/prepare-cleanup-live-001，不重建/补跑。此次无模型请求，未知用量不填零；不改变旧002失败、VM权限/网络/睡眠。README同步，仅提交脱敏记录；新版同版本三例、旧日报兼容核验及P6总结仍待完成，P6未验收。
+
 P6准备失败有证据收尾（2026-10-04）：先提交395a7b4方案，再新增PreparationClosed只读证明及Worker分支。只有当前adapter原任务对象、本次清理已确认，且私有原guest启动/ready/cleanup意图与回执匹配run/owner/epoch、无App/profile应用/会话启动意图、当前profile与原before/plan SHA及字节一致才可返回证明。拒绝缺失、公开权限、链接、布尔冒充epoch/计数、额外清理字段、错误阶段及配置变化。Worker先停止并确认心跳线程退出，任何lost标记拒绝；再用原owner/epoch刷新停止态DB控制，由正常finish结束FAILED，已观察用户停止则STOPPED。无guest续权、App恢复动作、session登记或业务产物，用量仍unknown。
 
 outcome使用profileUnchanged/appSwitchAttempted/restoreRequired明确区分“配置未变且没有切换、无需恢复”和“已执行恢复”，保存原profile SHA；不笼统声称整个环境没变化，准备文件及未启用插件副本仍保留。仅此正向证明路径避免创建新隔离；未知/失权/DB失败继续quarantine，不删除既有标记、不恢复P5，不改旧002失败。
