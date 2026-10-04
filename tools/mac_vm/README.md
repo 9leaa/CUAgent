@@ -58,6 +58,8 @@ P6缺结果文件恢复：desktop_evidence显式启用real_app_verifier的allow_
 
 P6输入拒绝恢复：desktop_evidence显式启用allow_rejected_input，旧TextEdit默认仍拒绝。只允许实际输入前、完整配对且明确refused的rejected_type_text；之后必须有原文件/PNG绑定的新观察以及唯一实际输入，不能接纳输入error/UNKNOWN、重复编辑、晚于输入的拒绝或旧观察。全部原调用仍计数，报告recovered_input_refusals；host另逐项对应官方vm_type与guest序列。旧失败仅可离线复核，不改任务状态或补交付。
 
+P6初始窗口就绪：仅DesktopTask在首次observe单次launch后，对原PID最多做3次list_windows，所有查询计原30raw；只接受同PID/应用/完整任务标题且可见的唯一窗口，再取得原截图/AX证据。缺失只等最多两次、每次≤1秒；多匹配、结构错误、失权/停止、超预算或超5秒观察截止均停止，不重启、不选历史窗口。5秒在每次查询前后核对；单次Driver调用仍使用原传输超时，不承诺整个方法墙钟硬限5秒。旧C0/TextEdit实现不改。
+
 根目录无模型测试：
 
 ```bash

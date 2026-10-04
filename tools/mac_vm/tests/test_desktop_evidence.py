@@ -296,6 +296,7 @@ class DesktopObservationEvidenceTests(unittest.TestCase):
                                          clock=lambda: 100)
             controller.renew(1)
             task = DesktopTask(root / 'task', lease=controller.gate, approved=True, environment=lambda: None)
+            task.pid, task.window = 1, 2  # This test isolates evidence hashing after window binding.
             png = b'\x89PNG\r\n\x1a\nSYNTHETIC'
             state = {'snapshot_id': 'fresh'}
             (task.directory / 'state-00.json').write_text(json.dumps(state))

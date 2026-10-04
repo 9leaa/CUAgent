@@ -71,6 +71,12 @@ class DesktopTask(RealAppTask):
         super().__init__(directory, *args, **kwargs)
 
     def observe(self):
+        try:
+            if self.window is None:
+                self._bind_initial_window()
+        except Exception:
+            self.stop()
+            raise
         result = super().observe()
         try:
             files = {}
@@ -96,6 +102,42 @@ class DesktopTask(RealAppTask):
             self.stop()
             raise
         return result
+
+    def _bind_initial_window(self):
+        """One launch, bounded read-only readiness polling of that same PID."""
+        self.snapshot = None
+        if self.pid is None:
+            launched = self.raw('launch_app', self.launch_args)
+            if (launched.get('bundle_id') != self.case.bundle
+                    or type(launched.get('pid')) is not int or launched['pid'] <= 0):
+                raise StopRun('BLOCKED', 'TextEdit launch identity mismatch')
+            self.pid = launched['pid']
+        deadline = time.monotonic() + 5
+        for attempt in range(3):
+            if time.monotonic() >= deadline:
+                break
+            # raw rechecks process identity, VM readiness, lease and budget.
+            response = self.raw('list_windows', {'pid': self.pid})
+            windows = response.get('windows')
+            if (not isinstance(windows, list) or any(not isinstance(w, dict)
+                    or type(w.get('pid')) is not int or w['pid'] <= 0
+                    or type(w.get('window_id')) is not int or w['window_id'] <= 0
+                    or not isinstance(w.get('title'), str) or not isinstance(w.get('app_name'), str)
+                    or type(w.get('is_on_screen')) is not bool for w in windows)):
+                raise StopRun('UNVERIFIED', 'Invalid TextEdit window inventory')
+            candidates = [w for w in windows if w['pid'] == self.pid and w['title'] == self.case.title
+                          and w['app_name'] == self.case.app_name and w['is_on_screen'] is True]
+            if len(candidates) > 1:
+                raise StopRun('UNVERIFIED', 'Ambiguous TextEdit task window')
+            if time.monotonic() >= deadline:
+                break  # A late response is not timely readiness; do not query again.
+            if len(candidates) == 1:
+                self.window = candidates[0]['window_id']
+                return
+            self.record({'event': 'window_readiness_wait', 'attempt': attempt + 1, 'pid': self.pid})
+            if attempt < 2:
+                time.sleep(min(1, max(0, deadline - time.monotonic())))
+        raise StopRun('UNVERIFIED', 'TextEdit task window not ready within bounded observation')
 
     def _admit(self, tool):
         try:
