@@ -28,6 +28,12 @@
 
 ## 验收和证据
 
+### 准备失败真实VM诊断（5be7615后、执行前）
+
+使用独立prepare-cleanup-live-001服务库/目录和单个新诊断任务，不重跑002，不创建官方会话或模型请求。冻结host 5be7615执行源码，guest沿用已部署c448ae2/原manifest（本诊断不涉及新版业务核验器）。正式bootstrap创建原未激活guest后，在本次隧道start调用前仅用诊断程序自己的临时loopback监听制造真实绑定冲突，原tunnel.start及adapter异常清理/Worker收尾不替换。故障注入明确记录，不将其认作002原错误原因。
+
+前置核对P5空闲/下一计划30分钟外、冻结源和原配置、App会话空闲、VM解锁、当前Codex额度；确认原Worker身份后临时停止，原API与scheduler不动。沿原LiveGate/QuotaGate及共享锁执行，原任务必须FAILED、0raw、无session/产物、cleanupConfirmed且配置未变/无新隔离。独立SSH只读核对原run的停止许可、无激活意图/trace/业务文件、ready绑定和原进程退出；检查释放同一guest共享锁而非猜测。任何异常保留原任务/证据，不重跑；finally关闭自己的注入socket，只有安全证据齐全才恢复原P5 Worker。记录所有人工/程序介入及用量未知，未启动模型不倒填token为0。本诊断不替代真实业务三例，随后另冻结部署新版验证器做业务回归。
+
 ### 结果快照与准备失败收尾（002真实失败后，实施前）
 
 002第一例文档/result原字节正确，但read_result后追加一次真实observe；final_state由write_result保存，当前desktop_evidence却要求它同时是最后一次观察，导致互相冲突。修正仅P6核验：明确final_state是结果写入前的依据，必须是write_result前最后一个已核验观察，且晚于全部Save；写结果之后仅允许只读观察/读回，不允许再次编辑或保存。所有后续观察仍须完整匹配原PNG/state哈希、同应用/PID/窗口，并核对正文一致，不能直接忽略尾部事件或放行新鲜界面与文件不一致。补正常尾部观察、改正文/换窗口/缺图/过期来源/尾部写入等反例，原失败保留UNVERIFIED；新规则离线复核不等于重跑成功。
