@@ -15,7 +15,7 @@ from backend.desktop_collect import collect_guest_bundle, private_path, run_boun
 from backend.desktop_contract import DesktopSubmission
 from backend.desktop_session import DesktopSessionClient
 from backend.desktop_ssh import create_ssh_wrapper
-from backend.desktop_tunnel import GuestControlTunnel, check_tunnel_port
+from backend.desktop_tunnel import GuestControlTunnel, select_tunnel_port
 from backend.desktop_verify import verify_desktop_session
 from backend.desktop_usage import desktop_usage
 from backend.desktop_prepare_cleanup import cleanup_prepared_guest
@@ -120,14 +120,17 @@ class DesktopTaskAdapter:
         stage[0] = 'profile-prepare'
         self.command(root, 'profile', 'prepare')
         stage[0] = 'tunnel-port-preflight'
-        check_tunnel_port(self.settings.tunnel_port)
+        tunnel_port = select_tunnel_port(self.settings.tunnel_port)
+        save_exclusive(root / 'desktop-tunnel-selection.json', json.dumps({
+            'binding': {'version': 1, 'runId': root.name, 'owner': task.owner, 'epoch': task.epoch},
+            'preferredPort': self.settings.tunnel_port, 'hostPort': tunnel_port}).encode())
         stage[0] = 'guest-bootstrap'
         ready = bootstrap_guest(root=root, ssh_wrapper=wrapper,
                                 commit=self.settings.guest_commit, manifest_sha=self.settings.guest_manifest_sha,
                                 owner=task.owner, epoch=task.epoch)
         resources['ready'] = ready
         stage[0] = 'control-client'
-        client = DesktopControlClient(port=self.settings.tunnel_port, token=ready['controlToken'],
+        client = DesktopControlClient(port=tunnel_port, token=ready['controlToken'],
                                       run_id=root.name, owner=task.owner, epoch=task.epoch)
         tunnel = GuestControlTunnel(root=root, ssh_wrapper=wrapper,
                                     guest_port=ready['controlPort'], client=client)

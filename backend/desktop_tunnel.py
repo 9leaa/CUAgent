@@ -1,4 +1,5 @@
 """Owned SSH control tunnel; no VM launch, credential copy or lease grant."""
+import errno
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,27 @@ def check_tunnel_port(port):
         raise ValueError('loopback tunnel port required')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.bind(('127.0.0.1', port))
+
+
+def select_tunnel_port(preferred):
+    """Bounded pre-bootstrap selection, never a reservation or live retry.
+
+    Production configuration permits only 19000..19999. Direct callers outside
+    that range retain exact-port semantics; they cannot widen the search.
+    """
+    if type(preferred) is not int or not 1 <= preferred <= 65535:
+        raise ValueError('loopback tunnel port required')
+    candidates = ([preferred] if not 19000 <= preferred <= 19999 else
+                  [19000 + (preferred - 19000 + offset) % 1000 for offset in range(1000)])
+    for port in candidates:
+        try:
+            check_tunnel_port(port)
+        except OSError as error:
+            if error.errno != errno.EADDRINUSE:
+                raise
+        else:
+            return port
+    raise OSError(errno.EADDRINUSE, 'CONTROL_TUNNEL_PORTS_UNAVAILABLE')
 
 
 class GuestControlTunnel:

@@ -63,6 +63,51 @@ def test_composed_prepare_start_verify_restore_with_mock_edges(assembled):
     assert [call.args[2] for call in adapter.command.call_args_list][-3:] == ['stop-restore', 'restore', 'start-restore']
 
 
+def test_selected_port_persisted_before_bootstrap_and_used_by_client(assembled):
+    adapter, task, session, client, tunnel, _ = assembled
+    root = adapter.service.settings.root / ('p2-' + task.id)
+    def bootstrap(**kwargs):
+        path = root / 'desktop-tunnel-selection.json'
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert json.loads(path.read_text()) == {
+            'binding': {'version': 1, 'runId': root.name, 'owner': task.owner, 'epoch': task.epoch},
+            'preferredPort': adapter.settings.tunnel_port, 'hostPort': 19123}
+        return {'controlToken': 'c' * 43, 'modelToken': 'm' * 43,
+                'controlPort': 20001, 'modelUrl': 'http://192.168.64.3:8766'}
+    with patch('backend.desktop_adapter.select_tunnel_port', return_value=19123) as select, \
+            patch('backend.desktop_adapter.bootstrap_guest', side_effect=bootstrap) as start, \
+            patch('backend.desktop_adapter.DesktopControlClient', return_value=client) as constructor:
+        adapter.prepare(task)
+        select.assert_called_once_with(adapter.settings.tunnel_port)
+        start.assert_called_once()
+        assert constructor.call_args.kwargs['port'] == 19123
+        tunnel.start.assert_called_once()
+        session.start.assert_not_called()
+
+
+def test_selection_exhaustion_never_bootstraps_or_creates_session(assembled):
+    adapter, task, session, _, tunnel, _ = assembled
+    with patch('backend.desktop_adapter.select_tunnel_port', side_effect=OSError(errno.EADDRINUSE, 'busy')), \
+            patch('backend.desktop_adapter.bootstrap_guest') as start:
+        with pytest.raises(OSError): adapter.prepare(task)
+        start.assert_not_called()
+        tunnel.start.assert_not_called()
+        session.start.assert_not_called()
+    assert adapter.cleaned_preparations == {}  # Unknown/early failures still require review.
+
+
+def test_post_selection_tunnel_failure_never_reselects_or_relaunches(assembled):
+    adapter, task, session, _, tunnel, _ = assembled
+    tunnel.start.side_effect = OSError(errno.EADDRINUSE, 'late race')
+    with patch('backend.desktop_adapter.select_tunnel_port', return_value=19123) as select, \
+            patch('backend.desktop_adapter.cleanup_prepared_guest') as cleanup:
+        with pytest.raises(OSError): adapter.prepare(task)
+        select.assert_called_once()
+        tunnel.start.assert_called_once()
+        cleanup.assert_called_once()
+        session.start.assert_not_called()
+
+
 @pytest.mark.parametrize('cleanup_fails', [False, True])
 def test_tunnel_failure_cleans_original_guest_without_hiding_failure(assembled, cleanup_fails):
     adapter, task, session, client, tunnel, _ = assembled

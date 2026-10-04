@@ -1,10 +1,64 @@
+import errno
 import secrets
 import socket
 import subprocess
 from unittest.mock import Mock, patch
 import pytest
 from backend.desktop_client import DesktopControlClient, ControlUnconfirmed
-from backend.desktop_tunnel import GuestControlTunnel
+from backend.desktop_tunnel import GuestControlTunnel, select_tunnel_port
+
+
+def test_selection_prefers_configured_port():
+    with patch('backend.desktop_tunnel.check_tunnel_port') as check:
+        assert select_tunnel_port(19099) == 19099
+        check.assert_called_once_with(19099)
+
+
+def test_selection_skips_busy_and_wraps_only_in_control_range():
+    with patch('backend.desktop_tunnel.check_tunnel_port',
+               side_effect=[OSError(errno.EADDRINUSE, 'busy'), None]) as check:
+        assert select_tunnel_port(19999) == 19000
+        assert [c.args[0] for c in check.call_args_list] == [19999, 19000]
+
+
+def test_selection_exhaustion_is_bounded_and_unique():
+    with patch('backend.desktop_tunnel.check_tunnel_port',
+               side_effect=OSError(errno.EADDRINUSE, 'busy')) as check:
+        with pytest.raises(OSError) as error:
+            select_tunnel_port(19099)
+        assert error.value.errno == errno.EADDRINUSE
+        assert check.call_count == 1000
+        assert {c.args[0] for c in check.call_args_list} == set(range(19000, 20000))
+
+
+def test_selection_does_not_hide_other_errors_or_expand_direct_port():
+    for port, code in [(19099, errno.EACCES), (25000, errno.EADDRINUSE)]:
+        with patch('backend.desktop_tunnel.check_tunnel_port', side_effect=OSError(code, 'failure')) as check:
+            with pytest.raises(OSError) as error:
+                select_tunnel_port(port)
+            assert error.value.errno == code
+            check.assert_called_once_with(port)
+
+
+@pytest.mark.parametrize('port', [True, None, '19099', 0, 65536, 19099.0])
+def test_selection_rejects_invalid_port_before_probe(port):
+    with patch('backend.desktop_tunnel.check_tunnel_port') as check:
+        with pytest.raises(ValueError): select_tunnel_port(port)
+        check.assert_not_called()
+
+
+def test_selection_preserves_real_existing_listener():
+    # Find a free controlled port first; occupied ports are never taken over.
+    preferred = select_tunnel_port(19000)
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', preferred))
+        listener.listen()
+        selected = select_tunnel_port(preferred)
+        assert selected != preferred and 19000 <= selected <= 19999
+        assert listener.getsockname() == ('127.0.0.1', preferred)
+        with socket.create_connection(('127.0.0.1', preferred), timeout=1):
+            connection, _ = listener.accept()
+            connection.close()
 
 
 @pytest.fixture
