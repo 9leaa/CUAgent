@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+VM残留进程清理（2026-10-04，用户明确要求）：SSH进程清单与VM原trace匹配23个TextEdit实例，均对应已停止测试，bridge.lock可取且无quarantine。清理前这些实例RSS合计2722MiB（共享页可能重复计入，不等于实际释放内存）；持原共享锁，先在VM私有process-cleanup-20261004-001备份63份业务文档/轨迹，再逐PID核对bundle并正常请求terminate。23个全部退出、无force、原文件哈希零变化；复查无TextEdit及匹配的Python/Node测试进程。CuaDriver、系统服务、SSH、原Calculator/Terminal保留；P5原Worker/API/scheduler仍在线。根因是Task.stop/guest close只撤销派发/关闭桥接、不退出测试App，P7已补收尾方案，自动化尚待实现。
+
 P6阶段收口（2026-10-04）：逐项核对设计六类门槛及11份原审计/轨迹，新增[p6-summary](docs/stages/p6-summary.md)。同版三例006、日报兼容及历史停止/到期/失权/拒绝证据范围分别列明；核心许可/运行时/HTTP/执行控制四文件与c448ae2现场版字节一致，Worker准备失败和初始窗口等后续差异由当前测试覆盖，不称全部现场在最新版重跑。重新执行后端584通过（1既有警告）、执行层198通过、Node112通过/1跳过/0失败，原失败及未知usage不改写。
 
 限定为已有安装、单人受控TextEdit任务接入服务的P6工程验收通过；没有宣告通用桌面、C3、用户实际采用或P5一周通过。README/后端说明同步当前范围，阶段代码保留P6分支，不升级P5运行环境。P7实际业务需用户明确应用/输入/交付物后才另开分支写方案，P8仍待；总目标继续。
