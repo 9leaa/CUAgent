@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6启动前失败终态（2026-10-04）：按05a1e2f先行方案，为PreparationClosed增加明确closed/not-started状态。adapter只在profile.prepare返回后、bootstrap调用前的本次端口预检失败注册原task对象；回执独占保存失败则不注册。独立复核原binding、严格布尔、全部启动/切换/隧道/清理意图缺失（断链也拒绝）及原profile-plan/before/当前配置一致。Worker仅在心跳确认退出、原执行权仍有效、正常finish后免新隔离，结果FAILED或STOPPED，usage未知；guestNotStarted与guestRevoked/cleanupConfirmed分开，不伪称未启动guest已被撤销。旧隔离/失败不动，bootstrap未知/失权/DB异常仍保守隔离。
+
+验证：首轮相关90项通过；新增真实adapter＋Worker＋独立PG组合测试首次因测试误用submit的tuple返回值出现2项失败，修正测试后后端全574项通过（1项既有Starlette弃用警告），git diff --check通过。组合测试仅模拟生命周期命令和外部边界：明确未启动可收尾，profile改变则隔离；不是现场App/VM诊断。未新增模型调用、未修改P5环境，API/Worker/scheduler原进程仍在线。下一步冻结现场零模型诊断及新版真实业务回归，再做日报兼容与P6总审查，P6未验收。
+
 P6控制端口选择（2026-10-04）：按030ae9d先行方案实现，生产19000–19999首选端口仅遇EADDRINUSE时有界环回选空闲口；最多1000次、其他错误立即抛出。bootstrap前0600独占记录原binding/首选/实际端口，client与SSH一致；原二次绑定检查和身份核对保留，后续竞争不选第二次、不重启guest。底层范围外只查指定端口，生产配置范围不变。33项专项、后端全546项通过（1项既有Starlette弃用警告），git diff --check通过；含真实本机监听占用且监听不受影响、范围耗尽/环回/非法参数/权限错误/启动顺序/后续失败无重试，非真实VM新版验收。P5六项冻结源SHA重新匹配，API80171/scheduler81383/恢复Worker25312在线；004介入记录单独0600保存，不提交.runtime。启动前失败的自动终态衔接、冻结新版真实回归及日报兼容仍待，旧失败不变。
 
 P6正式入口三例004（2026-10-04）：host/guest冻结5c54fda，manifest 99c75f256de921be749cc961022193ca755aa60956e38720fb2867f74910156a，独立服务18103。英文f0983af3、混合f6a01972各SUCCEEDED/11raw，实际token分别397404、396955，费用未知；独立SSH重读原文件哈希、停止后零派发、官方会话/下载一致。中文add9b64c在tunnel-port-preflight报errno48，未尝试guest启动，0raw/session为空/usage未知；原过期执行权收尾为BLOCKED/OWNER_LEASE_EXPIRED，不改成功。核对原guest目录不存在、配置不变、VM共享锁可用后，隔离可恢复归档，未重跑失败。P5 Worker依次23877→24872→24970→25312，API80171及scheduler81383未改。本轮2/3，P6未验收；先提交固定范围控制端口选择方案，再实现测试，启动前失败的自动安全终态另待补齐。

@@ -1,12 +1,15 @@
 from dataclasses import replace
 from contextlib import nullcontext
 import errno
+import hashlib
 import json
 import socket
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 import pytest
 from backend.desktop_adapter import DesktopAdapterSettings, DesktopTaskAdapter
+from backend.desktop_collect import save_exclusive
+from backend.desktop_worker import DesktopWorker
 
 
 @pytest.fixture
@@ -93,7 +96,51 @@ def test_selection_exhaustion_never_bootstraps_or_creates_session(assembled):
         start.assert_not_called()
         tunnel.start.assert_not_called()
         session.start.assert_not_called()
-    assert adapter.cleaned_preparations == {}  # Unknown/early failures still require review.
+    assert adapter.cleaned_preparations[task.id] == (
+        task, adapter.service.settings.root / ('p2-' + task.id), 'not-started')
+    with patch('backend.desktop_adapter.confirm_preparation_closed', return_value='proof') as confirm:
+        assert adapter.confirm_prepare_failure(task) == 'proof'
+        assert confirm.call_args.kwargs['guest_state'] == 'not-started'
+
+
+@pytest.mark.parametrize('profile_changed', [False, True])
+def test_real_adapter_worker_preflight_failure_in_isolated_database(assembled, service, profile_changed):
+    # Real adapter/Worker/proof/DB; only lifecycle command and external edges mocked.
+    adapter, _, session, client, tunnel, _ = assembled
+    adapter.service = service
+    home = adapter.settings.official_home
+    (home / 'profiles/desktop').mkdir(parents=True, mode=0o700)
+    home.chmod(0o700)
+    target = home / 'profiles/desktop/cordis.patch.yml'
+    before = b'[]\n'
+    save_exclusive(target, before)
+    def profile_prepare(root, group, mode):
+        assert (group, mode) == ('profile', 'prepare')
+        save_exclusive(root / 'profile-before.yml', before)
+        save_exclusive(root / 'profile-plan.json', json.dumps(dict(version=1,
+            root=str(root), home=str(home), target=str(target),
+            beforeSha256=hashlib.sha256(before).hexdigest())).encode())
+        if profile_changed: target.write_bytes(b'changed')
+    adapter.command.side_effect = profile_prepare
+    task_id, _ = service.submit({'kind': 'desktop-textedit', 'lines': ['synthetic']}, 'adapter-preflight')
+    worker = DesktopWorker(service, adapter, shared_lock=service.settings.root / 'desktop-worker.lock')
+    with patch('backend.desktop_adapter.select_tunnel_port', side_effect=OSError(errno.EADDRINUSE, 'busy')), \
+            patch('backend.desktop_adapter.bootstrap_guest') as bootstrap:
+        result = worker.run_once(task_id=task_id)
+        bootstrap.assert_not_called()
+    assert result['quarantined'] is profile_changed
+    assert result['status'] == ('BLOCKED' if profile_changed else 'FAILED')
+    assert result['usage'] == {'available': False}
+    if not profile_changed:
+        assert result['guestNotStarted'] and not result['revocation']['guestRevoked']
+        assert not result['preparationCleanupConfirmed'] and result['restoreConfirmed']
+        assert service.view(task_id)['status'] == 'FAILED'
+        assert not worker.quarantine.exists()
+    session.start.assert_not_called()
+    client.activate.assert_not_called()
+    client.revoke.assert_not_called()
+    tunnel.start.assert_not_called()
+    adapter.command.assert_called_once()
 
 
 def test_post_selection_tunnel_failure_never_reselects_or_relaunches(assembled):
@@ -151,6 +198,7 @@ def test_unknown_guest_identity_or_local_close_prevents_cleanup(assembled, failu
         cleanup.assert_not_called()
     root = adapter.service.settings.root / ('p2-' + task.id)
     assert json.loads((root / 'desktop-prepare-failure.json').read_text())['cleanupConfirmed'] is False
+    assert adapter.cleaned_preparations == {}
     session.start.assert_not_called()
 
 
@@ -216,4 +264,7 @@ def test_preparation_error_receipt_has_stage_but_no_external_error_text(assemble
     path = adapter.service.settings.root / ('p2-'+task.id) / 'desktop-prepare-failure.json'
     raw = path.read_text();value = json.loads(raw)
     assert secret not in raw and value['stage'] == stage and value['errno'] == errno.EADDRINUSE
+    assert value['guestNotStarted'] is False
+    if stage in ('profile-prepare', 'guest-bootstrap'):
+        assert adapter.cleaned_preparations == {}
     session.start.assert_not_called()

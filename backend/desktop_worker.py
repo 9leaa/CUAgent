@@ -61,6 +61,7 @@ class DesktopWorker:
         started = terminal = False
         cancelled = False
         preparation_closed = False
+        preparation_guest_not_started = False
         usage = {'available': False}
         outcome = {'taskId': task.id, 'status': 'BLOCKED', 'quarantined': False,
                    'restoreConfirmed': False}
@@ -161,6 +162,7 @@ class DesktopWorker:
                     proof = self.adapter.confirm_prepare_failure(task)
                     if (not isinstance(proof, PreparationClosed)
                             or proof.run != self.service.settings.root / ('p2-' + task.id)
+                            or proof.guest_state not in ('closed', 'not-started')
                             or proof.owner != self.owner or type(proof.epoch) is not int or proof.epoch != task.epoch):
                         raise ValueError('DESKTOP_PREPARATION_PROOF_MISMATCH')
                     stopped = self.service.heartbeat(task.id, self.owner, task.epoch, dispatch_stopped=True)
@@ -170,8 +172,11 @@ class DesktopWorker:
                     self.service.finish(task.id, self.owner, task.epoch, status,
                         result={'usage': usage}, error_code='DESKTOP_PREPARATION_FAILED')
                     preparation_closed = terminal = True
+                    preparation_guest_not_started = proof.guest_state == 'not-started'
                     outcome.update(status=status, errorCode='DESKTOP_PREPARATION_FAILED',
-                                   preparationCleanupConfirmed=True, profileUnchanged=True, appSwitchAttempted=False,
+                                   preparationCleanupConfirmed=not preparation_guest_not_started,
+                                   guestNotStarted=preparation_guest_not_started,
+                                   profileUnchanged=True, appSwitchAttempted=False,
                                    restoreConfirmed=True, restoreRequired=False,
                                    profileSha256=proof.profile_sha256)
                 except Exception:
@@ -223,11 +228,13 @@ class DesktopWorker:
                 thread.join(timeout=8)
             closed = control.close() if control else {'localRevoked': False, 'guestRevoked': False}
             if preparation_closed:
-                closed = {'localRevoked': True, 'guestRevoked': True, 'closed': True,
+                closed = {'localRevoked': True, 'guestRevoked': not preparation_guest_not_started,
+                          'guestNotStarted': preparation_guest_not_started, 'closed': True,
                           'inflightCancellationConfirmed': False}
             outcome['revocation'] = closed
             outcome['cancelRequested'] = cancelled
-            unresolved = (not terminal or not closed['localRevoked'] or not closed['guestRevoked']
+            guest_safe = closed['guestRevoked'] or (preparation_closed and preparation_guest_not_started)
+            unresolved = (not terminal or not closed['localRevoked'] or not guest_safe
                           or (thread is not None and thread.is_alive()))
             if unresolved or outcome['status'] == 'BLOCKED':
                 outcome['quarantined'] = True

@@ -6,6 +6,7 @@ that verifies the approved cutover, VM readiness and current quota >=40%.
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from pathlib import Path
 import uuid
 
@@ -80,6 +81,8 @@ class DesktopTaskAdapter:
         try:
             return self.prepare_at_root(task, submission, root, stage, resources)
         except Exception as error:
+            guest_not_started = (stage[0] == 'tunnel-port-preflight'
+                                 and resources.get('bootstrap_attempted') is False)
             cleanup_confirmed = False
             try:
                 if 'tunnel' in resources:
@@ -95,19 +98,21 @@ class DesktopTaskAdapter:
             record = {'taskId': task.id, 'runId': root.name, 'stage': stage[0],
                       'category': 'OS_ERROR' if isinstance(error, OSError) else 'PREPARATION_ERROR',
                       'errno': error.errno if isinstance(error, OSError) and type(error.errno) is int else None,
-                      'guestStartAttempted': (root / 'desktop-guest-start-intent.json').exists(),
-                      'guestReceiptPresent': (root / 'guest-private-receipt.json').exists(),
+                      'guestStartAttempted': os.path.lexists(root / 'desktop-guest-start-intent.json'),
+                      'guestReceiptPresent': os.path.lexists(root / 'guest-private-receipt.json'),
+                      'guestNotStarted': guest_not_started,
+                      'binding': {'version': 1, 'runId': root.name, 'owner': task.owner, 'epoch': task.epoch},
                       'cleanupConfirmed': cleanup_confirmed}
             save_exclusive(root / 'desktop-prepare-failure.json', json.dumps(record).encode())
-            if cleanup_confirmed:
-                self.cleaned_preparations[task.id] = (task, root)
+            if cleanup_confirmed or guest_not_started:
+                self.cleaned_preparations[task.id] = (task, root, 'not-started' if guest_not_started else 'closed')
             raise
 
     def confirm_prepare_failure(self, task):
-        original, root = self.cleaned_preparations[task.id]
+        original, root, guest_state = self.cleaned_preparations[task.id]
         if original is not task:
             raise ValueError('current preparation invocation required')
-        return confirm_preparation_closed(root=root, home=self.settings.official_home, task=task)
+        return confirm_preparation_closed(root=root, home=self.settings.official_home, task=task, guest_state=guest_state)
 
     def prepare_at_root(self, task, submission, root, stage, resources):
         (root / 'workspace').mkdir(mode=0o700)
@@ -119,12 +124,14 @@ class DesktopTaskAdapter:
         session.prepare(submission)
         stage[0] = 'profile-prepare'
         self.command(root, 'profile', 'prepare')
+        resources['bootstrap_attempted'] = False
         stage[0] = 'tunnel-port-preflight'
         tunnel_port = select_tunnel_port(self.settings.tunnel_port)
         save_exclusive(root / 'desktop-tunnel-selection.json', json.dumps({
             'binding': {'version': 1, 'runId': root.name, 'owner': task.owner, 'epoch': task.epoch},
             'preferredPort': self.settings.tunnel_port, 'hostPort': tunnel_port}).encode())
         stage[0] = 'guest-bootstrap'
+        resources['bootstrap_attempted'] = True
         ready = bootstrap_guest(root=root, ssh_wrapper=wrapper,
                                 commit=self.settings.guest_commit, manifest_sha=self.settings.guest_manifest_sha,
                                 owner=task.owner, epoch=task.epoch)
