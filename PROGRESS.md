@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+P6旧日报实际兼容（2026-10-04）：先有7fd9464方案，入口修正9e5f3f3先于执行；daily-report-compat-001独立库/API18107，原task 6b09fa22-40ef-42e3-8f14-f6912324dbf4，session-72beec86-d10f-463a-8eeb-f6390c2efac5。新版backend.api.create_app（关闭desktop开关）/P6 Worker，诊断程序显式绑定原安装PROJECT，只复用87份逐字节一致的旧agent/Worker源；唯一不同的旧agent文件c0-vm-tools不在A1依赖/build范围。未改产品执行源码或P5冻结文件，不声称新worktree已具备独立安装能力。
+
+真实普通日报SUCCEEDED/10raw/12008token（输入1929、输出607、cacheRead9472、cacheWrite0，货币未知），原请求Flash/off。独立核对冻结笔记正文和两行CSV、数量2/总和6/均值3，原完整工具/会话审计和报告验证通过，正式report.json/report.md下载与产物SHA一致；无continuation或重发。执行前新额度剩余74%、普通可用、余额未变、重置卡未使用。
+
+准备失败完整保留：三次POST /tasks使用了desktop_service.serve，被其DESKTOP_ONLY_SERVICE门禁拒绝，数据库始终为空、未有模型调用。最初误归因为笔记标题的私有记录已追加纠正；另外两次本地笔记检查确有标题/固定三节缺失，错误原稿保留，补齐后才冻结正式输入。按新方案精确停本次私有API29878，以同库普通API30032启动，保留同一幂等键；未修改桌面专用门禁、未更换失败模型样本。
+
+P5 Worker29613→30244，API80171/scheduler81383仍原身份；App前后空闲、原profile及base-tasks字节一致、原基础账本未变、P5六项冻结源一致、独立任务资源释放且无恢复告警，0600介入回执保存。本步证明已安装环境的旧日报兼容，不是VM桌面任务、C3或用户实际采用。P6同版业务三例及此兼容门槛已有证据，仍需逐项总审查/总结后判定阶段；P5真实168小时与P7实际用途仍单独待完成。
+
 P6正式三例006（2026-10-04）：按0e448fa方案冻结host/guest 0e448fa983d0ecba200b32d8d23e7c6986331a5f，guest manifest 3673bd7d65a0579851c3fb40e2d182311b8450313f62868ab56dddc2eeb3ee81，独立API18106。英文a2bbc72d-93a5-466e-8bc9-5d89aa123f20、中文00e85989-305b-444d-ac15-b35e306b3136、混合7a16dc0b-b9da-44e4-99d9-9dfd53d2b745全部SUCCEEDED，实际调用12/12/11，token分别481161/479505/400096，总35raw/1360762token，费用未知；全部原会话Flash/off。
 
 正式客户端下载document/result逐字节匹配冻结要求；独立SSH重读原VM文件/轨迹，与原guest bundle哈希一致，许可停止且停止后零派发；官方会话与guest账本独立核验通过，三张原PNG正文视觉核对一致。本组三例均未触发输入拒绝恢复、缺结果读取恢复或初始窗口等待，不将旧证据复核/单元反例算作本轮现场覆盖。原001–005失败和未执行样本不改成功、不补跑。
