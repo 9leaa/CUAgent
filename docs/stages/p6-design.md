@@ -36,6 +36,8 @@
 
 ### 准备失败的未激活guest清理（实现前细化）
 
+收尾衔接（f9924dd之后、实现前）：仅当前adapter本次prepare失败且清理确认的原上下文可以返回结构化PreparationClosed证明。Worker先停止/确认心跳线程退出，独立复核固定run/owner/epoch、私有失败/清理意图与确认、无App/profile应用/会话启动意图、原profile-before/plan SHA与当前实际配置字节一致。任何缺失、篡改、执行权丢失或线程未退出都保持原隔离，不读取旧任务回执自动解锁。随后只刷新数据库停止态控制（不续guest），由原owner/epoch正常finish为FAILED；已观察到用户停止则STOPPED，usage仍unknown、无session/业务产物。确认原配置未变明确标environmentUnchanged，不执行App恢复动作；正向证据充足时避免新建隔离，绝不删除既有quarantine。不自动恢复P5；真实VM验收和原002失败状态均不受本补充替代。
+
 本步只补adapter清理，不改变Worker的保守隔离/非成功判定，不自动恢复P5、清除旧隔离或修改旧失败。bootstrap已返回并验证原ready后，后续control-client/tunnel/connection准备失败才可进入清理；bootstrap响应未知或非法时不猜身份、不重启guest。先关闭本次自有隧道，再沿原SSH包装器直接访问guest loopback控制口，不依赖失败的host转发端口。
 
 清理复用同一DesktopControlClient源码及固定协议函数，以可信SSH单次运行；固定guest Python、普通mvpagent/VirtualMac核对，token仅有界stdin，不入argv。原run/owner/epoch严格绑定，必须未激活、raw/pending均0、modelPort为空，且尚未发放有效许可；然后只执行revoke和shutdown，不renew/activate、不操作GUI、不按PID杀进程。新私有清理意图先独占落盘，操作未知不重试；仅收到并重新验证原身份、停止且已关闭的回执才记录cleanupConfirmed=true。只保存固定字段，异常原文和远端额外字段不写回执；原prepare异常继续抛出，Worker仍隔离供后续核对。验证用真实loopback协议、模拟SSH/失败注入，不冒充真实VM收尾或完整P6通过。
