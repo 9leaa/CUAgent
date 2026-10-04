@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P6 cohort002真实执行（2026-10-04 08:39—08:49北京时间）：宿主已解锁，助手经原屏幕共享和既有测试凭据解锁VM，SSH确认IOConsoleLocked=No，不改锁屏策略。每例重新查询Codex剩余79%、原积分不变/重置卡未用，使用任务/profile绑定私有记录，原冻结host c2d74a3执行源码与guest c448ae2不变。三例未重建、无重复prompt。
+
+01 task726fe85f-7219-47a1-a9c3-0eb7baf6c897/session-6fd59ec2-50d4-41c3-8ee8-9195e5820f05为UNVERIFIED，12raw、475241 total tokens，无交付产物；原文档/result逐字节正确、停止后零派发。SSH只读运行原核验器定位desktop_evidence.py:119：write_result时保存的final_state仍为s0000005a，read_result后多一次observe产生s0000005b，违反“最后观察”要求；不是额外用户prompt问题。原证据和失败保留，不重新归类成功。02 task8a18161f-c28d-4993-9556-a176280fad4e/session-ac22cdf3-c713-477f-99b5-5a45ee6b1675为SUCCEEDED，13raw/11工具、575847 total tokens；中文文档72字节/result73字节下载与原输入一致，独立重读VM原文件SHA/账本、官方Flash/off策略、PNG正文通过，本例frameworkNotices=0，不能称提醒修复已被真实触发验证。
+
+03 task3797c39e-bc69-4b44-8a11-9c0822ab21a3在prepare阶段隔离，0raw/无session、usage未知；已取得guest私有回执但没有隧道/create/prompt/profile-apply意图，原异常未保存，端口复用仅待验证假设。在原共享锁内核对全部App会话空闲、profile原字节未变，经SSH原控制端口核对guest PID/绑定、inactive/modelPort=null/0raw/零在途/无activation意图，再单次revoke和shutdown确认closed。原DB执行权过期后正常claim清理为BLOCKED/OWNER_LEASE_EXPIRED，不领取替代任务；已审查quarantine移动到私有failure-03-recovery留存，非删除。P5 Worker依次6662→19426→19843→20401，原API80171/scheduler81383保持；完整独立汇总1成功/1未验证/1阻塞，不计P6通过。新增技术方案先于后续修复，无新部署或替代cohort。
+
 P6提醒修复版002准备（2026-10-03 23:37—23:40北京时间）：方案c2d74a3先提交；旧001第三例通过原API停止并查询确认STOPPED、0raw、无session/产物，前两例保持成功/失败历史。确认旧P6 API5661身份后TERM关闭，保留原库与私有证据。公开init/serve创建独立002库，API7756使用18100；client提交原三组正文，冻结host c2d74a3854408896cf9f7ff82fe711c08a017bd1、guest c448ae2、全部执行源码与正文SHA及任务ID。新三例分别726fe85f-7219-47a1-a9c3-0eb7baf6c897、8a18161f-c28d-4993-9556-a176280fad4e、3797c39e-bc69-4b44-8a11-9c0822ab21a3，查询均QUEUED/0raw/无session，未调用模型、未生成额度许可。
 
 前检宿主/VM ioreg均IOConsoleLocked=Yes，CUA屏幕共享cgWindowNotFound，桌面枚举亦无可见窗口，无法用已有测试凭据解锁VM；未尝试宿主密码或改变锁屏策略。原P5 Worker6662/API80171/scheduler81383仍在线，数据库活动任务0/资源owner为空，原计划ACTIVE/下次北京时间10月4日12:10；六冻结源码SHA、原App profile字节不变，无host quarantine。私有0600 preflight-001.json保留本次状态与旧任务停止介入；本次没有P5停启。待宿主桌面恢复后继续同一002任务，不新建替代样本，P6与总目标未完成。
