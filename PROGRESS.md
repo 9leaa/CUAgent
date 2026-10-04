@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6启动前失败现场诊断（2026-10-04）：方案2643fcd先于执行，执行源码90af0cf；独立prebootstrap-failure-live-001原任务573ada6f-558b-4695-ae4d-3e8e0feaffb6。正式worker_once/实时额度75%/原共享锁，真实profile.prepare后在端口选择入口注入一次EADDRINUSE（不声称占满端口），原adapter/证明/Worker结束FAILED、0raw、session空、usage未知、无产物/新隔离。回执明确guestNotStarted=true、guestRevoked=false、cleanupConfirmed=false、profileUnchanged=true、restoreRequired=false。独立SSH核对原guest目录与launch日志不存在、共享bridge锁可用、无guest隔离；App前后会话空闲、原profile及P5六项源SHA一致。P5 Worker25312→26552，API80171/scheduler81383未动，私有介入回执0600保留。该受控故障证明安全收尾，不是业务成功；正常新版三例、日报兼容及P6总结仍待。
+
 P6启动前失败终态（2026-10-04）：按05a1e2f先行方案，为PreparationClosed增加明确closed/not-started状态。adapter只在profile.prepare返回后、bootstrap调用前的本次端口预检失败注册原task对象；回执独占保存失败则不注册。独立复核原binding、严格布尔、全部启动/切换/隧道/清理意图缺失（断链也拒绝）及原profile-plan/before/当前配置一致。Worker仅在心跳确认退出、原执行权仍有效、正常finish后免新隔离，结果FAILED或STOPPED，usage未知；guestNotStarted与guestRevoked/cleanupConfirmed分开，不伪称未启动guest已被撤销。旧隔离/失败不动，bootstrap未知/失权/DB异常仍保守隔离。
 
 验证：首轮相关90项通过；新增真实adapter＋Worker＋独立PG组合测试首次因测试误用submit的tuple返回值出现2项失败，修正测试后后端全574项通过（1项既有Starlette弃用警告），git diff --check通过。组合测试仅模拟生命周期命令和外部边界：明确未启动可收尾，profile改变则隔离；不是现场App/VM诊断。未新增模型调用、未修改P5环境，API/Worker/scheduler原进程仍在线。下一步冻结现场零模型诊断及新版真实业务回归，再做日报兼容与P6总审查，P6未验收。
