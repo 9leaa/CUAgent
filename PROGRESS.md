@@ -1,5 +1,7 @@
 # CUAgent 实际进度
 
+P6正式入口三例004（2026-10-04）：host/guest冻结5c54fda，manifest 99c75f256de921be749cc961022193ca755aa60956e38720fb2867f74910156a，独立服务18103。英文f0983af3、混合f6a01972各SUCCEEDED/11raw，实际token分别397404、396955，费用未知；独立SSH重读原文件哈希、停止后零派发、官方会话/下载一致。中文add9b64c在tunnel-port-preflight报errno48，未尝试guest启动，0raw/session为空/usage未知；原过期执行权收尾为BLOCKED/OWNER_LEASE_EXPIRED，不改成功。核对原guest目录不存在、配置不变、VM共享锁可用后，隔离可恢复归档，未重跑失败。P5 Worker依次23877→24872→24970→25312，API80171及scheduler81383未改。本轮2/3，P6未验收；先提交固定范围控制端口选择方案，再实现测试，启动前失败的自动安全终态另待补齐。
+
 P6读取缺失结果恢复规则（2026-10-04）：按593b981先行方案修三层契约。guest要求唯一成功write_result前的read_result仅允许真实FileNotFoundError，错误后必须有完整新观察；写后全部读均成功且内容一致，至少一个最终读回。real_app_verifier新增仅P6显式启用的allow_missing_result_read，原默认仍拒绝该失败；所有原调用/error保留并计数。host新增官方/guest全部读写顺序匹配、逐个read的唯一原结果及错误类型核对，不以通用官方错误文字或数量代替guest证据，报告recoveredMissingReads。
 
 验证：相关48项/26子测试通过，随后补强“无新观察”反例避免由调用计数错误先行拒绝；执行层全190项通过，后端全532项通过，仅既有Starlette弃用警告。反例覆盖早期成功读取、PermissionError、UNKNOWN、重复/缺失结果、无新观察、写后读失败、缺最终读回、官方/guest状态或顺序不一致和额外官方调用。旧默认TextEdit仍拒绝新增只读失败，未修改budget/lease/执行工具。
