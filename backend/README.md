@@ -1,5 +1,7 @@
 # 单人本地任务服务（P2）
 
+P6限定工程验收已完成，当前证据与限制见[P6总结](../docs/stages/p6-summary.md)：同版VM TextEdit三例、正式下载及原安装日报兼容通过。仍需操作者明确授权/额度核对/环境切换，不自动派发或升级P5；不是新机器安装交付。下文分别说明桌面专用与旧日报入口，二者不能混用。
+
 P6消息证据：原用户prompt必须唯一且rpcId匹配。官方默认repeat-tool-reminder的3/5/8次提醒，只有来源/form、完整固定模板、已完成的同名同参数调用链均匹配才单独计为frameworkNotices；未知来源、自定义阈值/模板或额外用户指令继续拒绝。JS观测/原字节归档与Python独立验收共享模板策略，不删除会话行、不关闭提醒。归档被取消的会话不代表业务成功；若含无完整用量的assistant/attempt，usage仍unknown/null，不将此前部分token冒充完整总量。
 
 P6读回错误：官方与guest全部读写调用按顺序逐项对应。只有唯一写入之前的guest原read_result/FileNotFoundError及对应官方错误可保留为recoveredMissingReads，且随后必须重新观察、写入和正确读回；guest错误缺失/类型不符、写后失败或缺最终读回均拒绝。只读失败继续计原raw预算、不删会话/账本行；旧TextEdit验收默认规则不变。新规则离线通过不改变旧任务UNVERIFIED，也不能替代当前版本真实回归。
@@ -59,7 +61,7 @@ python -m backend.client download --desktop-service /absolute/private/parent/p6-
 
 提交只发送一次；超时不代表未创建，先查列表/原任务，必要时沿用原内容及原键核对，不换键制造重复任务。下载须任务成功且原文件哈希一致。每条命令显式指定同一`--desktop-service`；省略时仍走旧环境/18089，不自动选择P6。默认API仍503，只有显式独立服务开放提交；不能自行开启P5桌面队列。现有日报命令与默认行为不变。
 
-P6产物交付开发：桌面类型仅登记/下载`document.txt`和`result.txt`，需独立结果kind/session匹配、两文件齐全、SHA及冻结正文一致；STOP_REQUESTED不能转成功。CLI download新增这两个名字，需显式`--name`；日报名字/媒体类型保留。通知只列已登记且符合任务类型的文件，缺文件不会凭成功状态制造链接。桌面Worker、VM证据采集及独立核验代码已组合，但只完成本地/合成证据/隔离PG验证，真实GUI闭环尚未验收。
+P6产物交付：桌面类型仅登记/下载`document.txt`和`result.txt`，需独立结果kind/session匹配、两文件齐全、SHA及冻结正文一致；STOP_REQUESTED不能转成功。CLI download新增这两个名字，需显式`--name`；日报名字/媒体类型保留。通知只列已登记且符合任务类型的文件，缺文件不会凭成功状态制造链接。真实GUI三例和下载已验收，故障/恢复及版本范围见阶段总结，不能由成功状态推断用户实际采用。
 
 P6分支开发状态：已提供`POST /desktop-tasks`契约（`kind=desktop-textedit`及1–10条`lines`），旧默认API仍503、不创建桌面任务；上方独立服务显式开启提交，但没有自动执行。新版默认Worker仅领取无kind的旧日报；显式桌面领取者与日报竞争同一desktop资源。查询新增kind，底层桌面从未领取的排队停止可恢复，但独立服务不开放resume；有执行证据则拒绝恢复，不能套用下方日报resume说明。不能用接口测试称完整桌面功能已上线。P5旧服务不得接入该新类型队列。
 

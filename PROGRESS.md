@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6阶段收口（2026-10-04）：逐项核对设计六类门槛及11份原审计/轨迹，新增[p6-summary](docs/stages/p6-summary.md)。同版三例006、日报兼容及历史停止/到期/失权/拒绝证据范围分别列明；核心许可/运行时/HTTP/执行控制四文件与c448ae2现场版字节一致，Worker准备失败和初始窗口等后续差异由当前测试覆盖，不称全部现场在最新版重跑。重新执行后端584通过（1既有警告）、执行层198通过、Node112通过/1跳过/0失败，原失败及未知usage不改写。
+
+限定为已有安装、单人受控TextEdit任务接入服务的P6工程验收通过；没有宣告通用桌面、C3、用户实际采用或P5一周通过。README/后端说明同步当前范围，阶段代码保留P6分支，不升级P5运行环境。P7实际业务需用户明确应用/输入/交付物后才另开分支写方案，P8仍待；总目标继续。
+
 P6旧日报实际兼容（2026-10-04）：先有7fd9464方案，入口修正9e5f3f3先于执行；daily-report-compat-001独立库/API18107，原task 6b09fa22-40ef-42e3-8f14-f6912324dbf4，session-72beec86-d10f-463a-8eeb-f6390c2efac5。新版backend.api.create_app（关闭desktop开关）/P6 Worker，诊断程序显式绑定原安装PROJECT，只复用87份逐字节一致的旧agent/Worker源；唯一不同的旧agent文件c0-vm-tools不在A1依赖/build范围。未改产品执行源码或P5冻结文件，不声称新worktree已具备独立安装能力。
 
 真实普通日报SUCCEEDED/10raw/12008token（输入1929、输出607、cacheRead9472、cacheWrite0，货币未知），原请求Flash/off。独立核对冻结笔记正文和两行CSV、数量2/总和6/均值3，原完整工具/会话审计和报告验证通过，正式report.json/report.md下载与产物SHA一致；无continuation或重发。执行前新额度剩余74%、普通可用、余额未变、重置卡未使用。
