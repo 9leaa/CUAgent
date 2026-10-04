@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+P6证据核验已区分“结果写入依据”和之后的只读观察：final_state须为write_result前紧邻且30秒内的Save后观察，后续观察仍核对原图片/状态哈希及正文/窗口身份，只允许观察与读回。188项执行层测试、原失败字节离线复核通过；旧任务不改成功，尚未部署新guest或完成真实新版回归。
+
 P6 `desktop_expiry_live.py --run p2-<uuid> --owner <uuid> --approve-task`仅供已批准的可信VM诊断窗口；须先核对源码、P5空闲和共享锁，不是模型工具。真实观察后等待短许可自然过期，同任务再次观察必须拒绝，原/重新构造controller不能续期，finally关闭原runtime。原trace/PNG/state/许可及expiry-diagnostic.json留私有目录，业务保持UNVERIFIED。2026-10-03真实VM3raw诊断与独立原文件核对通过；不证明官方App/HTTP/DB完整失权链路，不可替代P6业务验收。对应4项本地反例、执行层181项测试通过。
 
 2026-10-03 P6已有真实SSH/VM/App最小闭环11raw通过；固定正式第一例因拒绝输入后复用旧观察而UNVERIFIED，独立验证未放行。DesktopTask现已在拒绝路径作废snapshot，不改旧C0实现或预算；176项本地测试和36子测试通过，修复版真实回归仍待运行。下方“尚未真实部署”等描述是历史快照，不代表完整P6已验收。

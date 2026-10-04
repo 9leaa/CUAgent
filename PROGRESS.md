@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P6结果快照修复（2026-10-04）：按134ddff先行方案，仅改desktop_evidence及对应测试。final_state保持原write_result时捕获的界面，要求它为写结果前最后一个完整观察、与write_result间无其他派发且≤30秒；仍晚于全部Save。write_result后仅允许成功的observe/read_result，所有成功观察必须一一具有原PNG/state哈希记录，后续观察额外核对正文/PID/window，不忽略尾部证据、拒绝再次编辑/保存或观察失败。新增7项测试含写后读前观察、读后观察、改正文/窗口/PID、缺记录/改图、尾部写动作、结果快照来自写后或过期。首轮测试因新增方法插入原用例中间出现NameError，修正测试布局后执行层全188通过；后端全470通过（既有Starlette弃用提示）。
+
+将002首例VM原trace/final_state/文档/result及账本引用的原PNG/state只读采集到新的私有snapshot-rule-review；四份已留证文件SHA与原失败复核一致，新核验vmStatus=VERIFIED/12raw。此仅离线规则复核，原数据库任务仍UNVERIFIED，无新模型调用、无产物登记、未部署新guest。P5六冻结源码SHA不变。本机独立随机loopback端口复现连接关闭后无SO_REUSEADDR的bind返回errno48，但002第三例原异常缺失，仍不能定因；准备阶段预检/失败回执及安全清理留待下一步。
+
 P6 cohort002真实执行（2026-10-04 08:39—08:49北京时间）：宿主已解锁，助手经原屏幕共享和既有测试凭据解锁VM，SSH确认IOConsoleLocked=No，不改锁屏策略。每例重新查询Codex剩余79%、原积分不变/重置卡未用，使用任务/profile绑定私有记录，原冻结host c2d74a3执行源码与guest c448ae2不变。三例未重建、无重复prompt。
 
 01 task726fe85f-7219-47a1-a9c3-0eb7baf6c897/session-6fd59ec2-50d4-41c3-8ee8-9195e5820f05为UNVERIFIED，12raw、475241 total tokens，无交付产物；原文档/result逐字节正确、停止后零派发。SSH只读运行原核验器定位desktop_evidence.py:119：write_result时保存的final_state仍为s0000005a，read_result后多一次observe产生s0000005b，违反“最后观察”要求；不是额外用户prompt问题。原证据和失败保留，不重新归类成功。02 task8a18161f-c28d-4993-9556-a176280fad4e/session-ac22cdf3-c713-477f-99b5-5a45ee6b1675为SUCCEEDED，13raw/11工具、575847 total tokens；中文文档72字节/result73字节下载与原输入一致，独立重读VM原文件SHA/账本、官方Flash/off策略、PNG正文通过，本例frameworkNotices=0，不能称提醒修复已被真实触发验证。

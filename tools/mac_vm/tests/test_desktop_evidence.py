@@ -109,7 +109,85 @@ class DesktopEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.inspect()
 
+    def append_observation(self, **changes):
+        state = json.loads((self.root / 'final_state.json').read_text())
+        state.update(snapshot_id='tail', **changes)
+        count = sum(row['event'] == 'dispatch' for row in self.rows) + 1
+        at = self.rows[-1]['at'] + 1
+        self.rows.extend([
+            dict(event='dispatch', run_id='task', call_id=str(count), tool='get_window_state', used=count, at=at),
+            dict(event='result', run_id='task', call_id=str(count), tool='get_window_state', value=state, at=at+.1)])
+        files = {}
+        for extension, data in [('json', json.dumps(state).encode()), ('png', self.png)]:
+            (self.root / ('state-%02d.' % count + extension)).write_bytes(data)
+            files[extension] = {'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+        self.rows.append(dict(event='observation_evidence', run_id='task', at=at+.2,
+                              snapshot_id='tail', used=count, files=files))
+        self.save_trace()
 
+    def test_readonly_tail_retains_result_snapshot_and_all_files(self):
+        final = (self.root / 'final_state.json').read_bytes()
+        self.append_observation()
+        verdict = self.inspect()
+        self.assertEqual(verdict['rawCalls'], 11)
+        self.assertIn('state-11.png', verdict['files'])
+        self.assertEqual((self.root / 'final_state.json').read_bytes(), final)
+
+    def test_tail_changed_body_window_or_pid_rejected(self):
+        for changes in [{'tree_markdown': '- AXTextArea = "changed"'}, {'pid': 99}, {'window_id': 99}]:
+            with self.subTest(changes=changes):
+                original = copy.deepcopy(self.rows)
+                self.append_observation(**changes)
+                with self.assertRaises(ValueError): self.inspect()
+                self.rows = original
+
+    def test_successful_tail_without_evidence_rejected(self):
+        self.append_observation()
+        self.rows.pop()
+        self.save_trace()
+        with self.assertRaises(ValueError): self.inspect()
+
+    def test_observation_between_write_and_read_is_also_readonly(self):
+        self.append_observation()
+        read_rows, tail = self.rows[-5:-3], self.rows[-3:]
+        for index, row in enumerate(tail):
+            row['at'] = 9.2 + index * .1
+            if 'call_id' in row: row['call_id'] = '10'
+            if 'used' in row: row['used'] = 10
+        for row in read_rows:
+            row['call_id'] = '11'
+            if 'used' in row: row['used'] = 11
+        for ext in ('json', 'png'):
+            (self.root / ('state-11.'+ext)).rename(self.root / ('state-10.'+ext))
+        self.rows[-5:] = tail + read_rows
+        self.save_trace()
+        self.assertEqual(self.inspect()['vmStatus'], 'VERIFIED')
+
+    def test_tail_corrupt_image_rejected(self):
+        self.append_observation()
+        (self.root / 'state-11.png').write_bytes(self.png+b'tampered')
+        with self.assertRaises(ValueError): self.inspect()
+
+    def test_tail_mutation_or_failed_observation_rejected(self):
+        original = copy.deepcopy(self.rows)
+        for tool, event in [('hotkey','result'), ('type_text','result'), ('write_result','result'), ('get_window_state','error')]:
+            self.rows = copy.deepcopy(original)
+            self.rows.extend([
+                dict(event='dispatch', run_id='task', call_id='11', used=11, tool=tool, at=12),
+                dict(event=event, run_id='task', call_id='11', tool=tool, value={}, at=12.1)])
+            self.save_trace()
+            with self.subTest(tool=tool,event=event), self.assertRaises(ValueError): self.inspect()
+
+    def test_result_snapshot_must_precede_write_and_be_fresh(self):
+        self.append_observation()
+        old = (self.root / 'final_state.json').read_bytes()
+        (self.root / 'final_state.json').write_bytes((self.root / 'state-11.json').read_bytes())
+        with self.assertRaises(ValueError): self.inspect()
+        (self.root / 'final_state.json').write_bytes(old)
+        for row in self.rows:
+            if row['at'] >= 9: row['at'] += 31
+        self.save_trace()
+        with self.assertRaises(ValueError): self.inspect()
 class DesktopObservationEvidenceTests(unittest.TestCase):
     def test_hashes_original_observation_before_return_and_stops_on_mismatch(self):
         with tempfile.TemporaryDirectory() as temporary:

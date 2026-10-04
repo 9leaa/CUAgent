@@ -8,6 +8,7 @@ import re
 import stat
 
 from real_app_verifier import verify_evidence
+from real_app_bridge import body_from_state
 
 
 def require(condition):
@@ -76,6 +77,7 @@ def inspect_guest_evidence(directory, *, run_id, expected):
             returned[identity] = row
     require(bool(calls) and calls.keys() == returned.keys())
     observations = {}
+    observed_calls = set()
     by_used = {row['used']: key for key, row in calls.items()}
     for index, row in enumerate(rows):
         if row.get('event') != 'observation_evidence':
@@ -83,6 +85,8 @@ def inspect_guest_evidence(directory, *, run_id, expected):
         used = row.get('used')
         require(type(used) is int and used in by_used)
         key = by_used[used]
+        require(key not in observed_calls)
+        observed_calls.add(key)
         result = returned[key]
         require(calls[key]['tool'] == 'get_window_state' and result['event'] == 'result')
         state = result.get('value')
@@ -103,6 +107,8 @@ def inspect_guest_evidence(directory, *, run_id, expected):
                 require(data.startswith(b'\x89PNG\r\n\x1a\n'))
         observations[snapshot] = (index, state)
     require(bool(observations))
+    require(observed_calls == {key for key in calls if calls[key]['tool'] == 'get_window_state'
+                               and returned[key]['event'] == 'result'})
     for index, row in enumerate(rows):
         if row.get('event') not in ('attempted_input', 'attempted_save'):
             continue
@@ -116,12 +122,27 @@ def inspect_guest_evidence(directory, *, run_id, expected):
     final = json.loads(read('final_state.json', 8 * 1024 * 1024))
     require(isinstance(final, dict) and final.get('snapshot_id') in observations)
     final_index, original = observations[final['snapshot_id']]
-    require(final == original and final_index == max(value[0] for value in observations.values()))
+    require(final == original)
     saves = [index for index, row in enumerate(rows) if row.get('event') == 'attempted_save']
     require(bool(saves) and final_index > max(saves))
     writes = [key for key, row in calls.items() if row['tool'] == 'write_result']
     reads = [key for key, row in calls.items() if row['tool'] == 'read_result']
     require(len(writes) == 1 and reads and final_index < positions[writes[0]] < min(positions[key] for key in reads))
+    write_index = positions[writes[0]]
+    # final_state is captured by write_result, not by subsequent observations.
+    require(final_index == max(index for index, _ in observations.values() if index < write_index))
+    require(not any(row['event'] == 'dispatch' for row in rows[final_index + 1:write_index]))
+    final_call = next(key for key in observed_calls
+                      if returned[key]['value']['snapshot_id'] == final['snapshot_id'])
+    require(0 <= calls[writes[0]]['at'] - returned[final_call]['at'] <= 30)
+    for key, call in calls.items():
+        if positions[key] > write_index:
+            require(call['tool'] in {'get_window_state', 'read_result'} and returned[key]['event'] == 'result')
+    for index, state in observations.values():
+        if index > write_index:
+            require(all(state.get(field) == final.get(field) for field in ('pid', 'window_id')))
+            displayed = body_from_state(state).encode('utf8')
+            require(expected in (displayed, displayed + b'\n'))
     document = read('artifacts/handoff-' + run_id + '.txt', 4096)
     result_bytes = read('result.txt', 4097)
     business = verify_evidence(rows, expected, document, result_bytes, final)
