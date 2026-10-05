@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7现场前检与输入契约（2026-10-05）：实时Codex剩余71%、普通可用、积分基准未变/重置卡未用。SSH身份mvpagent/VirtualMac2,1、Driver602仍在，未发现TextEdit；只读AppKit查询实际取得Driver完整路径及launchDate微秒，证明该读取语法现场可执行，不冒充TextEdit退出验证。ioreg显示VM锁屏；原P5 API80171和scheduler81383均不存在、18089无监听，Worker30244仍在。首次schedule-status误用位置参数被CLI拒绝，改为--schedule后实际连接拒绝；没有推断计划已暂停/结束，也未重启服务、解锁策略、部署或调用模型。现场缺就绪条件，先继续离线业务实现，不标整体目标阻塞或完成。
+
+863685e输入细则先于代码：新增backend.handoff_contract的冻结HandoffSubmission/Note/Task，严格1–3笔记、1–20任务、固定CSV列、唯一id、日期、状态、空owner未知、控制字符和UTF-8分项/32KiB总界限，额外字段禁止。原文本不裁剪或Unicode归一化，来源SHA独立命名，CSV公式及提示注入只保留为数据，不执行；返回tuple任务，不生成交接内容或文件。新增37项测试，与旧P6输入契约合计71通过（0.04秒），含中文边界、非法CSV、冻结/往返、来源变化、额外权限和旧类型拒绝；未跑完整后端，不倒填新的总回归数。结果契约/语义核验、来源读取、API与真实GUI交接仍待，README同步。
+
 P7 host自动收尾接线（2026-10-05）：e680fc5方案先于实现。adapter只有在guest/原官方会话独立核验、产物复制与verification持久保存后才登记三文件SHA；restore恢复原Harness后写独占清理意图，控制客户端单次请求并严格核对原身份/哈希/非强杀/退出原因，再复核停止、零在途和原预算。EXITED才shutdown；REFUSED/UNKNOWN/丢ACK保存回执或固定告警并抛出，沿Worker既有恢复失败隔离处理，不改变已核验业务结果、不自动重发。未核验任务保存skipped/applicationMayRemain告警，保留未保存应用。清理请求socket超时60秒，普通控制请求仍2秒；guest原锁和独占意图仍是跨进程保护。
 
 验证：新客户端16项参数化用例、adapter新增4项；首次直接pytest为43通过/2缺数据库环境设置错误，标准入口在独立worktree也因无backend.env提前退出。未复制凭据或修改P5配置，显式将manage.ENV_FILE绑定原私有文件、运行当前worktree标准test；夹具每项新建cuagent_test_UUID独立库，完整后端604通过/1既有Starlette弃用警告（71.04秒）。执行层247通过，含真实本地host客户端→guest HTTP→回执联动（native和GUI证据仍模拟）。git diff --check通过；无真实模型/VM/App操作，部署与现场退出/保存提示验证仍待，P7未验收。
