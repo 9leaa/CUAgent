@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7真实环境预检（2026-10-05 15:54，北京时间）：本轮实际账户检查普通额度可用/剩余65%，积分保持62494.0260570000、重置卡未使用，没有签发执行许可。只读数据库核对原P5及九个旧隔离队列均无在途/排队任务、原资源空闲；正式计划ACTIVE且下一期10月6日12:10，六个冻结源码摘要不变，官方profile与最近恢复基线逐字节一致，host/guest无quarantine。原Worker 30244仍运行。
+
+通过既有受限SSH确认mvpagent/VirtualMac2,1、VM锁屏且没有TextEdit进程；宿主ioreg也报告锁屏，cua读取Screen Sharing返回cgWindowNotFound，不能观察到可操作窗口。本次零模型请求、未创建P7任务、未停原Worker、未修改VM/SSH/睡眠或解锁策略；私有readiness/operator-check回执保留。真实验收暂受桌面可用性阻碍，需恢复可操作桌面后重新预检，不能复用本次额度放行或宣称三组通过。P7及总体目标仍未完成。
+
 P7自有应用清理（2026-10-05）：e7305e3设计先行。adapter完整原会话/guest/图片/请求核验并保存私有回执后，为原restore提供document/result/trace三摘要，但仍抛语义审阅必需、保持UNVERIFIED，不生成成功产物。guest cleanup按实际HandoffDesktopTask选择独立P7核验，重新核对原材料SHA/预置绑定、保存/重开/读回轨迹及预算，再复用ApplicationCleanup原PID/启动时间/可执行文件、零在途/无UNKNOWN/撤销许可、单次正常退出/观察。失败不回退P6、不强制终止、不删除证据，原告警和隔离流程保留。
 
 新清理测试使用真实P7执行器生成的模拟Driver证据及模拟native退出；原文件/预算不变、单次退出、改材料/结果、PID复用、在途/UNKNOWN、host摘要不符均覆盖。首轮fixture owner使用旧worker标签，被生产UUID门禁拒绝；修正测试生成原UUID身份，不放宽生产校验。尚未真实VM退出/部署，三组真实业务/语义审阅未完成，P7仍未完成。
