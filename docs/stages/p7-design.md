@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+P7宿主采集接线细则（先于代码）：复用已批准的私有SSH wrapper和固定commit部署路径，仅执行handoff_export原run/owner/epoch；调用前确认原guest停止、零在途、非零预算及撤销lease，独占持久采集意图防重发。有界传输材料与从原会话得到的独立正文，私有保留原tar；调用后状态/预算/lease必须不变。严格解码后新建guest/<原run>私有证据目录，只按已验证固定名称独占写入，不覆盖或extractall；部分写入/响应未知保留原状态且不能重试。返回目录交已有组合核验，不把传输验证当业务成功。模拟SSH测试验证单次/拒绝/部分失败，当前不实际连VM或启用生产任务。
+
 P7宿主包解码细则（先于代码）：独立纯内存handoff_bundle只接可信SSH采集的原tar、绑定身份、规范材料和独立正文期望。严格未压缩USTAR普通文件、固定名单及最多69成员/64MiB内容，拒绝重复、链接、PAX、目录、绝对路径、隐藏尾随数据和缺失配对state/PNG；不调用extractall。清单必须原kind/version/binding/输入与正文SHA，逐项长度/摘要等于实际字节、固定材料/文档/result一致；guest状态只是来源数据，仍需组合核验重算，不标业务或语义通过。此步骤不落盘、不派发、不解锁；随后采集端独占私有目录按已验证固定名称保存，接原会话组合验收。
 
 P7可信导出接线细则（先于代码）：生产采集先增加独立handoff_export入口，不修改P6 lines导出合同。仅固定VM账户、原run/owner/epoch及已撤销lease可读；stdin只接有界materialsBase64/expectedBase64，后者由host原会话独立结果生成，不写guest业务文件。先运行完整handoff_evidence核验，再只读固定原材料/两预置回执/重开意图/trace/state/PNG/final/document/result，逐项SHA与长度一致且lease前后不变，全部读完后才输出USTAR。禁止导出token、lease或任意模型路径；清单绑定原身份、材料SHA、正文SHA及guest核验结果，session/semantic仍false。同步host/guest部署白名单及依赖，先用模拟真实执行器证据检验篡改/活跃lease/凭据排除，不实际部署；host压缩包解码与adapter路由随后接通。
