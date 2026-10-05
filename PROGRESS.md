@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7 guest收尾控制入口（2026-10-05）：e846ea2细则先于实现，新增runtime.cleanup_application和仅独立控制token可访问的/cleanup-app。严格host终态/核验声明与三文件SHA，原runtime持锁且有捕获的应用身份；重新检查lease停止、零在途/UNKNOWN及原调用数，以固定文档运行只读guest GUI证据核验，再由协调器单次正常退出并复查哈希。不会调用Task.stop改写冻结trace、不释放共享锁/改变业务成功状态、不恢复许可。控制JSON重复字段拒绝，HTTP 200只表示返回清理回执，必须另检查EXITED，不能把REFUSED/UNKNOWN算通过。
+
+新增9项真实本地HTTP/临时文件、模拟native与GUI核验测试；执行层全246通过，后端client/deploy/bootstrap相关26通过。覆盖模型403、可信声明/重复字段409、在途/核验失败/哈希变化/原预算不符拒绝、唯一退出与原trace/预算不变；没有实际VM原生动作。host正式验收后的客户端接线和部署/真实验收仍待，生产未启用自动退出。README同步，P5未改。
+
 P7启动所有权接线（2026-10-05）：9ce45ec方案先于代码，生产DesktopGuestRuntime为DesktopTask注入可信launch observer；原launch_app前记guest时间，成功后、首个list_windows前查询原生身份，启动时间必须落在本次launch至采集期间。独占0600/fsync保存owned-application.json并绑定run/owner/epoch，旧实例、消失、未来时间或已有/部分记录拒绝；记录失败由原observe异常路径stop，不重启、不继续窗口操作，原launch计数保留。loopback默认无原生调用；部署器/安装器白名单同步新增两模块，旧VM部署未改。
 
 新增6项生命周期/顺序反例，执行层全237通过；部署/启动专项19通过。首轮新增生产接线测试误绑定VM地址，236通过/1错误，改为仅测试服务器使用loopback后通过，生产网络门禁不改。该轮全部为临时文件/本地socket/模拟系统响应，未运行模型或VM原生查询。实际退出控制入口与host核验后调用仍待实现，不宣称自动清理已生效；README同步，P5原运行环境不动。

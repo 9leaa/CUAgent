@@ -7,10 +7,13 @@ from pathlib import Path
 import re
 import threading
 import time
+import stat
 
 from desktop_lease import DesktopTask, LeaseGate
 from desktop_tools_http import tools_server
-from desktop_app_native import read_identity
+from desktop_app_native import read_identity, request_terminate
+from desktop_app_cleanup import ApplicationCleanup, CleanupState
+from desktop_evidence import inspect_guest_evidence
 
 
 class DesktopGuestRuntime:
@@ -92,6 +95,49 @@ class DesktopGuestRuntime:
                 lease = self.controller.existing()
                 result['stopped'] = self.closed or bool(lease and lease['stopped'])
             return result
+
+    def cleanup_application(self, body):
+        """Trusted host has verified its session; guest independently rechecks GUI evidence."""
+        with self.lock:
+            if (type(body) is not dict or set(body) != {'sessionTerminal', 'sessionVerified', 'hashes'}
+                    or body['sessionTerminal'] is not True or body['sessionVerified'] is not True
+                    or self.closed or self.task is None or self.application is None):
+                raise ValueError('verified original task required')
+            task = self.task
+            gate = self.controller.gate
+
+            def read_state():
+                with task.dispatch_lock:
+                    lease = self.controller.existing()
+                    stopped = bool(lease and lease.get('stopped') is True and task.stopped.is_set())
+                    return CleanupState(gate.run_id, gate.owner, gate.epoch, True, stopped, True,
+                                        len(task.inflight), task.uncertain, task.used)
+
+            def read_hashes():
+                # Only the fixed task document may be read. Its content serves
+                # the guest verifier; equality to the host's approved content
+                # is independently enforced via the supplied verified SHA.
+                path = self.directory / 'artifacts' / ('handoff-' + gate.run_id + '.txt')
+                if path.resolve(strict=True) != path:
+                    raise ValueError('document path changed')
+                fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(fd, 'rb') as stream:
+                    info = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 4096:
+                        raise ValueError('document type or size invalid')
+                    expected = stream.read(4097)
+                report = inspect_guest_evidence(self.directory, run_id=gate.run_id, expected=expected)
+                if report['vmStatus'] != 'VERIFIED' or report['rawCalls'] != task.used:
+                    raise ValueError('guest verification changed')
+                names = {'document': 'artifacts/handoff-' + gate.run_id + '.txt',
+                         'result': 'result.txt', 'trace': 'trace.jsonl'}
+                return {key: report['files'][name]['sha256'] for key, name in names.items()}
+
+            cleaner = ApplicationCleanup(self.directory, run_id=gate.run_id, owner=gate.owner,
+                epoch=gate.epoch, application=self.application, verified_hashes=body['hashes'],
+                read_state=read_state, read_identity=read_identity, read_hashes=read_hashes,
+                request_terminate=request_terminate)
+            return cleaner.run()
 
     def activate(self):
         with self.lock:

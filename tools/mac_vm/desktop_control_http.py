@@ -57,7 +57,7 @@ def control_server(controller, token, *, port=0, runtime=None):
         def do_POST(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
-            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown') if runtime is not None else ('/renew', '/revoke')):
+            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown', '/cleanup-app') if runtime is not None else ('/renew', '/revoke')):
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
                 sizes = self.headers.get_all('Content-Length', [])
@@ -69,10 +69,19 @@ def control_server(controller, token, *, port=0, runtime=None):
                 raw = self.rfile.read(size)
                 if len(raw) != size:
                     raise ValueError('incomplete body')
-                body = json.loads(raw)
+                def unique(pairs):
+                    result = {}
+                    for key, value in pairs:
+                        if key in result:
+                            raise ValueError('duplicate request field')
+                        result[key] = value
+                    return result
+                body = json.loads(raw, object_pairs_hook=unique)
                 if not isinstance(body, dict):
                     raise ValueError('object required')
-                if self.path == '/renew':
+                if self.path == '/cleanup-app':
+                    return self.reply(200, runtime.cleanup_application(body))
+                elif self.path == '/renew':
                     if set(body) != {'sequence', 'ttlMs', 'notAfterMs'} or type(body['notAfterMs']) is not int:
                         raise ValueError('invalid renewal fields')
                     result = controller.renew(body['sequence'], body['ttlMs'], not_after_ms=body['notAfterMs'])
