@@ -46,6 +46,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 终态控制通道先接guest：新增仅独立控制token可用的`/cleanup-app`，严格接受sessionTerminal/sessionVerified两个true和document/result/trace三个SHA；这些声明只能由可信host在原官方会话独立核验后发送，不由模型填写。guest必须仍持原共享锁、原对象已停止/零在途/无UNKNOWN且有本次应用身份；再次运行只读GUI证据核验，核对原调用数与host哈希后才进入协调器。整个操作串行于runtime锁，清理不调用Task.stop以免改变已冻结trace。未知结果不重发、不清隔离、不把业务状态改成功；guest回执不是host会话核验的替代品。此路由先通过角色和篡改反例，再接host正式验收路径；没有host接线前生产不会自动调用。
 
+host接线：只有adapter完成原会话与guest两侧验收、私有产物复制和verification回执持久保存，才在原context登记三文件SHA。restore先恢复原Harness配置，再在guest仍持锁时落独占清理意图、单次请求/cleanup-app并保存回执；严格核对run/owner/epoch、原哈希、PID/启动时间/固定路径、状态及非强杀声明，EXITED后才shutdown。清理拒绝/未知沿已有restore异常记录告警并隔离，不重试、不伪称恢复完成；业务成功和清理成功保持分开。没有验收证明的失败任务仅保存skipped告警并保留应用。客户端清理请求单独60秒socket超时（原普通请求仍2秒），查询/ACK未知不重发；跨对象重放由host/guest双重持久意图拒绝。
+
 1. 输入契约及拒绝反例；不接API，不读取用户任意路径，不调用模型。
 2. 来源绑定结果契约与独立验证器；冻结正常、中文、状态冲突、未知负责人、逾期、注入材料及篡改样本，覆盖不漏任务/不重复归并/不编造引用。
 3. VM受限来源读取、单任务账本、TextEdit文档保存重开；先协议/模拟测试，再后端隔离路由，保持P6旧kind不变。
