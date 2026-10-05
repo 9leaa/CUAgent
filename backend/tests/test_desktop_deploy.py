@@ -57,7 +57,8 @@ def test_builder_reads_explicit_commit_not_working_tree(tmp_path):
     with patch('backend.desktop_deploy.subprocess.check_output', side_effect=show) as read:
         raw, installer, digest = build_package(tmp_path, COMMIT)
     assert set(json.loads(raw)['files']) == set(FILES) == set(SOURCES) | {'LICENSE-cua.md'}
-    assert read.call_count == 16
+    assert {'desktop_app_cleanup.py', 'desktop_app_native.py'} <= set(SOURCES)
+    assert read.call_count == 18  # 16 Python modules, license and installer.
     assert len(digest) == 64
 
 

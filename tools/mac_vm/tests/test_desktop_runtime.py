@@ -13,6 +13,8 @@ from desktop_control import LeaseController
 from desktop_control_http import control_server
 from desktop_lease import DesktopTask
 from desktop_runtime import DesktopGuestRuntime
+from desktop_app_cleanup import ApplicationIdentity
+from desktop_tools_http import tools_server
 
 
 class DesktopRuntimeTests(unittest.TestCase):
@@ -130,6 +132,54 @@ class DesktopRuntimeTests(unittest.TestCase):
         self.assertTrue((self.root / 'bridge.lock.quarantine').is_file())
         with self.assertRaisesRegex(ValueError, 'quarantined'):
             DesktopGuestRuntime(self.run, self.controller, **self.kwargs)
+
+    def test_capture_new_application_private_bound_record(self):
+        identity = ApplicationIdentity(123, 1001)
+        with patch('desktop_runtime.read_identity', return_value=identity), \
+                patch('desktop_runtime.time.time_ns', return_value=1002000):
+            self.runtime.capture_application(123, 1000)
+            self.assertEqual(self.runtime.application, identity)
+            path = self.run / 'owned-application.json'
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            value = json.loads(path.read_text())
+            self.assertEqual((value['runId'], value['owner'], value['epoch']), ('task', 'worker', 1))
+            self.assertEqual((value['pid'], value['startedUs'], value['launchStartedUs']), (123, 1001, 1000))
+            with self.assertRaises(ValueError):
+                self.runtime.capture_application(123, 1000)
+
+    def test_capture_old_future_or_absent_app_denied(self):
+        for identity in (None, ApplicationIdentity(123, 999), ApplicationIdentity(123, 1003)):
+            with patch('desktop_runtime.read_identity', return_value=identity), \
+                    patch('desktop_runtime.time.time_ns', return_value=1002000):
+                with self.assertRaises(ValueError):
+                    self.runtime.capture_application(123, 1000)
+                self.assertIsNone(self.runtime.application)
+                self.assertFalse((self.run / 'owned-application.json').exists())
+
+    def test_capture_partial_existing_record_not_overwritten(self):
+        path = self.run / 'owned-application.json'
+        path.write_text('{')
+        with patch('desktop_runtime.read_identity', return_value=ApplicationIdentity(123, 1001)), \
+                patch('desktop_runtime.time.time_ns', return_value=1002000):
+            with self.assertRaises(FileExistsError):
+                self.runtime.capture_application(123, 1000)
+        self.assertEqual(path.read_text(), '{')
+        self.assertIsNone(self.runtime.application)
+
+    def test_production_factory_gets_observer_without_system_operation(self):
+        self.grant()
+        # Only construction is exercised; no native identity or GUI call occurs.
+        self.runtime.loopback_test = False
+        factory = self.runtime.task_factory
+        def local_server(task, token, **kwargs):
+            kwargs['loopback_test'] = True
+            return tools_server(task, token, **kwargs)
+        with patch.object(self.runtime, 'task_factory', wraps=factory) as create, \
+                patch('desktop_runtime.tools_server', side_effect=local_server), \
+                patch('desktop_runtime.read_identity') as native:
+            self.runtime.activate()
+            self.assertEqual(create.call_args.kwargs['launch_observer'], self.runtime.capture_application)
+            native.assert_not_called()
 
 
 if __name__ == '__main__':

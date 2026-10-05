@@ -85,6 +85,32 @@ class WindowReadinessTests(unittest.TestCase):
         with self.assertRaises(StopRun): self.task.observe()
         self.assertEqual(self.sent, before)
 
+    def test_launch_observer_precedes_windows_and_runs_only_once(self):
+        captured = []
+        def observer(pid, started):
+            self.assertEqual([t for t, _ in self.sent], ['launch_app'])
+            self.assertIsNone(self.task.window)
+            self.assertEqual(pid, 10)
+            self.assertIs(type(started), int)
+            captured.append((pid, started))
+        self.task.launch_observer = observer
+        self.task.observe()
+        self.task.observe()
+        self.assertEqual(len(captured), 1)
+
+    def test_failed_launch_record_stops_before_window_query_and_never_relaunches(self):
+        def observer(*_):
+            raise OSError('private recording failure')
+        self.task.launch_observer = observer
+        with self.assertRaises(OSError):
+            self.task.observe()
+        self.assertTrue(self.task.stopped.is_set())
+        self.assertEqual(self.task.used, 1)
+        self.assertEqual([t for t, _ in self.sent], ['launch_app'])
+        with self.assertRaises(StopRun):
+            self.task.observe()
+        self.assertEqual([t for t, _ in self.sent], ['launch_app'])
+
     def test_wrong_or_invisible_windows_are_never_bound(self):
         for mutation in ('other-pid', 'other-title', 'other-app', 'hidden'):
             # Separate fresh instances required; stopped tasks cannot be reused.

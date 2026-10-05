@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7启动所有权接线（2026-10-05）：9ce45ec方案先于代码，生产DesktopGuestRuntime为DesktopTask注入可信launch observer；原launch_app前记guest时间，成功后、首个list_windows前查询原生身份，启动时间必须落在本次launch至采集期间。独占0600/fsync保存owned-application.json并绑定run/owner/epoch，旧实例、消失、未来时间或已有/部分记录拒绝；记录失败由原observe异常路径stop，不重启、不继续窗口操作，原launch计数保留。loopback默认无原生调用；部署器/安装器白名单同步新增两模块，旧VM部署未改。
+
+新增6项生命周期/顺序反例，执行层全237通过；部署/启动专项19通过。首轮新增生产接线测试误绑定VM地址，236通过/1错误，改为仅测试服务器使用loopback后通过，生产网络门禁不改。该轮全部为临时文件/本地socket/模拟系统响应，未运行模型或VM原生查询。实际退出控制入口与host核验后调用仍待实现，不宣称自动清理已生效；README同步，P5原运行环境不动。
+
 P7原生收尾适配器（2026-10-05）：实施细则5a4103c先于代码，新增desktop_app_native，只允许固定普通VM身份检查后调用系统osascript/AppKit。读取同PID的bundle/完整可执行路径/launchDate微秒；缺AppKit对象时以signal 0确认进程确实不存在，查询/权限异常不当退出成功。正常terminate在同一脚本内核对启动时间和固定TextEdit身份，单次子进程限3秒，无强杀、名称匹配退出或保存/丢弃操作；超时/非零/格式异常只返回固定未确认错误、不重试。没有模型工具/CLI注册，也未接任务生命周期和部署清单。
 
 12项新增模拟系统协议测试通过，执行层全231项通过；覆盖宿主拒绝先于系统访问、PID/类型/路径错误、进程仍在但AppKit查不到、权限错误、重复JSON字段、超时和退出ACK不等于消失。未运行真实osascript/VM调用，不能据模拟响应证明原生API现场可用；实际启动身份采集、可信持锁接线及真实正常退出/未保存告警验证仍待。README同步，P5环境未动。

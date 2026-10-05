@@ -63,10 +63,13 @@ class LeaseGate:
 
 class DesktopTask(RealAppTask):
     """Opt-in extension; existing standalone TextEdit/C0 implementations unchanged."""
-    def __init__(self, directory, *args, lease, **kwargs):
+    def __init__(self, directory, *args, lease, launch_observer=None, **kwargs):
         if not isinstance(lease, LeaseGate) or Path(directory).name != lease.run_id:
             raise StopRun('BLOCKED', 'Execution lease run mismatch')
         self.lease = lease
+        if launch_observer is not None and not callable(launch_observer):
+            raise ValueError('trusted launch observer required')
+        self.launch_observer = launch_observer
         lease.check()
         super().__init__(directory, *args, **kwargs)
 
@@ -107,11 +110,14 @@ class DesktopTask(RealAppTask):
         """One launch, bounded read-only readiness polling of that same PID."""
         self.snapshot = None
         if self.pid is None:
+            launch_started_us = time.time_ns() // 1000
             launched = self.raw('launch_app', self.launch_args)
             if (launched.get('bundle_id') != self.case.bundle
                     or type(launched.get('pid')) is not int or launched['pid'] <= 0):
                 raise StopRun('BLOCKED', 'TextEdit launch identity mismatch')
             self.pid = launched['pid']
+            if self.launch_observer is not None:
+                self.launch_observer(self.pid, launch_started_us)
         deadline = time.monotonic() + 5
         for attempt in range(3):
             if time.monotonic() >= deadline:

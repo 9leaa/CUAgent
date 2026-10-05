@@ -6,9 +6,11 @@ import os
 from pathlib import Path
 import re
 import threading
+import time
 
 from desktop_lease import DesktopTask, LeaseGate
 from desktop_tools_http import tools_server
+from desktop_app_native import read_identity
 
 
 class DesktopGuestRuntime:
@@ -47,6 +49,33 @@ class DesktopGuestRuntime:
         self.lock = threading.RLock()
         self.task = self.server = self.thread = None
         self.closed = False
+        self.application = None
+
+    def capture_application(self, pid, launch_started_us):
+        """Trusted launch callback; records ownership, never quits or grants."""
+        if self.closed or self.application is not None:
+            raise ValueError('application ownership already captured or runtime closed')
+        identity = read_identity(pid)
+        if (identity is None or type(launch_started_us) is not int
+                or not launch_started_us <= identity.started_us <= time.time_ns() // 1000
+                or self.closed):
+            raise ValueError('new task application identity not confirmed')
+        gate = self.controller.gate
+        value = {'version': 1, 'runId': gate.run_id, 'owner': gate.owner, 'epoch': gate.epoch,
+                 'pid': identity.pid, 'startedUs': identity.started_us,
+                 'executable': identity.executable, 'launchStartedUs': launch_started_us}
+        fd = os.open(self.directory / 'owned-application.json',
+                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(value, stream, sort_keys=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+        directory = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+        self.application = identity
 
     def status(self):
         with self.lock:
@@ -77,7 +106,10 @@ class DesktopGuestRuntime:
                     file.flush()
                     os.fsync(file.fileno())
                 self.controller.gate.check()
-                self.task = self.task_factory(self.directory, lease=self.controller.gate, approved=True)
+                task_kwargs = {'lease': self.controller.gate, 'approved': True}
+                if not self.loopback_test:
+                    task_kwargs['launch_observer'] = self.capture_application
+                self.task = self.task_factory(self.directory, **task_kwargs)
                 self.server = tools_server(self.task, self.model_token, control_token=self.control_token,
                                            port=self.port, loopback_test=self.loopback_test)
                 self.thread = threading.Thread(target=self.server.serve_forever,
