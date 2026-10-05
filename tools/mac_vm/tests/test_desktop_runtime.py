@@ -96,6 +96,15 @@ class DesktopRuntimeTests(unittest.TestCase):
         self.assertEqual(self.constructed, 0)
         self.assertFalse((self.run / 'guest-activation-intent.json').exists())
 
+    def test_p6_does_not_gain_handoff_material_tool(self):
+        self.grant()
+        state = self.runtime.activate()
+        code, result = self.request('POST', '/', {'op': 'read_materials', 'args': {}},
+                                    token=self.model, port=state['modelPort'])
+        self.assertEqual(code, 409)
+        self.assertEqual(result['used'], 1)
+        self.assertEqual(self.sent, [])
+
     def test_exclusive_lock_and_single_activation(self):
         with self.assertRaises(BlockingIOError):
             DesktopGuestRuntime(self.run, self.controller, **self.kwargs)

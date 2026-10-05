@@ -8,6 +8,38 @@ from desktop_lease import LeaseGate
 from handoff_task import unique_object, reject_constant
 
 
+def verify_provision(runtime, digest):
+    if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+        raise ValueError('original input digest required')
+    gate = runtime.controller.gate
+    binding = dict(version=1, runId=gate.run_id, owner=gate.owner, epoch=gate.epoch)
+    records = []
+    for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]:
+        path = runtime.directory / name
+        if path.parent.resolve(strict=True) != path.parent:
+            raise ValueError('canonical provision root required')
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            LeaseGate.private(info)
+            if info.st_nlink != 1 or info.st_size > 4096:
+                raise ValueError('private bounded provision record required')
+            raw = stream.read(4097)
+        if len(raw) > 4096:
+            raise ValueError('oversized provision record')
+        record = json.loads(raw, object_pairs_hook=unique_object, parse_constant=reject_constant)
+        if (type(record) is not dict or set(record) != {'status', 'binding', 'inputSha256', 'bytes'}
+                or record['status'] != status or type(record['binding']) is not dict or record['binding'] != binding
+                or type(record['binding'].get('version')) is not int or type(record['binding'].get('epoch')) is not int
+                or record['inputSha256'] != digest or type(record['bytes']) is not int
+                or not 0 < record['bytes'] <= 256 * 1024):
+            raise ValueError('provision record mismatch')
+        records.append(record)
+    if records[0]['bytes'] != records[1]['bytes']:
+        raise ValueError('provision size changed')
+    return records[1]
+
+
 def provision(runtime, body):
     with runtime.lock:
         if runtime.closed or runtime.task is not None or runtime.thread is not None:

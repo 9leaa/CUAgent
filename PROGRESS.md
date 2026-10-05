@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7专用激活与模型侧材料协议（2026-10-05）：1e7dacd细则先行。独立/activate-handoff严格接受非空SHA，重新读私有单链接intent/receipt并核对原binding/状态/字节数；共享原独占activation intent，在原lease下实例化HandoffDesktopTask，启动工具HTTP前重核输入字节/JSON及租约。任一不确定失败沿原revoke关闭准入；不降级P6、不重放。HandoffControlClient仅凭成功预置回执选择新路由，仍复用原activate单次/实时authority/时限验证；无回执拒绝。生产工厂不可注入替代实现，测试注入仅loopback；输入预置与启动只属可信生命周期，模型首次read_materials计原预算一次。
+
+工具HTTP仅在HandoffDesktopTask实例上添加零参数read_materials，旧P6 DesktopTask仍拒绝且计拒绝预算；任意路径参数拒绝。新增13项后端测试（原19项材料测试一起共32项）及1项执行层P6兼容反例，真实localhost上传→专用启动→模型token读取→撤销→后续读取拒绝；另测错误SHA/owner、缺回执、字节数、材料篡改、公开权限、非法/空SHA不能回退、模型控制权限拒绝。最终相关后端140通过（0.90秒），执行层258通过（1.258秒），git diff --check通过；README同步，无真实模型/VM/部署或P5运行环境修改。官方Harness工具注册、模型报告生成、语义预期与GUI保存重开/导出仍待，不以材料读取代替业务验收。
+
 P7材料可信传输（2026-10-05）：7b27e61方案先于实现。新增HandoffControlClient与guest handoff_input，host严格验证输入后编码原规范JSON、实时检查authority/租约；独立控制token的/handoff-input匹配原run/owner/epoch，未激活且有效lease才接收。guest核对SHA、固定输入对象与JSON合法性，通过原私有目录fd独占0600/fsync保存intent→原输入→receipt，保存后重新检查租约；部分失败/已有意图不覆盖或重发。回执精确匹配绑定/哈希/字节数/STORED；新client也不能绕过guest持久意图。该路由请求上限384KiB，其他控制路由仍4096字节。生产尚未部署；新增材料意图会拒绝旧P6 activate，直至独立P7激活/工具链完成，不能将上传成功称业务执行完成。
 
 新增19项真实localhost HTTP/临时文件测试：host输入→guest原字节→HandoffDesktopTask原预算读取跨层一致；模型403、错误身份/布尔epoch/哈希/base64/额外路径/重复JSON拒绝；ACK丢失无重发、部分意图/旧文件保留、authority失败/租约撤销、写后到期不回成功、超过4KiB合法材料及旧路由限制、原激活意图拒绝后置上传。初轮32通过/1失败仅部署测试旧18次Git读取断言过期，新增两模块后明确改为20次（18模块+license+installer），未放松部署文件集合；最终相关后端127通过，执行层257通过，git diff --check通过。README及部署白名单同步；没有复制凭据、启动服务、操作VM或模型推理。报告生成/语义预期/保存重开与正式验收仍待。

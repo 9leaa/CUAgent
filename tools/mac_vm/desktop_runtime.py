@@ -14,12 +14,13 @@ from desktop_tools_http import tools_server
 from desktop_app_native import read_identity, request_terminate
 from desktop_app_cleanup import ApplicationCleanup, CleanupState
 from desktop_evidence import inspect_guest_evidence
-from handoff_input import provision
+from handoff_input import provision, verify_provision
+from handoff_task import HandoffDesktopTask
 
 
 class DesktopGuestRuntime:
     def __init__(self, directory, controller, *, model_token, control_token, shared_lock,
-                 port=8766, loopback_test=False, task_factory=DesktopTask):
+                 port=8766, loopback_test=False, task_factory=DesktopTask, handoff_task_factory=HandoffDesktopTask):
         self.directory = Path(directory).absolute()
         if (self.directory.resolve(strict=True) != self.directory
                 or self.directory.name != controller.gate.run_id):
@@ -30,7 +31,8 @@ class DesktopGuestRuntime:
                 raise ValueError('independent credentials required')
         if hmac.compare_digest(model_token, control_token):
             raise ValueError('independent credentials required')
-        if type(loopback_test) is not bool or (not loopback_test and task_factory is not DesktopTask):
+        if type(loopback_test) is not bool or (not loopback_test and
+                (task_factory is not DesktopTask or handoff_task_factory is not HandoffDesktopTask)):
             raise ValueError('test injection is loopback-only')
         lock_path = Path(shared_lock).absolute()
         if lock_path.parent.resolve(strict=True) != lock_path.parent:
@@ -50,6 +52,7 @@ class DesktopGuestRuntime:
         self.controller = controller
         self.model_token, self.control_token = model_token, control_token
         self.port, self.loopback_test, self.task_factory = port, loopback_test, task_factory
+        self.handoff_task_factory = handoff_task_factory
         self.lock = threading.RLock()
         self.task = self.server = self.thread = None
         self.closed = False
@@ -143,12 +146,18 @@ class DesktopGuestRuntime:
     def provision_handoff(self, body):
         return provision(self, body)
 
-    def activate(self):
+    def activate_handoff(self, body):
+        if (type(body) is not dict or set(body) != {'inputSha256'}
+                or not isinstance(body['inputSha256'], str) or not re.fullmatch(r'[0-9a-f]{64}', body['inputSha256'])):
+            raise ValueError('handoff activation binding required')
+        return self.activate(handoff_digest=body['inputSha256'])
+
+    def activate(self, *, handoff_digest=None):
         with self.lock:
             if self.closed or self.task is not None:
                 raise ValueError('activation already attempted or closed')
-            if os.path.lexists(self.directory / 'handoff-input-intent.json'):
-                raise ValueError('P7 activation not yet enabled; P6 fallback denied')
+            if handoff_digest is None and os.path.lexists(self.directory / 'handoff-input-intent.json'):
+                raise ValueError('P7 requires dedicated activation; P6 fallback denied')
             try:
                 # Even an unconfirmed startup cannot be replayed after restart.
                 path = self.directory / 'guest-activation-intent.json'
@@ -158,10 +167,20 @@ class DesktopGuestRuntime:
                     file.flush()
                     os.fsync(file.fileno())
                 self.controller.gate.check()
+                receipt = verify_provision(self, handoff_digest) if handoff_digest is not None else None
                 task_kwargs = {'lease': self.controller.gate, 'approved': True}
                 if not self.loopback_test:
                     task_kwargs['launch_observer'] = self.capture_application
-                self.task = self.task_factory(self.directory, **task_kwargs)
+                if receipt is not None:
+                    self.task = self.handoff_task_factory(self.directory, input_sha256=handoff_digest, **task_kwargs)
+                    if not isinstance(self.task, HandoffDesktopTask):
+                        raise ValueError('handoff task required')
+                    self.task._read_frozen_input()  # Trusted readiness check; no model dispatch.
+                    if (self.directory / 'handoff-input.json').stat().st_size != receipt['bytes']:
+                        raise ValueError('input byte count changed')
+                else:
+                    self.task = self.task_factory(self.directory, **task_kwargs)
+                self.controller.gate.check()
                 self.server = tools_server(self.task, self.model_token, control_token=self.control_token,
                                            port=self.port, loopback_test=self.loopback_test)
                 self.thread = threading.Thread(target=self.server.serve_forever,

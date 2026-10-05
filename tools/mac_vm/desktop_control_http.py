@@ -57,7 +57,7 @@ def control_server(controller, token, *, port=0, runtime=None):
         def do_POST(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
-            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown', '/cleanup-app', '/handoff-input') if runtime is not None else ('/renew', '/revoke')):
+            if self.path not in (('/renew', '/revoke', '/activate', '/activate-handoff', '/shutdown', '/cleanup-app', '/handoff-input') if runtime is not None else ('/renew', '/revoke')):
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
                 sizes = self.headers.get_all('Content-Length', [])
@@ -81,6 +81,8 @@ def control_server(controller, token, *, port=0, runtime=None):
                     raise ValueError('object required')
                 if self.path == '/handoff-input':
                     return self.reply(200, runtime.provision_handoff(body))
+                elif self.path == '/activate-handoff':
+                    return self.reply(200, runtime.activate_handoff(body))
                 elif self.path == '/cleanup-app':
                     return self.reply(200, runtime.cleanup_application(body))
                 elif self.path == '/renew':

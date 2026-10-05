@@ -5,6 +5,7 @@ import json
 import re
 
 from desktop_lease import DesktopTask
+from handoff_task import HandoffDesktopTask
 
 
 def unique_object(pairs):
@@ -28,6 +29,9 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
         raise ValueError('explicit test mode required')
     address, peer = ('127.0.0.1', '127.0.0.1') if loopback_test else ('192.168.64.3', '192.168.64.1')
     operations = {'observe', 'type_text', 'save', 'write_result', 'read_result'}
+    if isinstance(task, HandoffDesktopTask):
+        operations.add('read_materials')
+    no_args = {'observe', 'read_result', 'read_materials'}
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
@@ -86,10 +90,10 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
             with task.lock:
                 prior_used = task.used
                 try:
-                    if op not in operations or (op in ('observe', 'read_result') and args):
+                    if op not in operations or (op in no_args and args):
                         raise ValueError('operation denied')
                     method = getattr(task, op)
-                    result = method() if op in ('observe', 'read_result') else method(args)
+                    result = method() if op in no_args else method(args)
                 except Exception:
                     return self.reject_locked(op if op in operations else 'request', prior_used)
             self.reply(200, result)

@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import http.client
 import json
 from pathlib import Path
 import secrets
@@ -23,8 +24,11 @@ def transfer(tmp_path):
     run = tmp_path / 'task'; run.mkdir(mode=0o700)
     controller = LeaseController(run / 'lease.json', run_id='task', owner='owner', epoch=1, clock=lambda: 100.)
     token, model = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    def handoff_factory(directory, **kwargs):
+        return HandoffDesktopTask(directory, lambda *_: pytest.fail('GUI must not run'), lambda _: None,
+                                  environment=lambda: None, **kwargs)
     runtime = DesktopGuestRuntime(run, controller, model_token=model, control_token=token,
-        shared_lock=tmp_path / 'bridge.lock', port=0, loopback_test=True)
+        shared_lock=tmp_path / 'bridge.lock', port=0, loopback_test=True, handoff_task_factory=handoff_factory)
     server = control_server(controller, token, runtime=runtime)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}); thread.start()
     client = HandoffControlClient(port=server.server_port, token=token, run_id='task', owner='owner', epoch=1, clock=lambda: 50.)
@@ -156,3 +160,74 @@ def test_activation_intent_prevents_late_material_upload(transfer):
     (runtime.directory / 'guest-activation-intent.json').write_bytes(b'prior attempt')
     with pytest.raises(ControlUnconfirmed): client.provision_handoff(source, lambda: 65.)
     assert not (runtime.directory / 'handoff-input-intent.json').exists()
+
+
+def model_request(port, token, op, args):
+    connection = http.client.HTTPConnection('127.0.0.1', port, timeout=3)
+    try:
+        connection.request('POST', '/', json.dumps(dict(op=op, args=args)), {'Authorization': 'Bearer ' + token})
+        response = connection.getresponse()
+        return response.status, json.loads(response.read())
+    finally:
+        connection.close()
+
+
+def test_dedicated_activation_and_actual_model_protocol_read_then_stop(transfer):
+    client, runtime, source, model = transfer
+    client.provision_handoff(source, lambda: 65.)
+    state = client.activate(lambda: 65.)
+    assert state['active'] and state['rawCalls'] == 0
+    code, result = model_request(state['modelPort'], model, 'read_materials', {})
+    assert code == 200 and result['materials'] == source.model_dump(mode='json')
+    assert result['used'] == 1
+    client.revoke()
+    assert model_request(state['modelPort'], model, 'read_materials', {})[0] == 409
+    assert runtime.task.used == 1
+    with pytest.raises(ControlUnconfirmed): client.activate(lambda: 65.)
+
+
+@pytest.mark.parametrize('mode', ['digest', 'owner', 'missing_receipt', 'bytes', 'input_tamper', 'public_receipt'])
+def test_activation_bad_binding_revokes_and_does_not_listen(transfer, mode):
+    client, runtime, source, _ = transfer
+    client.provision_handoff(source, lambda: 65.)
+    receipt_path = runtime.directory / 'handoff-input-receipt.json'
+    receipt = json.loads(receipt_path.read_text())
+    if mode == 'digest': client._input_receipt['inputSha256'] = '0' * 64
+    if mode == 'owner':
+        receipt['binding']['owner'] = 'other'; receipt_path.write_text(json.dumps(receipt))
+    if mode == 'bytes':
+        receipt['bytes'] += 1; receipt_path.write_text(json.dumps(receipt))
+    if mode == 'missing_receipt': receipt_path.unlink()
+    if mode == 'input_tamper': (runtime.directory / 'handoff-input.json').write_bytes(b'{}')
+    if mode == 'public_receipt': receipt_path.chmod(0o644)
+    with pytest.raises(ControlUnconfirmed): client.activate(lambda: 65.)
+    assert runtime.server is None
+    assert runtime.controller.existing()['stopped'] is True
+    assert (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+@pytest.mark.parametrize('value', [None, True, '', 'bad'])
+def test_invalid_handoff_activation_cannot_fall_back_to_p6(transfer, value):
+    client, runtime, _, _ = transfer
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff', {'inputSha256': value})
+    assert runtime.task is None
+    assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+def test_model_cannot_activate_handoff_and_cannot_supply_read_paths(transfer):
+    client, runtime, source, model = transfer
+    client.provision_handoff(source, lambda: 65.)
+    control = client.token; client.token = model
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff', {'inputSha256': input_digest(source)})
+    client.token = control
+    state = client.activate(lambda: 65.)
+    assert model_request(state['modelPort'], model, 'read_materials', {'path': '/tmp/other'})[0] == 409
+    assert runtime.task.used == 1
+    assert model_request(state['modelPort'], model, 'read_materials', {})[0] == 200
+    assert runtime.task.used == 2
+
+
+def test_handoff_client_without_provision_never_falls_back(transfer):
+    client, runtime, _, _ = transfer
+    with pytest.raises(ControlUnconfirmed): client.activate(lambda: 65.)
+    assert not (runtime.directory / 'guest-activation-intent.json').exists()

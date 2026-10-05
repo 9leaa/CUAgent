@@ -67,13 +67,17 @@ class DesktopControlClient:
                     or not math.isfinite(now) or not math.isfinite(start) or now < start or now >= deadline
                     or guest_now + math.ceil((now - start) * 1000) >= lease['expiresAt']):
                 raise ControlUnconfirmed('GUEST_ACTIVATION_AUTHORITY_UNAVAILABLE')
-            result = self.validate_status(self.request('POST', '/activate', {}))
+            path, body = self.activation_request()
+            result = self.validate_status(self.request('POST', path, body))
             after = self.clock()
             if (not math.isfinite(after) or after < now or after >= deadline
                     or guest_now + math.ceil((after - start) * 1000) >= lease['expiresAt']
                     or not result['active'] or result['stopped'] or result['rawCalls'] or result['pendingCalls']):
                 raise ControlUnconfirmed('GUEST_ACTIVATION_UNCONFIRMED')
             return result
+
+    def activation_request(self):
+        return '/activate', {}
 
     def request(self, method, path, body=None, *, timeout=2):
         connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=timeout)
