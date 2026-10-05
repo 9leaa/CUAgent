@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+原会话结果提取细则（先于代码）：根据本地保留的官方v4原记录核对实际结构，assistant/message的正文位于data.message.content，最终输出不能从stream碎片、工具返回或任意嵌入JSON猜取。纯函数接受可信采集的原session字节、原prompt请求及run/session/cwd/输入；要求唯一v4原身份、project-handoff preset、非seed/delegation、严格递增seq、唯一原用户rpcId及完全一致prompt正文、单turn completed、Flash/off和完整七工具。所有模型assistant来源必须匹配固定provider/model，工具call/result配对且属于原轮次，最终assistant位于全部工具完成之后，仅含文本并解析为唯一严格JSON对象（拒绝重复键、非有限数、围栏、额外文字）。先完整验证HandoffResult来源/事实与身份，再计算独立正文；输出原session/最终消息哈希、消息ID及seq、结构核验和正文，保持sessionVerified/guiVerified/semanticVerified为false，待双日志逐工具映射、request-audit和VM证据合并后才升级，不把原消息提取冒充完整会话/业务验收。
+
 文件证据核验细则（先于代码）：在P7独立轨迹检查之外增加只读handoff_evidence入口，可信调用者必须先撤销许可并确认零在途，传入原run/owner/epoch绑定、冻结材料字节和独立正文期望。仅读取固定私有run目录内的材料及预置intent/receipt、重开intent、原trace、每次观察的state-NN.json/PNG、final_state、固定文档和result；目录fd逐层O_NOFOLLOW，文件必须本人普通单链接、限定长度，拒绝FIFO/路径逃逸/重复JSON键/非有限数。材料及两份预置回执逐项绑定原身份/SHA/长度；重开intent逐字段等于原轨迹，最终状态等于轨迹核验指定的重开后新观察，文档和读回字节精确匹配独立期望。所有成功观察的JSON/PNG哈希与原observation_evidence一致，PNG签名只证明格式前缀，不能冒充视觉内容/语义证明。单次收集总量≤64MiB，返回前再次读回所有文件及核对根目录身份，变化拒绝；此检查不替代调用者冻结执行和可信传输。仅输出VM_EVIDENCE_VERIFIED并保持sessionVerified/semanticVerified为false，不直接标业务成功或触发应用退出。
 
 独立轨迹核验细则（2026-10-05，先于代码）：P7单独实现纯读取轨迹核验器，不扩大P6验收白名单。外部传入原run、冻结材料及独立正文期望，核对连续1–30 raw、唯一且串行配对的dispatch/result、停止后零派发、无UNKNOWN。材料原规范字节/SHA必须在原read_materials结果出现且先于输入；输入与每次保存必须绑定最近一次新观察、同PID/旧窗口、30秒内且无中间请求。重开严格匹配唯一intent→一次关闭hotkey→1–3次窗口清单证明原窗口消失→唯一native打开结果→1–3次清单确认唯一同PID目标窗口→reopened标记；ACK本身不算证明。每个hotkey必须归属保存或唯一关闭，拒绝遗漏/重复/穿插动作。关闭前新观察与重开后新观察均须对应原文；最终write/read绑定重开后的最新观察及相同正文，重开后不得再编辑。
