@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7官方插件材料工具（2026-10-05）：739c199设计先行。原c0-vm-tools仅caseId=project_handoff、stage=p7、严格p2 UUID和输入SHA时加vm_read_materials；旧P6五工具不变，混合/缺失绑定拒绝初始化。新工具零参数声明，实际多余参数仍传guest以保留拒绝预算，读取复用原owner/取消/固定URL/无重试通道。新增handoff-materials重算完整材料规范JSON SHA并核对返回SHA、对象字段与1–30整数预算，拒绝篡改/超长/伪哈希，原文只作为数据输出。新kind的就绪记录携带kind/inputSha，旧P6就绪结构未改；模型请求仍需完整白名单，少工具或越权工具均拒绝。
+
+验证：安装版官方App版本只读核实0.2.0-rc.2；沿test-desktop-adapters同样构建/运行方式，明确从原CUAgent私有desktop-build-tools只读加载esbuild，把当前worktree的测试bundle写入.runtime/p7-material-tools-tests.mjs，以官方App ELECTRON_RUN_AS_NODE=1运行--expose-internals --test，不启动GUI或改profile。旧5项+P7新增3项共8/8（内含多组配置/响应反例）通过；python原canonical独立计算中文/emoji/组合字符/CRLF材料SHA 7fbabfe7c6b1f7ac3eb7f83ad3a0ff3fda3d62fd2ef10c0b92ae1ea439d30f33，与JS断言一致。node --test agent/tests/*.test.mjs为112通过/1既有跳过，git diff --check通过。全部为官方工具定义+模拟transport/本地数据，不冒充真实模型或VM；P7 profile/session与报告生成、语义验收、GUI重开仍待，README同步。
+
 P7专用激活与模型侧材料协议（2026-10-05）：1e7dacd细则先行。独立/activate-handoff严格接受非空SHA，重新读私有单链接intent/receipt并核对原binding/状态/字节数；共享原独占activation intent，在原lease下实例化HandoffDesktopTask，启动工具HTTP前重核输入字节/JSON及租约。任一不确定失败沿原revoke关闭准入；不降级P6、不重放。HandoffControlClient仅凭成功预置回执选择新路由，仍复用原activate单次/实时authority/时限验证；无回执拒绝。生产工厂不可注入替代实现，测试注入仅loopback；输入预置与启动只属可信生命周期，模型首次read_materials计原预算一次。
 
 工具HTTP仅在HandoffDesktopTask实例上添加零参数read_materials，旧P6 DesktopTask仍拒绝且计拒绝预算；任意路径参数拒绝。新增13项后端测试（原19项材料测试一起共32项）及1项执行层P6兼容反例，真实localhost上传→专用启动→模型token读取→撤销→后续读取拒绝；另测错误SHA/owner、缺回执、字节数、材料篡改、公开权限、非法/空SHA不能回退、模型控制权限拒绝。最终相关后端140通过（0.90秒），执行层258通过（1.258秒），git diff --check通过；README同步，无真实模型/VM/部署或P5运行环境修改。官方Harness工具注册、模型报告生成、语义预期与GUI保存重开/导出仍待，不以材料读取代替业务验收。
