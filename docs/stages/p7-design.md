@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+组合验收细则（先于代码）：host先读取私有原session绑定/prompt/session字节，运行结果来源与结构核验以得到独立正文；固定本地只读子进程调用guest文件核验与双日志映射，不在backend临时修改全局Python模块路径。子进程仅接原guest证据目录/原session文件及有界绑定/材料/正文，输出摘要且绑定sessionSHA。host再按摘要读取原PNG、私有转换记录及官方引用附件，进行图片来源/实际字节核验。P7 llm/stream审计增加原run/session/inputSHA及每次请求实际imageAttachmentIds；每条审计与对应assistant步骤逐一核对此前官方工具图像序列、固定模型/七工具和时间顺序，不能仅凭“有图片”通过。最后重读所有读取过的host输入文件，变化拒绝。输出EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING，明确业务语义未验且非SUCCEEDED；入口只读、不授予许可、不执行/补跑模型、不自动清理应用。生产adapter、下载及冻结语义预期仍另接，模拟组合测试不得称真实验收。
+
 P7有界观察投影细则（先于代码）：官方spill-policy按token预算保留头尾，超限加入[...]，没有可依赖的固定字符阈值。P7的vm_observe改用可独立复算handoff-body-v1投影：原snapshot/PID/window/app/title/截图有效标志/used，以及唯一属于目标AXWindow的AXTextArea完整正文、原index/token/enabled及最多16层原祖先链。移除菜单、重复tree_markdown与无关字段，不改变原索引/token/parent关系，不裁正文；有sheet/dialog、重复索引、歧义正文、失效截图/身份、正文>4KiB或投影>8KiB均拒绝并停止，不放宽spill预算或开放read恢复工具。guest全部原state/PNG/trace保留，Python独立按同一字段契约复算并精确比较官方投影，旧P6不变。8KiB仅是本地输出上限，不能承诺任意官方token配置均不截断；仍须真实原会话验收确认完整保留。
 
 官方附件采集细则（先于代码）：已只读核对安装版attachment-local实现，normalizedImagePath为DSH_HOME/attachments/v1/objects/<SHA前两位>/<SHA>。新增只读受限采集器，只接受原会话与guest双日志匹配生成的观察附件清单，不列目录/搜索别的会话、不接受模型路径或display name。可信home必须本人私有规范目录；逐层目录fd/O_NOFOLLOW读取固定摘要路径，文件本人普通单链接且私有，单附件≤8MiB/总≤64MiB，验证实际SHA/字节数，重复SHA去重但元数据矛盾拒绝。每份证据二次读取并核对文件/目录身份和内容稳定；缺失/链接/变化/未知格式拒绝，不创建替代附件、不调用转换。此入口仅采集原始字节，实际尺寸/视觉语义不由PNG/WebP签名前缀推断；随后交给已有转换来源验证及组合验收。当前阶段不扫描个人home或执行真实模型。
