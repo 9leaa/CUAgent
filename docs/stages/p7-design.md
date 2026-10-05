@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+图片转换来源细则（先于代码）：本地官方记录证明saveImage会将PNG转换为WebP，不能要求两种编码摘要相同。P7插件在一次observe返回后，使用同一已收PNG缓冲区交给官方saveImage；获得附件后、返回模型前，独占0600/fsync记录handoff-image-NN.json，绑定原run/session/inputSHA/snapshot/used、输入PNG SHA/长度和输出附件SHA-ID/格式/长度/尺寸。只允许原私有配置目录、固定1–30编号、本人规范目录、无链接及不覆盖；失败立即关闭本地派发并请求原任务停止，不重试观察或转换。记录不包含凭据、正文或任意路径，不新增模型工具或预算。后续可信采集读取附件实际字节，核对官方SHA-ID与长度，并把此转换记录和guest原PNG哈希、official观察附件绑定；该证据证明同次可信转换的输入输出，不声称独立视觉语义/像素无损。先测试原生文件安全和P7官方工具集成，P6不改变。
+
 双日志映射细则（先于代码）：独立映射器先重新核验原guest轨迹，再从原read_materials结果、observation_evidence、输入/保存标记、reopened标记及write/read结果构造有序的七类逻辑调用，不能按总次数相等推断匹配。官方每次工具call/result必须唯一串行且顺序完全一致；材料原文/单源SHA/原used、观察完整state/used及图片附件元数据、输入snapshot/element身份/原文、保存和重开snapshot、write value/最终snapshot、read content逐项匹配。重开的多次内部raw仅归属一次vm_reopen，并核对其末尾used。所有结构比较区分bool/int且拒绝额外参数/多重文本结果。输出EXCHANGES_MATCHED，仍保持sessionVerified与imageBytesVerified为false：来源/终态由原session提取器验证，请求审计和附件实际字节必须在最终组合验收补齐，不能把图片附件ID或长度视为同图证明。
 
 原会话结果提取细则（先于代码）：根据本地保留的官方v4原记录核对实际结构，assistant/message的正文位于data.message.content，最终输出不能从stream碎片、工具返回或任意嵌入JSON猜取。纯函数接受可信采集的原session字节、原prompt请求及run/session/cwd/输入；要求唯一v4原身份、project-handoff preset、非seed/delegation、严格递增seq、唯一原用户rpcId及完全一致prompt正文、单turn completed、Flash/off和完整七工具。所有模型assistant来源必须匹配固定provider/model，工具call/result配对且属于原轮次，最终assistant位于全部工具完成之后，仅含文本并解析为唯一严格JSON对象（拒绝重复键、非有限数、围栏、额外文字）。先完整验证HandoffResult来源/事实与身份，再计算独立正文；输出原session/最终消息哈希、消息ID及seq、结构核验和正文，保持sessionVerified/guiVerified/semanticVerified为false，待双日志逐工具映射、request-audit和VM证据合并后才升级，不把原消息提取冒充完整会话/业务验收。
