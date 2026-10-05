@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7可信发布CLI（2026-10-05）：cfccb49设计先行。新增backend.handoff_publish_operator，publish/inspect只接受canonical task UUID、私有隔离service profile及publish必需的审阅原字节SHA，复用原profile隔离门禁，不能传任意DB URL/成功JSON。publish只调用已验证的原任务事务，不执行模型/VM；inspect锁定读取原Task及唯一发布事件/Artifact元数据、原意图是否存在，不读为已读通知、不重验文件字节、不授予重试。DB已登记与仅有文件意图分别展示；所有异常输出固定脱敏摘要，提交不明不假称回滚、不自动再发。
+
+新增CLI边界10项，含真实子进程拒绝及错误脱敏，隔离DB补成功前后/事务失败后inspect断言，发布组合45/45通过；唯一警告为已有httpx TestClient弃用。成功路由用mock验证且DB另测，不冒充生产CLI已发布真实业务。未部署、未调用模型/VM、未改变原P5服务；README/命令说明同步。下一步完成P7自有应用清理，再进行真实三组任务及实际独立审阅，P7未完成。
+
 P7显式生产路由（2026-10-05）：a1373b2设计先行。Settings新增默认关闭handoff_tasks_enabled；/handoff-tasks仅接严格HandoffSubmission及幂等键，旧/tasks和/desktop-tasks不接P7。TaskService提交按kind规范校验，claim精确选择日报/P6/P7；三类共用原Resource锁、epoch和停止预算规则。DesktopWorker新增受限kind选择，不另写执行循环；desktop_service serve及desktop_operator worker-once新增显式--kind project-handoff，默认P6，独立服务仅允许选定kind创建与原stop。操作员选HandoffTaskAdapter，仍核验原QUEUED/未尝试身份、quota、切换批准、基线/VM就绪及共享锁，launch意图记录kind，不自动恢复或重试。
 
 隔离联测首次453通过/1失败：新增P7操作员测试暴露desktop_authority仍仅允许P6，导致P7在启动前BLOCKED；修正为P6/P7同样受原任务/owner/epoch/租约/停止约束。保留该失败记录，不降低门禁或将其当模型失败。此次未修改冻结P5源码/服务，未执行真实模型/VM；正式三组业务、P7退出应用清理及可信发布CLI仍待。

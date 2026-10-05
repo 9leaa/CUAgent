@@ -41,12 +41,20 @@ def ready(service, operator):
 
 def test_original_task_publication_downloads_and_preserves_failure(service, ready):
     root, digest, identity, prepared = ready
+    from backend.handoff_publish_operator import inspect_publication
+    before = inspect_publication(service, identity)
+    assert before['status'] == 'UNVERIFIED' and not before['databasePublicationRecorded']
+    assert before['publicationIntentPresent'] is False
     with TestClient(create_app(service.settings)) as client:
         assert client.get(f'/tasks/{identity}/artifacts/report.json').status_code == 401
         client.headers['Authorization'] = 'Bearer ' + service.settings.api_token
         assert client.get(f'/tasks/{identity}/artifacts/report.json').status_code == 404
     result = publish_reviewed_task(service, identity, digest)
     assert result['status'] == 'SUCCEEDED'
+    inspected = inspect_publication(service, identity)
+    assert inspected['databasePublicationRecorded'] and inspected['publicationIntentPresent']
+    assert inspected['reviewFileSha256'] == digest and not inspected['retryAuthorized']
+    assert not inspected['artifactBytesReverified']
     with service.sessions() as db:
         task = db.get(Task, identity)
         assert task.calls == prepared['rawCalls'] and task.session_id == prepared['binding']['sessionId']
@@ -142,4 +150,8 @@ def test_database_failure_leaves_no_success_and_no_automatic_retry(service, read
         assert list(db.scalars(select(Artifact))) == []
         assert list(db.scalars(select(Event).where(Event.kind == 'handoff_published'))) == []
     assert len(Inbox(service.sessions).listing()['items']) == 1
+    from backend.handoff_publish_operator import inspect_publication
+    inspected = inspect_publication(service, identity)
+    assert inspected['publicationIntentPresent'] and not inspected['databasePublicationRecorded']
+    assert inspected['artifacts'] == {} and not inspected['retryAuthorized']
     with pytest.raises(FileExistsError): publish_reviewed_task(service, identity, digest)

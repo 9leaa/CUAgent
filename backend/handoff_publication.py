@@ -1,6 +1,6 @@
-"""Read-only preparation for a later original-task publication transaction.
+"""Read-only evidence preparation and trusted original-task publication.
 
-No model tool, DB mutation, file publication or automatic semantic proof.
+Publication writes artifacts/DB; neither entry is a model tool or semantic proof.
 The current local OS user is the authority; reviewer labels are declarations.
 """
 import hashlib
