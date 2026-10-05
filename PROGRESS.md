@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7 guest受限材料读取（2026-10-05）：f8238d9方案先行。新增独立HandoffDesktopTask，可信构造侧绑定inputSha256，只读原目录handoff-input.json；原lease/admit/dispatch/result/error/inflight账本共用，每次读取/失败计一次raw，不调用Driver或其他程序，不重置30次预算。固定目录fd、O_NOFOLLOW/非阻塞、私有普通单链接文件、256KiB JSON开销上限、原字节SHA及严格JSON解析；拒绝模型路径/哈希参数。读前使GUI快照失效，停止前已准入的只读结果可以返回并记录，停止后不再准入；重建对象保留停止状态及原调用数。host输入语义合同仍是可信预置前提，未声称guest再次实现全套Pydantic合同。
+
+新增10项临时文件/模拟lease测试，包括真实累计30次读取、第31次及重启拒绝、在途停止、原文注入不执行、哈希篡改、缺文件、符号/硬链接、FIFO、公开权限、超长文件、非法UTF-8/重复键/NaN。首轮9项中权限反例产生2个断言错误：现有LeaseGate.private抛ValueError，测试仅接受StopRun/OSError；实际已拒绝，补正确异常预期后全通过。最终python -m unittest discover -s tools/mac_vm/tests为257项通过；没有部署VM、调用模型或改P6生产HTTP工具清单/部署白名单，不把新增类当生产已启用。可信材料安装、独立kind入口、模型生成及GUI保存重开仍待；README同步，P5服务和冻结源码未改。
+
 P7来源绑定结果校验（2026-10-05）：cc3e940方案先于代码。新增backend.handoff_result的结果/引用/问题契约及verify_result，绑定可信原run/session与完整请求SHA；CSV任务恰好一次、事实原值、四状态计数、严格早于asOf且未done的逾期、未知owner/逾期问题集合独立复算。引用按Unicode码点精确切片、源SHA及去重，冲突至少两个不同引用，额外权限字段/控制字符/单文本2KiB和结果64KiB边界拒绝。不读写文件、不派发模型或GUI，不将结构校验映射为任务SUCCEEDED；语义及GUI标记始终false。反例明确证明“真实引用+错误结论”仍需独立语义验收，不能把本模块当业务完成判据。
 
 首轮119通过/1失败：model_copy绕过StrictInt后，model_dump(mode=json)把布尔值转换为数字1，原序列化后重验未拒绝。修正输入及结果所有嵌套模型revalidate_instances=always，先验证原实例字段再序列化；新增5个嵌套copy/construct绕过反例。最终54项结果测试，与输入及P6契约合计125通过（0.08秒）；命令为原backend-venv/bin/python -m pytest backend/tests/test_handoff_result.py backend/tests/test_handoff_contract.py backend/tests/test_desktop_contract.py -q。只跑相关纯本地测试，没有数据库/完整后端/模型/VM验收；README同步，P5冻结目录与服务未改，阶段仍未完成。
