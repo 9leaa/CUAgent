@@ -38,6 +38,10 @@ P7激活细则：独立/activate-handoff只接受inputSha256，重新读取私�
 
 官方插件材料工具细则：在原c0-vm-tools插件中仅显式caseId=project_handoff且stage=p7、有效p2 UUID与冻结inputSha256时增加vm_read_materials，复用原唯一会话owner、取消、固定VM URL和无重试请求。它与原TextEdit五工具组成当前六工具白名单，旧P6仍五工具；不得混入c2故障策略或省略绑定回退。读取无参数，响应必须精确为materials/inputSha256/used，哈希匹配配置且对材料规范JSON重算相同SHA，预算整数1–30，UTF-8规范材料≤256KiB。不把服务返回的SHA当作原文已匹配；原文内指令只作为材料返回。ready文件新增kind/inputSha绑定，仅新kind校验，不改P6就绪格式。先用安装版官方defineTool和本地模拟transport测试，既不发送真实模型请求也不替换活动profile；profile选择和session/业务报告仍另接。
 
+会话与业务输出细则：P7独立project-handoff preset和kind绑定，不传P6 lines或预写答案。模型先read_materials，自行分析后通过GUI编辑三章节文档；最终回复仅一个符合HandoffResult schema的JSON（不带围栏/说明），作为机器可读索引留在原官方会话，host后续只读提取原末条assistant结果，不新增任意文件写工具。文档是该模型结果的确定性文本投影：项目/日期、周报、交接建议、待确认问题，保持CSV任务顺序，文本字段用JSON字符串表示防换行伪造章节；来源显示sourceId:start-end，完整引用在最终JSON。可信代码只生成独立期望字符串用于核验，不写VM业务文档；先结构/source校验再投影，语义标记仍待核验。当前TextEdit正文仍4KiB，超限必须明确失败不截断，不承诺20项最坏输入都能30raw内完成。
+
+新会话创建前要求私有vm-tools-ready绑定原run/kind/inputSha，工具清单完整包含vm_reopen在内七项；目前插件只有六项，因此必须先拒绝而不能绕过GUI重开。随后才沿原一次create/selectModel/prompt持久意图，严格唯一project-handoff preset与Flash/off；inspect/cancel继续查询原session。P7 profile以显式prepare-handoff选择固定模板，原prepare仍P6；模板迁移移除另一preset，账号及原配置恢复机制保持。schema文件由HandoffResult生成并以测试对照防漂移；schema/提示不能替代运行时验收。先测试准备/会话RPC模拟和投影反例，不切换真实App，待重开工具及业务验证器完成后才实际放行。
+
 2026-10-04用户要求清理VM残留进程。检查发现P6只停止工具/桥接、不退出其启动的TextEdit，导致23个已停止测试实例积累；已逐PID关联原trace并持共享锁，备份63份文档/轨迹后正常请求退出，23个全部退出且原文件哈希未变，不强杀。P7真实运行前增加可信生命周期收尾设计：仅退出本任务明确启动且身份仍匹配的应用实例，先核对terminal/零在途/已保存产物，完成独立验收后正常退出并确认PID消失；未保存提示或退出未确认单独告警，不擅自丢弃内容或结束其他应用。收尾不作为模型新工具，不清预算/历史证据。该自动收尾尚未实现，不把本次人工清理称为长期修复。
 
 仍复用官方App唯一循环，deepseek-account/deepseek-flash、reasoningEffort=off。原任务全程30raw，包括来源读取、失败、观察、GUI内部调用及重开；不拆子任务清预算。新来源读取只接受可信配置固定source ID，所有材料在VM专用目录，模型无任意路径、shell、网络或修改材料/证据权限。来源内的“忽略规则”等内容只是数据，不授予工具权限。
