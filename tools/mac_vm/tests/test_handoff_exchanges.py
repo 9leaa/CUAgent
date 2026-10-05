@@ -11,8 +11,10 @@ from handoff_exchanges import match_handoff_exchanges
 
 class HandoffExchangeTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = test_handoff_trace.HandoffTraceTests(); self.addCleanup(self.fixture.doCleanups)
-        self.fixture.setUp()
+        self.fixture = getattr(self, 'execution_fixture', None)
+        if self.fixture is None:
+            self.fixture = test_handoff_trace.HandoffTraceTests(); self.addCleanup(self.fixture.doCleanups)
+            self.fixture.setUp()
         f = self.fixture
         source = json.loads(f.materials)
         hashes = {**{'notes/' + n['id']: hashlib.sha256(n['content'].encode()).hexdigest() for n in source['notes']},

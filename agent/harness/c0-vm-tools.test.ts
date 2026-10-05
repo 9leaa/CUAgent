@@ -365,6 +365,22 @@ test('P7 bound materials and reopen use seven tools and retain original cancella
   assert.deepEqual(calls[2], { op: 'reopen', args: { snapshot_id: 'saved' } })
   const stream = handlers.get('llm/stream'), next = async function* () { yield 'ok' }
   for await (const _ of stream({ tools: names.map(name => ({ name })), messages: [] }, next)) {}
+  const attachmentId = 'sha256:' + 'a'.repeat(64)
+  const pictured = { provider: 'deepseek-account', model: 'deepseek-flash', tools: names.map(name => ({ name })),
+    messages: [{ content: [{ type: 'image', attachment: { attachmentId } }] }] }
+  for await (const _ of stream(pictured, next)) {}
+  const audit = readFileSync(join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  assert.equal(audit.length, 2)
+  assert.equal(audit[1].runId, config.runId)
+  assert.equal(audit[1].sessionId, 'p7-owner')
+  assert.equal(audit[1].inputSha256, digest)
+  assert.equal(audit[1].imageBlocks, 1)
+  assert.deepEqual(audit[1].imageAttachmentIds, [attachmentId])
+  for (const attachment of [undefined, { attachmentId: 'unbound' }]) {
+    await assert.rejects(async () => { for await (const _ of stream({ ...pictured,
+      messages: [{ content: [{ type: 'image', attachment }] }] }, next)) {} }, /image binding unavailable/)
+  }
+  assert.equal(readFileSync(join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').length, 2)
   await assert.rejects(async () => { for await (const _ of stream({ tools: names.slice(1).map(name => ({ name })), messages: [] }, next)) {} }, /tools missing/)
   fail = true
   await assert.rejects(read.execute({}, { agent, signal }), /transport uncertain/)

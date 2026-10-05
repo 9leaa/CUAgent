@@ -17,11 +17,12 @@ class HandoffTraceTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve()
-        self.run = 'p2-00000000-0000-4000-8000-000000000001'
+        self.run = getattr(self, 'run_id', 'p2-00000000-0000-4000-8000-000000000001')
         self.materials = json.dumps(dict(kind='project-handoff', project='项目', asOf='2026-10-05',
             notes=[dict(id='n', content='原文🙂')], tasksCsv='task_id,title,owner,status,due_date\n', previousReport=''),
             ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
-        self.expected = '独立期望正文🙂\n'.encode()
+        self.materials = getattr(self, 'material_bytes', self.materials)
+        self.expected = getattr(self, 'document_bytes', '独立期望正文🙂\n'.encode())
         self.body = ''; self.window = 20; self.serial = 0
         self.closing_waits = self.opening_waits = getattr(self, 'poll_delays', 0)
         self.was_closed = False

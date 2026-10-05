@@ -88,9 +88,15 @@ export function apply(ctx: Context): void {
       throw new Error('Required TextEdit tools missing from model request')
     }
     const imageBlocks = options.messages.reduce((n, m) => n + (Array.isArray(m.content) ? m.content.filter(b => b.type === 'image').length : 0), 0)
+    const imageAttachmentIds = handoff ? options.messages.flatMap(m => Array.isArray(m.content)
+      ? m.content.filter(b => b.type === 'image').map(b => b.attachment?.attachmentId) : []) : []
+    if (handoff && (!owner || imageAttachmentIds.some(id => typeof id !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(id)))) {
+      throw new Error('P7 request image binding unavailable')
+    }
     appendFileSync(auditPath, JSON.stringify({ at: new Date().toISOString(), toolNames,
       provider: options.provider, model: options.model,
-      imageBlocks })+'\n', { mode: 0o600 })
+      imageBlocks, ...(handoff ? { runId: connection.runId, sessionId: owner, inputSha256: connection.inputSha256,
+        imageAttachmentIds } : {}) })+'\n', { mode: 0o600 })
     if (modelFault === 'after_first_observation' && !modelFaultInjected && owner && toolNames.length && imageBlocks > 0) {
       writeFileSync(modelFaultFile, JSON.stringify({ fault: modelFault, injected: true, sessionId: owner,
         layer: 'official llm/stream project hook before provider call', imageBlocks,

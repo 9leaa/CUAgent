@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7执行证据组合核验（2026-10-05）：方案43b1555先行。新增backend.handoff_verify与只读handoff_inspect子进程入口，绑定原run/session/inputSHA/cwd/prompt；原会话提取报告后生成独立正文期望，核对guest材料/文件/轨迹、逐项官方工具交换、PNG转换记录及官方附件字节。原请求审计增加run/session/inputSHA与实际发送的image附件ID列表；每条assistant消息对应一条请求，检查Flash、七工具和累计原图片顺序，缺失/额外/未知图片引用拒绝。原会话与host记录有界私有读取并在返回前复读，guest核验沿原固定文件采集边界。请求压缩或额外尝试未满足严格映射时拒绝，不删去异常后拼成功。
+
+验证：17项新后端用真实执行器配模拟Driver、模拟官方会话/图片完成跨进程组合链，10次模型工具交换对应15raw与11请求；包含原会话/提示/绑定/请求/截图/文档/附件篡改反例和九类请求审计反例。官方适配补实际图片ID审计及未知ID拒绝断言。相关后端236/236、执行层296/296、Node126/126、安装版官方适配11/11通过，均无模型/VM调用。原成功fixture返回EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING，semanticVerified=false，不写SUCCEEDED。
+
+边界：入口要求可信控制端已撤销执行并冻结、采集原证据；任意自洽目录不证明SSH来源，PNG/WebP摘要一致不证明视觉或报告语义。生产App/API路由、采集部署白名单、语义预期和三组真实VM业务样本仍未接完；P5源码/服务未改。README同步，P7仍未验收。
+
 P7有界AX观察投影（2026-10-05）：e73335c设计先行。源码核对spill-policy以maxInlineTokens计文本+图片，不存在通用固定字符阈值；新增TS handoffObservation和Python project_handoff_observation独立实现同契约。P7 observe保留原snapshot/PID/window/title/app/截图有效标志/used，唯一目标AXWindow→AXTextArea最多16层原祖先链，只投影原index/parent/role/window label/body token/enabled及完整value，去菜单/重复tree/无关字段。拒绝重复索引、循环/无匹配/多正文、AXSheet/AXDialog、无效身份/截图、禁用正文、正文>4KiB、投影>8KiB；不裁正文或增加恢复工具，失败沿原stop关闭派发。P6输出未改；guest全state/PNG/trace仍保留，双日志核验按Python复算投影而非宽松解析或删[...]。
 
 验证：新增官方投影反例1项、Python3项，更新官方observe集成及双日志独立期望。官方安装版11/11、Node全126/126（真实编译器临时profile）、执行层296/296通过，git diff --check通过。额外只读投影一份旧state-11.json：原62,729字节、168元素→516字节、2元素，完整正文逐字一致；当前TS经esbuild临时编译与Python独立复算deepEqual通过，未修改旧证据或改变旧任务状态。这是数据投影/历史形状验证，不是新真实P7模型会话通过。
