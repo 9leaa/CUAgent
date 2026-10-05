@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7应用收尾协调器（2026-10-05）：沿既有p7-project-handoff分支，细则5938768先于实现。新增desktop_app_cleanup，显式绑定原run/owner/epoch、TextEdit PID/启动时间/固定可执行路径及独立核验的document/result/trace SHA；要求terminal、stopped、verified、零在途/UNKNOWN。退出前复查，退出后文件/调用数/状态不变才确认EXITED；身份变化、退出未确认、查询失败、未保存/未核验均保留REFUSED或UNKNOWN，不强杀、不自动保存/丢弃、不清预算。每run独占0600/fsync意图和回执，部分意图、对象重建、未知响应禁止重发，持久化失败显式抛错，错误原文不进入回执。
+
+新增21项本地单元/反例全部通过，执行层全219项通过（命令：原backend-venv/bin/python -m unittest discover -s tools/mac_vm/tests）；使用真实临时文件验证私有权限/持久防重发，其余应用/身份/状态回调模拟。只读退出轮询最长3秒且最多13次，各OS回调超时需下一步原生适配器落实，不能称整体墙钟硬限3秒。尚未接启动身份采集、原生退出、host独立验收后的控制入口或部署白名单，因此生产收尾行为未改变，未做真实VM验收。接线必须持续持原共享锁，回调只由可信执行端构造，模型不能提供“已核验”标志。P5原目录/服务未改，没有新增模型或VM操作；业务契约、三个真实工作流和P8仍待完成。
+
 VM残留进程清理（2026-10-04，用户明确要求）：SSH进程清单与VM原trace匹配23个TextEdit实例，均对应已停止测试，bridge.lock可取且无quarantine。清理前这些实例RSS合计2722MiB（共享页可能重复计入，不等于实际释放内存）；持原共享锁，先在VM私有process-cleanup-20261004-001备份63份业务文档/轨迹，再逐PID核对bundle并正常请求terminate。23个全部退出、无force、原文件哈希零变化；复查无TextEdit及匹配的Python/Node测试进程。CuaDriver、系统服务、SSH、原Calculator/Terminal保留；P5原Worker/API/scheduler仍在线。根因是Task.stop/guest close只撤销派发/关闭桥接、不退出测试App，P7已补收尾方案，自动化尚待实现。
 
 P6阶段收口（2026-10-04）：逐项核对设计六类门槛及11份原审计/轨迹，新增[p6-summary](docs/stages/p6-summary.md)。同版三例006、日报兼容及历史停止/到期/失权/拒绝证据范围分别列明；核心许可/运行时/HTTP/执行控制四文件与c448ae2现场版字节一致，Worker准备失败和初始窗口等后续差异由当前测试覆盖，不称全部现场在最新版重跑。重新执行后端584通过（1既有警告）、执行层198通过、Node112通过/1跳过/0失败，原失败及未知usage不改写。
