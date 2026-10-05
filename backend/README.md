@@ -199,3 +199,6 @@ API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使�
 报告SUCCEEDED只表示业务核验通过，不代表Desktop配置恢复成功。若Worker输出 `RESTORE_PENDING_REQUIRES_IDLE_APP`，对应run会保留 `backend-restore-pending-*.json`；目前API任务状态不单独展示此告警。不要为恢复配置而resume已成功任务，也不要删除提示/账本或重复业务。先确认没有在途任务及其他App会话运行，再停止空闲Worker，由维护者使用原批准基础tasks执行现有runner的restore；它会再次检查App空闲且核对旧账本不变。配置恢复失败不得循环强制重试；保留失败记录，完成后另记成功，不覆盖原证据。新任务继续前应核对实际配置，不能仅以API /health判断。
 
 测试：`.runtime/backend-venv/bin/python -m backend.manage test`，为每项创建并删除独立临时测试数据库。生产任务保留。实际证据及未测范围见 [P2 总结](../docs/stages/p2-summary.md)。此阶段没有开机自启、关闭 App 后执行、数小时持久性或多用户验收。
+# P7 发布前重核验
+
+可信本地调用 `backend.handoff_publication.prepare_publication(root, review_sha256)`，仅接受原run与已记录审阅的原字节SHA，不接受任意回执路径。入口重跑执行与审阅核验、精确匹配原意图/回执并读回原VM文档，返回`PUBLICATION_EVIDENCE_PREPARED`、`files`字节与摘要；`published`和`databaseChanged`仍为false。不要将该内存结果直接当下载许可；后续必须在原任务身份/终态/撤销权限检查及持久发布事务下登记。此函数不生成PASS审阅、不执行模型、不写业务文件，也不提供HTTP路由。

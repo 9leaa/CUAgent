@@ -1,5 +1,7 @@
 # CUAgent
 
+P7发布前重核验已接通：只接受原私有审阅目录，重新核对审阅意图/回执、当前OS用户、完整执行证据和逐条审阅声明，读回原VM文档/result字节并提供原报告JSON的摘要。此入口不写数据库或发布文件；成功登记、下载门禁接线及三组真实VM业务验收仍待完成，不能把准备通过当任务成功。
+
 CUAgent 的开发主线是**通用且更强的 Computer Use**：先基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 跑通最小可用 Agent，马上进入真实电脑观察、操作与独立验证。三份文本、CSV和完整通用插件体验不阻塞 Computer Use；OS 原生能力最后按需要扩展。2026-09-30 起交互入口改为官方 macOS Desktop App；继续复用模型接入、会话与 Agent 循环。
 
 **当前使用官方 Desktop App；此前 A0 Web 验收保留为历史。C0-01、C0-02、C1、C2 本地阶段已完成；C2 新正式评测 18/18、七故障、九计算器和 A0 回归通过。** 具体证据与限制见 [PROGRESS](PROGRESS.md) 和 [C2 总结](docs/stages/c2-summary.md)。这不是 C3 发布/第二人复现，Pi 的历史通过记录不计入 Harness 验收。

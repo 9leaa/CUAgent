@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7发布前证据准备（2026-10-05）：18807a0先提交设计。新增handoff_publication.prepare_publication，限定原run/handoff-reviews/<原记录SHA>，核对私有普通单链接文件、记录原字节摘要、意图时间/当前OS uid/声明身份、完整回执；重新执行原会话/guest/图片/请求组合验收与独立审阅合同，要求原执行摘要一致且审阅全部通过。精确读回原guest文档和result，对照独立正文，返回这两份原字节与原报告规范JSON及SHA；返回前重读所用发布输入不变。不写产物、不改DB、不调用模型或VM，不把身份标签称为外部认证。
+
+新增19项模拟证据测试覆盖只读成功、篡改uid/绑定/回执/意图/审阅/guest/session/context、额外字段/链接、负面审阅、路径参数和核验期间回执变化。首轮两项测试失败：模拟提取文件未模拟生产0600权限，以及guest失败抛RuntimeError；修正fixture权限和预期拒绝类型后19/19通过，相关后端回归434/434通过。不是实际语义验收；原任务事务式成功登记/通知/下载、生产路由、三组真实样本仍待，P7未完成。
+
 P7可信本地审阅入口（2026-10-05）：d241d3c设计先行。adapter完整组合核验后限定原root/guest/run目录，保存私有原submission/session/binding/home上下文及执行回执。handoff_operator仅本地CLI、无HTTP/模型注册；校验当前OS用户私有规范文件、普通单链接、有界读取与文件身份稳定，reviewer类型/标签由调用者显式给定并匹配原record，回执声明authenticatedReviewerLabel=false，不能声称标签已通过外部身份认证。
 
 读取原review后按其原字节SHA独占建审阅目录，保存原record与当前OS uid/来源意图；随后重跑原session/guest文件/图片/工具/请求组合核验，要求与既有执行回执一致，再校验逐项语义声明，返回前重读context/执行回执/review。接受、明确未通过和合同/证据拒绝均持久留回执，写入失败保留原意图，重复同记录不自动重试。无DB修改/产物发布/VM或模型动作；同机受信任用户边界及下一步发布前重验要求写入backend/README，模型七工具无host审阅写权限。
