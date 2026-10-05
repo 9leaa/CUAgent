@@ -24,7 +24,10 @@ class PreparedDesktop:
 
 
 class DesktopWorker:
-    def __init__(self, service, adapter, *, shared_lock):
+    def __init__(self, service, adapter, *, shared_lock, kind='desktop-textedit'):
+        if kind not in ('desktop-textedit', 'project-handoff'):
+            raise ValueError('UNSUPPORTED_DESKTOP_WORKER_KIND')
+        self.kind = kind
         self.service, self.adapter = service, adapter
         self.shared_lock = Path(shared_lock).absolute()
         self.quarantine = self.shared_lock.with_name(self.shared_lock.name + '.quarantine')
@@ -48,7 +51,7 @@ class DesktopWorker:
                 if before_claim() is not True:
                     raise RuntimeError('DESKTOP_ADMISSION_REFUSED')
             options = {'task_id': task_id} if task_id is not None else {}
-            task = self.service.claim(self.owner, kind='desktop-textedit', **options)
+            task = self.service.claim(self.owner, kind=self.kind, **options)
             if task is None:
                 return None
             return self.execute(task)

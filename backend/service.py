@@ -8,6 +8,7 @@ import time
 from sqlalchemy.dialects.postgresql import insert
 from backend.control import write_control
 from backend.desktop_contract import DesktopSubmission
+from backend.handoff_contract import HandoffSubmission
 from backend.artifact_contract import artifact_names
 from backend.models import Artifact, Attempt, Event, Notification, Resource, Task, Usage, utcnow
 
@@ -43,7 +44,8 @@ class TaskService:
 
     def submit(self, payload, key):
         if 'kind' in payload:
-            payload = DesktopSubmission.model_validate(payload).model_dump(mode='json')
+            contract = HandoffSubmission if payload['kind'] == 'project-handoff' else DesktopSubmission
+            payload = contract.model_validate(payload).model_dump(mode='json')
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
         digest = hashlib.sha256(encoded).hexdigest()
         with self.sessions.begin() as db:
@@ -60,11 +62,11 @@ class TaskService:
             return task.id, bool(created)
 
     def claim(self, owner, *, kind='daily-report', task_id=None):
-        if kind not in ('daily-report', 'desktop-textedit'):
+        if kind not in ('daily-report', 'desktop-textedit', 'project-handoff'):
             raise ValueError('UNSUPPORTED_TASK_KIND')
         # Missing discriminator means legacy report, not JSON null or unknown.
         selector = (~Task.payload.has_key('kind') if kind == 'daily-report' else
-                    Task.payload['kind'].astext == 'desktop-textedit')
+                    Task.payload['kind'].astext == kind)
         if task_id is not None:
             if str(uuid.UUID(task_id)) != task_id:
                 raise ValueError('CANONICAL_TASK_ID_REQUIRED')
@@ -118,7 +120,7 @@ class TaskService:
             resource = db.get(Resource, 'desktop', with_for_update=True)
             task = db.get(Task, task_id, with_for_update=True)
             now = db.scalar(select(func.clock_timestamp()))
-            if (resource is None or task is None or task.payload.get('kind') != 'desktop-textedit'
+            if (resource is None or task is None or task.payload.get('kind') not in ('desktop-textedit', 'project-handoff')
                     or task.status != 'RUNNING' or task.owner != owner or task.epoch != epoch
                     or resource.owner != owner or resource.epoch != epoch or resource.task_id != task_id
                     or resource.expires_at is None or resource.expires_at <= now):

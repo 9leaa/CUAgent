@@ -150,10 +150,12 @@ class LiveGate:
         return True
 
 
-def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_approved=False):
+def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_approved=False, kind='desktop-textedit'):
+    if kind not in ('desktop-textedit', 'project-handoff'):
+        raise ValueError('UNSUPPORTED_DESKTOP_OPERATOR_KIND')
     if cutover_approved is not True or str(uuid.UUID(task_id)) != task_id:
         raise ValueError('EXPLICIT_CUTOVER_AND_CANONICAL_TASK_REQUIRED')
-    profile = load_profile(profile_path)
+    profile = load_profile(profile_path) if kind == 'desktop-textedit' else load_profile(profile_path, kind=kind)
     root = Path(profile_path).absolute().parent
     old = baseline(profile.baseline_env)
     shared_root = Path(old['CUAGENT_BACKEND_ROOT']).resolve(strict=True).parent
@@ -166,19 +168,24 @@ def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_ap
     admission.mkdir(mode=0o700)
     wrapper = create_ssh_wrapper(root=admission, known_hosts=settings.known_hosts, askpass=settings.askpass)
     gate = LiveGate(profile, quota, wrapper)
-    adapter = DesktopTaskAdapter(service, settings, execution_gate=gate)
+    if kind == 'project-handoff':
+        from backend.handoff_adapter import HandoffTaskAdapter
+        adapter = HandoffTaskAdapter(service, settings, execution_gate=gate)
+    else:
+        adapter = DesktopTaskAdapter(service, settings, execution_gate=gate)
     # Derived from the protected baseline, never from task text or a selectable alternate lock.
-    worker = DesktopWorker(service, adapter, shared_lock=shared_root / 'desktop-worker.lock')
+    worker = DesktopWorker(service, adapter, shared_lock=shared_root / 'desktop-worker.lock',
+                           **({'kind': kind} if kind == 'project-handoff' else {}))
     def before_claim():
         with sessions() as db:
             task = db.get(Task, task_id)
             attempted = db.scalar(select(Attempt.id).where(Attempt.task_id == task_id).limit(1))
-            if (task is None or task.status != 'QUEUED' or task.payload.get('kind') != 'desktop-textedit'
+            if (task is None or task.status != 'QUEUED' or task.payload.get('kind') != kind
                     or attempted is not None or task.session_id or task.calls or task.run_dir):
                 raise ValueError('ONLY_ORIGINAL_UNATTEMPTED_QUEUED_TASK_ALLOWED')
         gate()
         save_exclusive(root / ('desktop-launch-' + task_id + '.json'), json.dumps({
-            'taskId': task_id, 'profileSha256': quota.profile_sha, 'quotaSha256': quota.quota_sha,
+            'taskId': task_id, 'kind': kind, 'profileSha256': quota.profile_sha, 'quotaSha256': quota.quota_sha,
             'admission': str(admission), 'action': 'SINGLE_CLAIM_INTENT'}).encode())
         return True
     try:
@@ -203,10 +210,11 @@ def main():
     parser.add_argument('--quota', type=Path, required=True)
     parser.add_argument('--task', type=uuid.UUID, required=True)
     parser.add_argument('--cutover-approved', action='store_true')
+    parser.add_argument('--kind', choices=['desktop-textedit', 'project-handoff'], default='desktop-textedit')
     args = parser.parse_args()
     try:
         result = worker_once(profile_path=args.profile, execution_path=args.execution, quota_path=args.quota,
-                             task_id=str(args.task), cutover_approved=args.cutover_approved)
+                             task_id=str(args.task), cutover_approved=args.cutover_approved, kind=args.kind)
         print(json.dumps(result))
     except Exception:
         print(json.dumps({'result': 'REFUSED_OR_UNCONFIRMED',

@@ -14,6 +14,7 @@ class Settings:
     # The default report service stays closed. Only the explicitly isolated
     # desktop service constructs this setting as true; it does not grant execution.
     desktop_tasks_enabled: bool = False
+    handoff_tasks_enabled: bool = False
 
     @classmethod
     def from_env(cls):

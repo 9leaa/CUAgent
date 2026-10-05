@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7显式生产路由（2026-10-05）：a1373b2设计先行。Settings新增默认关闭handoff_tasks_enabled；/handoff-tasks仅接严格HandoffSubmission及幂等键，旧/tasks和/desktop-tasks不接P7。TaskService提交按kind规范校验，claim精确选择日报/P6/P7；三类共用原Resource锁、epoch和停止预算规则。DesktopWorker新增受限kind选择，不另写执行循环；desktop_service serve及desktop_operator worker-once新增显式--kind project-handoff，默认P6，独立服务仅允许选定kind创建与原stop。操作员选HandoffTaskAdapter，仍核验原QUEUED/未尝试身份、quota、切换批准、基线/VM就绪及共享锁，launch意图记录kind，不自动恢复或重试。
+
+隔离联测首次453通过/1失败：新增P7操作员测试暴露desktop_authority仍仅允许P6，导致P7在启动前BLOCKED；修正为P6/P7同样受原任务/owner/epoch/租约/停止约束。保留该失败记录，不降低门禁或将其当模型失败。此次未修改冻结P5源码/服务，未执行真实模型/VM；正式三组业务、P7退出应用清理及可信发布CLI仍待。
+
+修正后新增路由10/10通过，handoff全组加旧queue/operator/service/worker/artifacts组合454/454通过；覆盖三kind共享锁、默认关闭/专用API幂等/类型拒绝、隔离服务POST白名单、实际操作员选择P7适配器并保留UNVERIFIED/恢复、错kind目标不claim、原任务禁止重试。两个CLI帮助实际执行显示新参数；这不代表服务已部署。README/使用说明同步，仅已有httpx TestClient弃用警告。
+
 P7原任务发布事务（2026-10-05）：9e48637设计先行。publish_reviewed_task只接受可信TaskService/原taskID/审阅SHA；锁desktop Resource再锁原Task，拒绝活动资源、非UNVERIFIED/非P7、越界run、未关闭Attempt、原失败事件缺失、已有Artifact、控制未停止、输入/session/owner/epoch/预算不一致。锁内重跑发布前证据核验，独占保存发布意图及三份原字节/报告，原控制二次读回后单事务登记Artifact/唯一handoff_published事件/finished通知。旧失败事件和通知保留且未读，session/预算/usage不改，不创建新Attempt。
 
 下载白名单增加P7三份产物，但普通TaskService.finish明确拒绝P7成功，避免直接调用绕过审阅。文件/DB失败保留原意图和已写文件，DB回滚，无成功下载；同记录不重放。验证使用隔离PostgreSQL和模拟Driver/审阅；真实VM、生产入口/任务路由及正式三组验收未执行，P7仍未完成。

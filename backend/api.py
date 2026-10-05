@@ -10,6 +10,7 @@ from backend.db import database
 from backend.models import Artifact, Event, Schedule, Task
 from backend.schemas import BatchSubmission, ScheduleSubmission, Submission
 from backend.desktop_contract import DesktopSubmission
+from backend.handoff_contract import HandoffSubmission
 from backend.artifact_contract import artifact_names, media_type
 from backend.batches import BatchService
 from backend.notifications import Inbox
@@ -68,6 +69,15 @@ def create_app(settings):
     def submit_desktop(body: DesktopSubmission, idempotency_key: str = Header()):
         if not settings.desktop_tasks_enabled:
             raise HTTPException(503, 'DESKTOP_TASK_EXECUTION_NOT_ENABLED')
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
+            raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
+        task_id, created = service.submit(body.model_dump(mode='json'), idempotency_key)
+        return JSONResponse({'id': task_id, 'created': created}, status_code=201 if created else 200)
+
+    @app.post('/handoff-tasks', dependencies=[Depends(authenticated)])
+    def submit_handoff(body: HandoffSubmission, idempotency_key: str = Header()):
+        if not settings.handoff_tasks_enabled:
+            raise HTTPException(503, 'HANDOFF_TASK_EXECUTION_NOT_ENABLED')
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', idempotency_key):
             raise HTTPException(422, 'INVALID_IDEMPOTENCY_KEY')
         task_id, created = service.submit(body.model_dump(mode='json'), idempotency_key)

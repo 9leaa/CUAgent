@@ -76,7 +76,9 @@ class ServiceProfile:
     baseline_env: Path
 
 
-def load_profile(path):
+def load_profile(path, *, kind='desktop-textedit'):
+    if kind not in ('desktop-textedit', 'project-handoff'):
+        raise ValueError('UNSUPPORTED_DESKTOP_SERVICE_KIND')
     path = Path(path).absolute()
     def unique(pairs):
         result = {}
@@ -100,7 +102,7 @@ def load_profile(path):
     jobs = private_path(root / 'jobs', directory=True)
     settings = Settings(data['databaseUrl'], token, jobs,
                         Path(old['CUAGENT_BASE_TASKS']), Path(old['CUAGENT_DSH_COOKIE_FILE']),
-                        desktop_tasks_enabled=True)
+                        desktop_tasks_enabled=kind == 'desktop-textedit', handoff_tasks_enabled=kind == 'project-handoff')
     return ServiceProfile(settings, data['port'], Path(data['baselineEnv']))
 
 
@@ -147,7 +149,8 @@ def create_desktop_app(profile):
 
     @app.middleware('http')
     async def desktop_only(request, call_next):
-        if request.method == 'POST' and not (request.url.path == '/desktop-tasks' or
+        endpoint = '/handoff-tasks' if profile.settings.handoff_tasks_enabled else '/desktop-tasks'
+        if request.method == 'POST' and not (request.url.path == endpoint or
                 re.fullmatch(r'/tasks/[0-9a-f-]{36}/stop', request.url.path)):
             return JSONResponse({'detail': 'DESKTOP_ONLY_SERVICE'}, status_code=409)
         return await call_next(request)
@@ -174,13 +177,14 @@ def main():
     init.add_argument('--port', type=int, required=True)
     api = sub.add_parser('serve')
     api.add_argument('--profile', type=Path, required=True)
+    api.add_argument('--kind', choices=['desktop-textedit', 'project-handoff'], default='desktop-textedit')
     args = parser.parse_args()
     try:
         if args.command == 'init':
             profile = initialize(baseline_env=args.baseline_env, root=args.root, port=args.port)
             print(json.dumps({'result': 'INITIALIZED', 'profile': str(profile), 'workerStarted': False}))
         else:
-            serve(load_profile(args.profile))
+            serve(load_profile(args.profile, kind=args.kind))
     except Exception:
         # Database/library exceptions can contain connection credentials.
         print(json.dumps({'result': 'REFUSED', 'reason': 'DESKTOP_SERVICE_NOT_READY',
