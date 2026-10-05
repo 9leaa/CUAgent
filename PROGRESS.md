@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7官方附件只读采集（2026-10-05）：bce148d设计先行。只读核对安装版app.asar内attachment-local的normalizedImagePath/readImageFile，确认objects/<前两位>/<SHA>固定布局及官方摘要语义；新增backend.handoff_attachments，仅接已匹配原观察的附件列表，不遍历目录、不使用display name为路径。本人私有规范home，逐层目录fd/O_NOFOLLOW，文件本人私有普通单链接，O_NONBLOCK拒绝FIFO，按已批准长度限读且校验SHA；同SHA去重但矛盾元数据拒绝，单件≤8MiB、总≤64MiB，二次读取比对原字节及文件/目录身份，根身份再次核对。无文件写入或转换。
+
+新增21项采集测试，覆盖无扫描/重复摘要、恶意ID/额外路径/身份/格式/数量/大小、摘要或长度变化、权限/文件目录链接/hardlink/FIFO/缺失、相同字节新inode和总量上限。首次测试收集遇新增代码括号缺失，修正后相关输入/报告/会话/图片/P6回归219/219通过；git diff --check通过。另从指定旧正式任务原session提取一张image附件引用，通过原项目home真实只读读回92,650字节WebP，SHA匹配原官方ID；这是存储格式探针，不计P7真实业务验收，不改变旧样本状态。
+
+该真实探针暴露后续必须修复的集成问题：旧观察文本长46,409字符，中间包含官方截断标记\\n\\n[...]\\n\\n，无法解析完整JSON。首个探针直接解析观察JSON因此失败，随后仅用原附件引用验证存储读取，没有修复或重写旧记录。当前P7完整state匹配遇此类文本会严格拒绝，不已知放行。下一步实现P7有界、来源可复算的观察投影，只保留任务窗口/正文及必要AX身份并保留原guest全证据；需先核对官方文本截断阈值与投影契约，不允许删截断标记或宽松解析后伪称一致。生产路线/组合验收/真实业务仍待，README同步。
+
 P7图片转换来源与字节检查（2026-10-05）：bbfdb97设计先行。新增handoff-image-evidence，P7 observe把同一已收PNG缓冲区送官方saveImage，成功后、返回模型前独占0600/fsync写固定handoff-image-NN.json。记录原run/session/inputSHA/snapshot/1–30 used、输入PNG SHA/字节和输出附件SHA-ID/PNG或WebP类型/字节/尺寸；规范本人私有目录、无链接/不覆盖、有界长度，记录或转换失败关闭本地派发并请求原任务stop，不重试观察/转换。P6行为不变，无新增模型工具或预算。
 
 backend.handoff_images纯核验器接受可信采集的转换记录、双日志观察映射、原PNG和官方附件实际字节，逐项核对身份、顺序、snapshot/used、来源摘要、附件SHA-ID/长度与格式前缀、官方消息元数据；只允许恰好所需的图片集，单图≤8MiB、总≤64MiB，去重附件按同一SHA复用。返回IMAGE_PROVENANCE_VERIFIED/imageBytesVerified=true，但visualSemanticsVerified/sessionVerified仍false；PNG/WebP前缀检查不冒充解码或独立图像语义证明，实际附件存储读取和最终组合入口仍待接。既有双日志输出补used，防同图不同观察记录错配。
