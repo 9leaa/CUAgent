@@ -34,6 +34,8 @@
 
 材料传输细则：新增独立控制token专用/handoff-input，仅原运行时未激活且lease有效时接受binding/inputSha256/inputBase64三字段；binding逐项匹配run/owner/epoch及版本，拒绝模型凭据和任意路径。host先完整验证输入合同并规范化JSON编码，再检查实时数据库authority及guest租约，单次发送；ACK丢失不重发。guest严格解码、核对SHA/类型/固定输入字段，独占0600且fsync写intent→输入→receipt，部分写入或已有意图永不覆盖；租约过期后不能返回成功。控制请求只为该路由放宽至384KiB，其他仍4KiB；响应只含原绑定、SHA、字节数及STORED，不包含输入或凭据。P7任务激活/模型协议未接通前，检测到该意图必须拒绝原P6 activate，防止把交接材料误送入旧固定正文任务。部署白名单同步新增依赖，但不实际部署或启用。
 
+P7激活细则：独立/activate-handoff只接受inputSha256，重新读取私有预置intent/receipt并核对原binding、状态、字节数与请求SHA；实例化HandoffDesktopTask后，在任何工具监听启动前核对原输入文件SHA/JSON，可信生命周期检查不算模型调用。与P6共享同一独占activation intent及失败revoke，不容许降级到P6、重放激活或换预算。模型协议仅在实际HandoffDesktopTask实例增加零参数read_materials；旧DesktopTask依旧拒绝该操作，模型不能调用两个可信控制入口。host沿原activate的状态/authority/租约时限与单次保护，只在成功预置回执存在时选择新路由。先验本地真实HTTP读取/停止/错误绑定反例，不启动模型；官方插件、报告生成与GUI重开仍需下一步接线才能完成业务。
+
 2026-10-04用户要求清理VM残留进程。检查发现P6只停止工具/桥接、不退出其启动的TextEdit，导致23个已停止测试实例积累；已逐PID关联原trace并持共享锁，备份63份文档/轨迹后正常请求退出，23个全部退出且原文件哈希未变，不强杀。P7真实运行前增加可信生命周期收尾设计：仅退出本任务明确启动且身份仍匹配的应用实例，先核对terminal/零在途/已保存产物，完成独立验收后正常退出并确认PID消失；未保存提示或退出未确认单独告警，不擅自丢弃内容或结束其他应用。收尾不作为模型新工具，不清预算/历史证据。该自动收尾尚未实现，不把本次人工清理称为长期修复。
 
 仍复用官方App唯一循环，deepseek-account/deepseek-flash、reasoningEffort=off。原任务全程30raw，包括来源读取、失败、观察、GUI内部调用及重开；不拆子任务清预算。新来源读取只接受可信配置固定source ID，所有材料在VM专用目录，模型无任意路径、shell、网络或修改材料/证据权限。来源内的“忽略规则”等内容只是数据，不授予工具权限。
