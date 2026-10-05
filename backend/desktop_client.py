@@ -22,6 +22,7 @@ class DesktopControlClient:
         self.port, self.token, self.clock = port, token, clock
         self.identity = dict(version=1, runId=run_id, owner=owner, epoch=epoch)
         self._activation_attempted = False
+        self._cleanup_attempted = False
         self._lifecycle_lock = threading.RLock()
         self._raw_calls = 0
 
@@ -74,8 +75,8 @@ class DesktopControlClient:
                 raise ControlUnconfirmed('GUEST_ACTIVATION_UNCONFIRMED')
             return result
 
-    def request(self, method, path, body=None):
-        connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=2)
+    def request(self, method, path, body=None, *, timeout=2):
+        connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=timeout)
         try:
             connection.request(method, path, None if body is None else json.dumps(body),
                                {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json'})
@@ -165,3 +166,36 @@ class DesktopControlClient:
         if result.get('closed') is not True or not state['stopped'] or state['active'] or state['pendingCalls']:
             raise ControlUnconfirmed('GUEST_SHUTDOWN_UNCONFIRMED')
         return result
+
+    def cleanup_application(self, hashes):
+        with self._lifecycle_lock:
+            if (type(hashes) is not dict or set(hashes) != {'document', 'result', 'trace'}
+                    or any(not isinstance(v, str) or not re.fullmatch(r'[0-9a-f]{64}', v)
+                           for v in hashes.values())):
+                raise ValueError('verified artifact hashes required')
+            if self._cleanup_attempted:
+                raise ControlUnconfirmed('GUEST_CLEANUP_REQUIRES_RECONCILIATION')
+            self._cleanup_attempted = True
+            before = self.status()
+            if not before['stopped'] or before['pendingCalls']:
+                raise ControlUnconfirmed('GUEST_CLEANUP_REQUIRES_STOPPED_IDLE')
+            result = self.request('POST', '/cleanup-app', {
+                'sessionTerminal': True, 'sessionVerified': True, 'hashes': dict(hashes)}, timeout=60)
+            fields = {'version', 'runId', 'owner', 'epoch', 'pid', 'startedUs', 'executable',
+                      'verifiedHashes', 'status', 'reason', 'terminationRequested', 'forced'}
+            if (set(result) != fields or any(result[k] != v for k, v in self.identity.items())
+                    or type(result['version']) is not int or type(result['epoch']) is not int
+                    or any(type(result[k]) is not int or result[k] <= 0 for k in ('pid', 'startedUs'))
+                    or result['executable'] != '/System/Applications/TextEdit.app/Contents/MacOS/TextEdit'
+                    or result['verifiedHashes'] != hashes or result['forced'] is not False
+                    or type(result['terminationRequested']) is not bool
+                    or result['status'] not in ('EXITED', 'REFUSED', 'UNKNOWN')
+                    or not isinstance(result['reason'], str)
+                    or not re.fullmatch(r'[A-Z_]{1,80}', result['reason'])
+                    or (result['status'] == 'EXITED' and (result['reason'], result['terminationRequested'])
+                        not in (('PROCESS_ABSENT', True), ('ALREADY_ABSENT', False)))):
+                raise ControlUnconfirmed('GUEST_CLEANUP_RECEIPT_MISMATCH')
+            after = self.status()
+            if not after['stopped'] or after['pendingCalls'] or before['rawCalls'] != after['rawCalls']:
+                raise ControlUnconfirmed('GUEST_CLEANUP_STATE_CHANGED')
+            return result

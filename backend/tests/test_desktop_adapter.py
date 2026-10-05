@@ -54,13 +54,18 @@ def test_composed_prepare_start_verify_restore_with_mock_edges(assembled):
     assert gate.call_count == 3
     with pytest.raises(RuntimeError): adapter.start(prepared)
     bundle = {'files': {'artifacts/handoff-' + prepared.run.name + '.txt': b'synthetic\n',
-                        'result.txt': b'synthetic\n\n'}, 'guest': {'rawCalls': 12}}
+                        'result.txt': b'synthetic\n\n', 'trace.jsonl': b'synthetic trace'}, 'guest': {'rawCalls': 12}}
     with patch('backend.desktop_adapter.collect_guest_bundle', return_value=bundle), \
             patch('backend.desktop_adapter.verify_desktop_session', return_value={'sessionVerified': True}):
         result = adapter.verify(prepared)
     assert result['status'] == 'SUCCEEDED'
     assert (prepared.run / 'workspace/document.txt').read_bytes() == b'synthetic\n'
+    client.cleanup_application.return_value = {'status': 'EXITED'}  # Client receipt validation tested separately.
     adapter.restore(prepared)
+    client.cleanup_application.assert_called_once_with({
+        'document': hashlib.sha256(b'synthetic\n').hexdigest(),
+        'result': hashlib.sha256(b'synthetic\n\n').hexdigest(),
+        'trace': hashlib.sha256(b'synthetic trace').hexdigest()})
     client.shutdown.assert_called_once()
     tunnel.close.assert_called_once()
     assert [call.args[2] for call in adapter.command.call_args_list][-3:] == ['stop-restore', 'restore', 'start-restore']
@@ -86,6 +91,36 @@ def test_selected_port_persisted_before_bootstrap_and_used_by_client(assembled):
         assert constructor.call_args.kwargs['port'] == 19123
         tunnel.start.assert_called_once()
         session.start.assert_not_called()
+
+
+def test_unverified_task_restore_skips_app_cleanup_with_warning(assembled):
+    adapter, task, _, client, tunnel, _ = assembled
+    prepared = adapter.prepare(task)
+    adapter.restore(prepared)
+    client.cleanup_application.assert_not_called()
+    client.shutdown.assert_called_once()
+    tunnel.close.assert_called_once()
+    record = json.loads((prepared.run / 'desktop-app-cleanup-skipped.json').read_text())
+    assert record['applicationMayRemain'] is True
+
+
+@pytest.mark.parametrize('outcome', ['REFUSED', 'UNKNOWN', 'exception'])
+def test_cleanup_failure_retains_warning_and_does_not_shutdown_or_replay(assembled, outcome):
+    adapter, task, _, client, tunnel, _ = assembled
+    prepared = adapter.prepare(task)
+    adapter.context(prepared)['verified_cleanup_hashes'] = dict(document='a' * 64, result='b' * 64, trace='c' * 64)
+    if outcome == 'exception':
+        client.cleanup_application.side_effect = RuntimeError('private transport details')
+    else:
+        client.cleanup_application.return_value = {'status': outcome}
+    with pytest.raises(RuntimeError): adapter.restore(prepared)
+    assert [call.args[2] for call in adapter.command.call_args_list][-3:] == ['stop-restore', 'restore', 'start-restore']
+    client.shutdown.assert_not_called(); tunnel.close.assert_not_called()
+    warning = (prepared.run / 'desktop-app-cleanup-warning.json').read_text()
+    assert 'private transport' not in warning
+    assert json.loads(warning)['retryAllowed'] is False
+    with pytest.raises(FileExistsError): adapter.restore(prepared)
+    client.cleanup_application.assert_called_once()
 
 
 def test_selection_exhaustion_never_bootstraps_or_creates_session(assembled):

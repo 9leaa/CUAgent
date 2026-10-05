@@ -202,6 +202,9 @@ class DesktopTaskAdapter:
         result = {'status': 'SUCCEEDED', 'kind': 'desktop-textedit', 'sessionId': prepared.session_id,
                   'artifacts': artifacts, 'session': report, 'rawCalls': bundle['guest']['rawCalls']}
         save_exclusive(prepared.run / 'desktop-verification.json', json.dumps(result).encode())
+        context['verified_cleanup_hashes'] = {
+            'document': artifacts['document.txt'], 'result': artifacts['result.txt'],
+            'trace': hashlib.sha256(bundle['files']['trace.jsonl']).hexdigest()}
         return result
 
     def restore(self, prepared):
@@ -209,5 +212,23 @@ class DesktopTaskAdapter:
         self.command(prepared.run, 'app', 'stop-restore')
         self.command(prepared.run, 'profile', 'restore')
         self.command(prepared.run, 'app', 'start-restore')
+        hashes = context.get('verified_cleanup_hashes')
+        if hashes is None:
+            save_exclusive(prepared.run / 'desktop-app-cleanup-skipped.json', json.dumps({
+                'runId': prepared.run.name, 'status': 'SKIPPED',
+                'reason': 'NO_INDEPENDENT_VERIFICATION', 'applicationMayRemain': True}).encode())
+        else:
+            save_exclusive(prepared.run / 'desktop-app-cleanup-intent.json', json.dumps({
+                'runId': prepared.run.name, 'sessionId': prepared.session_id, 'hashes': hashes}).encode())
+            try:
+                receipt = prepared.control_client.cleanup_application(hashes)
+                save_exclusive(prepared.run / 'desktop-app-cleanup-receipt.json', json.dumps(receipt).encode())
+                if receipt['status'] != 'EXITED':
+                    raise RuntimeError('DESKTOP_APP_CLEANUP_UNCONFIRMED')
+            except Exception:
+                save_exclusive(prepared.run / 'desktop-app-cleanup-warning.json', json.dumps({
+                    'runId': prepared.run.name, 'reason': 'DESKTOP_APP_CLEANUP_UNCONFIRMED',
+                    'retryAllowed': False}).encode())
+                raise
         prepared.control_client.shutdown()
         context['tunnel'].close()

@@ -135,6 +135,18 @@ class CleanupControlTests(unittest.TestCase):
         self.assertEqual(self.request()[1]['status'], 'REFUSED')
         self.native_quit.assert_not_called()
 
+    def test_real_host_client_and_guest_http_receipt_contract(self):
+        from backend.desktop_client import DesktopControlClient, ControlUnconfirmed
+        client = DesktopControlClient(port=self.server.server_port, token=self.control,
+            run_id=self.run.name, owner=self.controller.gate.owner, epoch=1)
+        result = client.cleanup_application(self.hashes)
+        self.assertEqual(result['status'], 'EXITED')
+        self.assertEqual(result['verifiedHashes'], self.hashes)
+        self.native_quit.assert_called_once()
+        with self.assertRaises(ControlUnconfirmed):
+            client.cleanup_application(self.hashes)
+        self.native_quit.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()

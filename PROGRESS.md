@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7 host自动收尾接线（2026-10-05）：e680fc5方案先于实现。adapter只有在guest/原官方会话独立核验、产物复制与verification持久保存后才登记三文件SHA；restore恢复原Harness后写独占清理意图，控制客户端单次请求并严格核对原身份/哈希/非强杀/退出原因，再复核停止、零在途和原预算。EXITED才shutdown；REFUSED/UNKNOWN/丢ACK保存回执或固定告警并抛出，沿Worker既有恢复失败隔离处理，不改变已核验业务结果、不自动重发。未核验任务保存skipped/applicationMayRemain告警，保留未保存应用。清理请求socket超时60秒，普通控制请求仍2秒；guest原锁和独占意图仍是跨进程保护。
+
+验证：新客户端16项参数化用例、adapter新增4项；首次直接pytest为43通过/2缺数据库环境设置错误，标准入口在独立worktree也因无backend.env提前退出。未复制凭据或修改P5配置，显式将manage.ENV_FILE绑定原私有文件、运行当前worktree标准test；夹具每项新建cuagent_test_UUID独立库，完整后端604通过/1既有Starlette弃用警告（71.04秒）。执行层247通过，含真实本地host客户端→guest HTTP→回执联动（native和GUI证据仍模拟）。git diff --check通过；无真实模型/VM/App操作，部署与现场退出/保存提示验证仍待，P7未验收。
+
 P7 guest收尾控制入口（2026-10-05）：e846ea2细则先于实现，新增runtime.cleanup_application和仅独立控制token可访问的/cleanup-app。严格host终态/核验声明与三文件SHA，原runtime持锁且有捕获的应用身份；重新检查lease停止、零在途/UNKNOWN及原调用数，以固定文档运行只读guest GUI证据核验，再由协调器单次正常退出并复查哈希。不会调用Task.stop改写冻结trace、不释放共享锁/改变业务成功状态、不恢复许可。控制JSON重复字段拒绝，HTTP 200只表示返回清理回执，必须另检查EXITED，不能把REFUSED/UNKNOWN算通过。
 
 新增9项真实本地HTTP/临时文件、模拟native与GUI核验测试；执行层全246通过，后端client/deploy/bootstrap相关26通过。覆盖模型403、可信声明/重复字段409、在途/核验失败/哈希变化/原预算不符拒绝、唯一退出与原trace/预算不变；没有实际VM原生动作。host正式验收后的客户端接线和部署/真实验收仍待，生产未启用自动退出。README同步，P5未改。
