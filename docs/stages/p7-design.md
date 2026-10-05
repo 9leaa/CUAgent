@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+正式语义验收材料（先于代码）：冻结三组独立输入与不发给受测模型的rubric，分别覆盖普通交接、跨来源状态/截止冲突、多负责人依赖/延期/未知负责人。每组保留2–3份笔记、CSV及上周报告；rubric明确应表达事实、必须标注的不确定性、禁止编造的结论、每项交接建议约束，以及期望状态计数/逾期/未知负责人/冲突任务集合。每条语义要求附准确来源摘录，代码仅验证rubric与原材料/数字一致，不以关键词包含冒充语义正确。正式运行前记录三份规范输入及rubric的固定SHA；后续同输入输出的独立审阅必须逐条判定并保留理由，模型无rubric工具通道。所有失败保留，不能换样本/改rubric迎合结果；测试fixture通过不算真实业务或语义验收。受测模型仍自行分析和GUI写入，独立期望不包含可复制的完整报告正文。
+
 官方App启动补充：新增显式start-p7，不放宽start-p6原case。启动前检查P7连接stage/case/run/inputSHA；启动后只接受project-handoff单一preset及完全匹配原run/inputSHA的七工具ready回执，继续核对profile SHA、唯一进程和原启动意图，未知结果不重启。此检查也只验证mock生命周期，不能宣称已切换真实App。
 
 P7任务适配器接线细则（先于代码）：复用P6原准备失败清理、端口选择/guest bootstrap/隧道、显式cutover与实时额度/数据库authority门禁；通过内部固定工厂分别选HandoffSubmission、HandoffSessionClient和HandoffControlClient，旧P6默认工厂不变。P7 profile用prepare-handoff，连接严格增加stage=p7/caseId=project_handoff/inputSHA；worker先续原guest许可后，adapter在切换App前单次预置材料，再沿原stop/apply/start/activate/最终gate/唯一prompt启动，不对未知副作用自动重试。核验从原私有session/prompt/binding提取独立正文，调用可信采集和完整组合核验，核对前后sessionSHA，保存私有执行核验回执。语义门槛尚未实现前明确拒绝返回SUCCEEDED或复制可下载成功产物，也不赋予应用退出的成功凭证；已有恢复路径保存未验清理告警。此适配器先无模型测试，不注册API/队列或执行真实任务；随后接语义审阅、业务状态及生产入口，不能把中间UNVERIFIED当最终产品目标。
