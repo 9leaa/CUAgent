@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+官方附件采集细则（先于代码）：已只读核对安装版attachment-local实现，normalizedImagePath为DSH_HOME/attachments/v1/objects/<SHA前两位>/<SHA>。新增只读受限采集器，只接受原会话与guest双日志匹配生成的观察附件清单，不列目录/搜索别的会话、不接受模型路径或display name。可信home必须本人私有规范目录；逐层目录fd/O_NOFOLLOW读取固定摘要路径，文件本人普通单链接且私有，单附件≤8MiB/总≤64MiB，验证实际SHA/字节数，重复SHA去重但元数据矛盾拒绝。每份证据二次读取并核对文件/目录身份和内容稳定；缺失/链接/变化/未知格式拒绝，不创建替代附件、不调用转换。此入口仅采集原始字节，实际尺寸/视觉语义不由PNG/WebP签名前缀推断；随后交给已有转换来源验证及组合验收。当前阶段不扫描个人home或执行真实模型。
+
 图片转换来源细则（先于代码）：本地官方记录证明saveImage会将PNG转换为WebP，不能要求两种编码摘要相同。P7插件在一次observe返回后，使用同一已收PNG缓冲区交给官方saveImage；获得附件后、返回模型前，独占0600/fsync记录handoff-image-NN.json，绑定原run/session/inputSHA/snapshot/used、输入PNG SHA/长度和输出附件SHA-ID/格式/长度/尺寸。只允许原私有配置目录、固定1–30编号、本人规范目录、无链接及不覆盖；失败立即关闭本地派发并请求原任务停止，不重试观察或转换。记录不包含凭据、正文或任意路径，不新增模型工具或预算。后续可信采集读取附件实际字节，核对官方SHA-ID与长度，并把此转换记录和guest原PNG哈希、official观察附件绑定；该证据证明同次可信转换的输入输出，不声称独立视觉语义/像素无损。先测试原生文件安全和P7官方工具集成，P6不改变。
 
 双日志映射细则（先于代码）：独立映射器先重新核验原guest轨迹，再从原read_materials结果、observation_evidence、输入/保存标记、reopened标记及write/read结果构造有序的七类逻辑调用，不能按总次数相等推断匹配。官方每次工具call/result必须唯一串行且顺序完全一致；材料原文/单源SHA/原used、观察完整state/used及图片附件元数据、输入snapshot/element身份/原文、保存和重开snapshot、write value/最终snapshot、read content逐项匹配。重开的多次内部raw仅归属一次vm_reopen，并核对其末尾used。所有结构比较区分bool/int且拒绝额外参数/多重文本结果。输出EXCHANGES_MATCHED，仍保持sessionVerified与imageBytesVerified为false：来源/终态由原session提取器验证，请求审计和附件实际字节必须在最终组合验收补齐，不能把图片附件ID或长度视为同图证明。
