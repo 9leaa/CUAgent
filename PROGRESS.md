@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7受限GUI重开实现（2026-10-05）：1a41bb6细则先于代码。HandoffDesktopTask要求已save、当前新snapshot/原PID/窗口、AX正文与固定文件一致和used≤19；独占0600/fsync原重开意图，唯一Command-W关闭、最多3次预算内窗口清单证明旧窗口消失，再由可信runtime绑定原ApplicationIdentity和固定文档调用native Open Documents，最多3次清单确认同PID唯一窗口。关闭/每次清单/native打开均走原raw审计；ACK不当窗口证明，原文件SHA不变，清除snapshot要求新观察，重开后type/save拒绝、write_result只接受重开原正文。失败停止原任务，native不确定标UNKNOWN，意图保留且不重放，STOP期间不继续派发后续窗口查询。
+
+native以NSRunningApplication核对原PID/bundle/可执行路径/launchDate，再用NSAppleEventDescriptor向该PID发送仅原run固定文件的Open Documents，NeverInteract、AppleEvent1秒/进程3秒超时，无默认应用查找、新实例、强杀、保存/丢弃或任意路径。本机SDK头确认方法/常量；另在host只构造未发送的AppleEvent并查询selector，constructed/sendSelectorAvailable均true、NeverInteract=16，没有发送事件或操作宿主应用。此语法证据不替代VM实际发送/TCC许可/文件窗口证明；真实VM仍未验证。
+
+新增9项重开状态机反例、2项native模拟测试及1项后端真实本地HTTP路由测试；执行层269通过、相关后端43通过、官方安装版8项工具适配通过。覆盖窗口不消失、ACK后无新窗口、文件变化、超时、原预算11次预留、部分意图拒绝、在途停止、重开后无新观察拒绝写结果；P6同时拒绝read_materials/reopen并计拒绝预算。P7插件新增第七工具vm_reopen且参数透传guest约束；没有实际部署或模型调用。README同步，下一步必须接新轨迹/原session最终JSON独立核验与P7 App/后端入口，不能沿用P6旧验证器判交接成功。
+
 P7 profile/session与业务输出协议（2026-10-05）：e7e0dcb及3f178bc两份细则先于对应代码。新增固定project-handoff模板、prepare-handoff入口，双向移除旧P6/P7 preset而保留账户，沿原精确配置备份/恢复，不改活动profile。startHandoffSession严格kind/run/session/inputSHA/cwd与私有七工具ready绑定，缺vm_reopen（当前真实插件仅六工具）时零RPC拒绝；否则沿原一次create/selectModel/prompt持久意图，唯一preset及Flash/off，不重建或重发。P6提示保持原字节语义，inspect/cancel继续使用原session；尚未接App启动和后端adapter的P7路由。
 
 HandoffResult JSON schema固定随源码并与Pydantic schema做一致性测试；P7提示要求模型基于材料生成三章节GUI文档，保存后重开/观察/write_result/read_result，最终仅回复来源JSON。backend.handoff_document先结构/来源校验，再生成独立期望文本（CSV顺序、JSON字符串防换行伪造章节、单源引用索引），不写文件、不调用模型、不判语义通过；超4KiB明确失败，不删减/截断，20项最坏输入可失败的限制保留。材料插件对已核验原文计算sourceHashes供引用，不要求模型心算SHA；原guest协议和原输入绑定保持。

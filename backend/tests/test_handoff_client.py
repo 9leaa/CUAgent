@@ -231,3 +231,13 @@ def test_handoff_client_without_provision_never_falls_back(transfer):
     client, runtime, _, _ = transfer
     with pytest.raises(ControlUnconfirmed): client.activate(lambda: 65.)
     assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+def test_p7_http_reopen_passes_only_to_bound_task(transfer):
+    client, runtime, source, model = transfer
+    client.provision_handoff(source, lambda: 65.)
+    state = client.activate(lambda: 65.)
+    with patch.object(runtime.task, 'reopen', return_value={'requires_new_observation': True, 'used': 8}) as reopen:
+        code, value = model_request(state['modelPort'], model, 'reopen', {'snapshot_id': 'fresh'})
+    assert code == 200 and value['requires_new_observation'] is True
+    reopen.assert_called_once_with({'snapshot_id': 'fresh'})

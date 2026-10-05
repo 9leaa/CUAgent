@@ -11,7 +11,7 @@ import stat
 
 from desktop_lease import DesktopTask, LeaseGate
 from desktop_tools_http import tools_server
-from desktop_app_native import read_identity, request_terminate
+from desktop_app_native import read_identity, request_terminate, request_open_document
 from desktop_app_cleanup import ApplicationCleanup, CleanupState
 from desktop_evidence import inspect_guest_evidence
 from handoff_input import provision, verify_provision
@@ -146,6 +146,12 @@ class DesktopGuestRuntime:
     def provision_handoff(self, body):
         return provision(self, body)
 
+    def open_handoff_document(self, pid, document):
+        if (self.application is None or self.application.pid != pid or self.closed
+                or document != self.directory / 'artifacts' / ('handoff-' + self.controller.gate.run_id + '.txt')):
+            raise ValueError('original owned application and document required')
+        return request_open_document(self.application, document)
+
     def activate_handoff(self, body):
         if (type(body) is not dict or set(body) != {'inputSha256'}
                 or not isinstance(body['inputSha256'], str) or not re.fullmatch(r'[0-9a-f]{64}', body['inputSha256'])):
@@ -172,6 +178,8 @@ class DesktopGuestRuntime:
                 if not self.loopback_test:
                     task_kwargs['launch_observer'] = self.capture_application
                 if receipt is not None:
+                    if not self.loopback_test:
+                        task_kwargs['document_opener'] = self.open_handoff_document
                     self.task = self.handoff_task_factory(self.directory, input_sha256=handoff_digest, **task_kwargs)
                     if not isinstance(self.task, HandoffDesktopTask):
                         raise ValueError('handoff task required')

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import stat
+import time
 
 from desktop_lease import DesktopTask, LeaseGate
 from driver_smoke import StopRun
@@ -23,12 +24,142 @@ def reject_constant(_):
 
 
 class HandoffDesktopTask(DesktopTask):
-    def __init__(self, *args, input_sha256, **kwargs):
+    def __init__(self, *args, input_sha256, document_opener=None, **kwargs):
         # Trusted constructor binding, never accepted from model tool arguments.
         if not isinstance(input_sha256, str) or not re.fullmatch(r'[0-9a-f]{64}', input_sha256):
             raise ValueError('frozen input digest required')
         self.input_sha256 = input_sha256
+        if document_opener is not None and not callable(document_opener):
+            raise ValueError('trusted document opener required')
+        self.document_opener = document_opener
+        self.reopen_phase = None
+        self.reopened = False
+        self.saved_once = False
         super().__init__(*args, **kwargs)
+
+    def type_text(self, args):
+        if self.reopen_phase is not None:
+            raise StopRun('BLOCKED', 'Editing after reopen intent denied')
+        return super().type_text(args)
+
+    def save(self, args):
+        if self.reopen_phase is not None:
+            raise StopRun('BLOCKED', 'Saving after reopen intent denied')
+        value = super().save(args)
+        self.saved_once = True
+        return value
+
+    def validate_raw(self, tool, args):
+        if tool == 'hotkey' and self.reopen_phase == 'closing':
+            self.environment()
+            if args != {'pid': self.pid, 'window_id': self.window, 'session': self.run_id,
+                        'keys': ['cmd', 'w'], 'delivery_mode': 'foreground'} or self.pid is None:
+                raise StopRun('BLOCKED', 'Only original task window close permitted')
+            self.identity(self.pid)
+            return
+        return super().validate_raw(tool, args)
+
+    def _saved_bytes(self):
+        if self.document.resolve(strict=True) != self.document or self.document.parent.resolve(strict=True) != self.document.parent:
+            raise StopRun('BLOCKED', 'Original document path changed')
+        fd = os.open(self.document, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                    or not 0 < info.st_size <= 4096):
+                raise StopRun('BLOCKED', 'Saved task document required')
+            data = stream.read(4097)
+        if not 0 < len(data) <= 4096:
+            raise StopRun('BLOCKED', 'Saved task document size invalid')
+        return data
+
+    def _windows_after(self, old, opening):
+        for attempt in range(3):
+            value = self.raw('list_windows', {'pid': self.pid})
+            windows = value.get('windows')
+            if not isinstance(windows, list) or any(not isinstance(w, dict) or type(w.get('pid')) is not int
+                    or type(w.get('window_id')) is not int or w['window_id'] <= 0
+                    or type(w.get('is_on_screen')) is not bool or not isinstance(w.get('title'), str)
+                    or not isinstance(w.get('app_name'), str) for w in windows):
+                raise StopRun('UNVERIFIED', 'Invalid reopen window inventory')
+            if not opening:
+                if not any(w['pid'] == self.pid and (w['window_id'] == old or w['title'] == self.case.title) for w in windows):
+                    return None
+            else:
+                matches = [w for w in windows if w['pid'] == self.pid and w['title'] == self.case.title
+                           and w['app_name'] == self.case.app_name and w['is_on_screen']]
+                if len(matches) > 1:
+                    raise StopRun('UNVERIFIED', 'Ambiguous reopened task window')
+                if len(matches) == 1:
+                    return matches[0]['window_id']
+            if attempt < 2: time.sleep(.1)
+        raise StopRun('UNVERIFIED', 'Reopen window transition not confirmed')
+
+    def reopen(self, args):
+        with self.lock:
+            state = self.snapshot
+            if (type(args) is not dict or set(args) != {'snapshot_id'} or not state
+                    or args['snapshot_id'] != state['snapshot_id'] or time.monotonic() - self.observed_at > 30
+                    or state.get('pid') != self.pid or state.get('window_id') != self.window
+                    or state.get('window_title') != self.case.title or state.get('app_name') != self.case.app_name
+                    or self.reopen_phase is not None or not self.saved_once or self.document_opener is None
+                    or self.used > 19):
+                raise StopRun('BLOCKED', 'Saved fresh original window and eleven remaining calls required')
+            self.lease.check()
+            if self.stopped.is_set() or self.uncertain or self.inflight:
+                raise StopRun('BLOCKED', 'Idle authorized task required')
+            original = self._saved_bytes()
+            if original != self.observed_value().encode('utf-8'):
+                raise StopRun('UNVERIFIED', 'Saved body changed')
+            self.reopen_digest = hashlib.sha256(original).hexdigest()
+            old = self.window
+            intent = dict(snapshot_id=args['snapshot_id'], pid=self.pid, window_id=old, sha256=self.reopen_digest)
+            fd = os.open(self.directory / 'handoff-reopen-intent.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'w') as stream:
+                json.dump(intent, stream); stream.flush(); os.fsync(stream.fileno())
+            parent = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try: os.fsync(parent)
+            finally: os.close(parent)
+            self.reopen_phase = 'closing'
+            self.snapshot = None
+            try:
+                self.record({'event': 'handoff_reopen_intent', **intent})
+                self.raw('hotkey', {'pid': self.pid, 'window_id': old, 'session': self.run_id,
+                                   'keys': ['cmd', 'w'], 'delivery_mode': 'foreground'})
+                self._windows_after(old, False)
+                self.record({'event': 'handoff_window_closed', 'pid': self.pid, 'window_id': old})
+                self.reopen_phase = 'opening'
+                self.environment(); self.identity(self.pid)
+                if self._saved_bytes() != original:
+                    raise StopRun('UNVERIFIED', 'Document changed during close')
+                call = self.admit('reopen_document')
+                try:
+                    if self.document_opener(self.pid, self.document) is not True:
+                        raise ValueError('open acknowledgement missing')
+                    self.record({'event': 'result', 'tool': 'reopen_document', 'call_id': call,
+                                 'value': {'requested': True, 'pid': self.pid, 'documentSha256': self.reopen_digest}})
+                except Exception as error:
+                    self.uncertain = True
+                    self.record({'event': 'UNKNOWN', 'tool': 'reopen_document', 'call_id': call, 'error': type(error).__name__})
+                    raise
+                finally:
+                    with self.dispatch_lock: self.inflight.discard(call)
+                self.window = self._windows_after(old, True)
+                if self._saved_bytes() != original:
+                    raise StopRun('UNVERIFIED', 'Document changed while reopening')
+                self.reopened = True
+                self.reopen_phase = 'reopened'
+                self.record({'event': 'handoff_window_reopened', 'pid': self.pid, 'window_id': self.window,
+                             'old_window_id': old, 'sha256': self.reopen_digest, 'used': self.used})
+                return {'requires_new_observation': True, 'used': self.used}
+            except Exception:
+                self.stop()
+                raise
+
+    def write_result(self, args):
+        if not self.reopened or hashlib.sha256(self._saved_bytes()).hexdigest() != self.reopen_digest:
+            raise StopRun('UNVERIFIED', 'Unchanged reopened document required before result')
+        return super().write_result(args)
 
     def read_materials(self):
         with self.lock:

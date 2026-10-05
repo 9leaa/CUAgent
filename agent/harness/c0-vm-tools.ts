@@ -28,7 +28,7 @@ export function apply(ctx: Context): void {
   const realApp = connection.caseId === 'real_textedit' || handoff
   const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
     ...(realApp ? ['vm_type', 'vm_save'] : []),
-    ...(handoff ? ['vm_read_materials'] : []),
+    ...(handoff ? ['vm_read_materials', 'vm_reopen'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
     ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
     ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -168,6 +168,15 @@ export function apply(ctx: Context): void {
       // Preserve supplied arguments so guest rejection retains the original raw charge.
       return { result: verifyHandoffMaterials(await request('read_materials', args, exec.signal), connection.inputSha256) }
     },
+  }))
+  if (handoff) ctx.tools.register(defineTool({
+    name: 'vm_reopen',
+    description: 'After Save and a fresh observation of the fully saved body, close and reopen only this same-process task document once. Requires at least eleven raw calls left including later verification. Never handles discard/save dialogs or retries an uncertain open. Then vm_observe again before vm_write_result; no more typing/saving after this operation.',
+    parameters: { snapshot_id: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
+      render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('reopen', args, exec.signal)) } },
   }))
   if (realApp) ctx.tools.register(defineTool({
     name: 'vm_save', description: 'Send Command-S to the approved TextEdit document window after a fresh observation. This only attempts saving; observe afterward and verify actual saved body before writing result.txt. No Save As or arbitrary keyboard shortcut.',

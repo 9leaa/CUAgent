@@ -99,10 +99,11 @@ class DesktopRuntimeTests(unittest.TestCase):
     def test_p6_does_not_gain_handoff_material_tool(self):
         self.grant()
         state = self.runtime.activate()
-        code, result = self.request('POST', '/', {'op': 'read_materials', 'args': {}},
-                                    token=self.model, port=state['modelPort'])
-        self.assertEqual(code, 409)
-        self.assertEqual(result['used'], 1)
+        for used, op in enumerate(('read_materials', 'reopen'), 1):
+            code, result = self.request('POST', '/', {'op': op, 'args': {}},
+                                        token=self.model, port=state['modelPort'])
+            self.assertEqual(code, 409)
+            self.assertEqual(result['used'], used)
         self.assertEqual(self.sent, [])
 
     def test_exclusive_lock_and_single_activation(self):

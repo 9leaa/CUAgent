@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -40,6 +41,29 @@ class NativeAppTests(unittest.TestCase):
             native.read_identity(123)
         with self.assertRaises(RuntimeError):
             native.request_terminate(self.identity)
+        self.process.assert_not_called()
+        self.signal.assert_not_called()
+
+    def test_same_pid_document_open_uses_noninteractive_event_not_app_lookup(self):
+        run = 'p2-11111111-1111-1111-1111-111111111111'
+        path = Path('/Users/mvpagent/C0Evidence') / run / 'artifacts' / ('handoff-' + run + '.txt')
+        self.response({'accepted': True})
+        info = SimpleNamespace(st_mode=0o100600, st_uid=native.os.getuid(), st_nlink=1, st_size=20)
+        with patch.object(Path, 'resolve', autospec=True, side_effect=lambda value, **_: value), patch.object(Path, 'stat', return_value=info):
+            self.assertTrue(native.request_open_document(self.identity, path))
+        script = self.process.call_args.args[0][4]
+        self.assertIn('descriptorWithProcessIdentifier(pid)', script)
+        self.assertIn('NSAppleEventSendNeverInteract', script)
+        self.assertIn('const expected = ' + str(self.identity.started_us), script)
+        self.assertIn(str(path), script)
+        self.assertNotIn('app.terminate', script)
+        self.assertNotIn('Application(', script)
+        self.assertNotIn('creates_new_application', script)
+
+    def test_native_open_wrong_path_or_host_never_dispatches(self):
+        with self.assertRaises(ValueError): native.request_open_document(self.identity, '/tmp/arbitrary.txt')
+        self.vm.side_effect = RuntimeError('host denied')
+        with self.assertRaises(RuntimeError): native.request_open_document(self.identity, '/tmp/arbitrary.txt')
         self.process.assert_not_called()
         self.signal.assert_not_called()
 

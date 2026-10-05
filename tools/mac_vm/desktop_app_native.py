@@ -2,6 +2,9 @@
 import json
 import os
 import subprocess
+import re
+import stat
+from pathlib import Path
 
 from desktop_app_cleanup import ApplicationIdentity
 from driver_smoke import require_vm
@@ -37,12 +40,29 @@ def _pid(pid):
         raise ValueError('invalid PID')
 
 
-def _request(pid, started=None):
+def _request(pid, started=None, document=None):
     _pid(pid)
     require_vm()  # Host refusal must happen before queries or normal quit.
     script = (SCRIPT.replace('__PID__', str(pid))
               .replace('__EXECUTABLE__', json.dumps(EXECUTABLE))
               .replace('__EXPECTED__', 'null' if started is None else str(started)))
+    if document is not None:
+        script = script.replace('return JSON.stringify({accepted: Boolean(app.terminate)});', r'''
+  const target = $.NSAppleEventDescriptor.descriptorWithProcessIdentifier(pid);
+  const event = $.NSAppleEventDescriptor.appleEventWithEventClassEventIDTargetDescriptorReturnIDTransactionID(
+    0x61657674, 0x6f646f63, target, -1, 0);
+  const documents = $.NSAppleEventDescriptor.listDescriptor;
+  documents.insertDescriptorAtIndex($.NSAppleEventDescriptor.descriptorWithFileURL(
+    $.NSURL.fileURLWithPath(__DOCUMENT__)), 1);
+  event.setParamDescriptorForKeyword(documents, 0x2d2d2d2d);
+  const error = Ref();
+  const reply = event.sendEventWithOptionsTimeoutError(
+    $.NSAppleEventSendWaitForReply | $.NSAppleEventSendNeverInteract, 1, error);
+  if (!reply || reply.isNil()) throw Error('OPEN_UNCONFIRMED');
+  const code = reply.paramDescriptorForKeyword(0x6572726e);
+  if (code && !code.isNil() && Number(code.int32Value) !== 0) throw Error('OPEN_UNCONFIRMED');
+  return JSON.stringify({accepted: true});
+'''.replace('__DOCUMENT__', json.dumps(document)))
     try:
         result = subprocess.run(['/usr/bin/osascript', '-l', 'JavaScript', '-e', script],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -87,3 +107,21 @@ def request_terminate(identity):
     if type(value) is not dict or set(value) != {'accepted'} or type(value['accepted']) is not bool:
         raise RuntimeError('NATIVE_APP_TERMINATION_UNCONFIRMED')
     return value['accepted']  # Receipt/absence verification belongs to coordinator.
+
+
+def request_open_document(identity, document):
+    if type(identity) is not ApplicationIdentity or identity.started_us > 2**53 - 1:
+        raise ValueError('captured native identity required')
+    require_vm()
+    path = Path(document).absolute()
+    uuid = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
+    pattern = r'/Users/mvpagent/C0Evidence/(p2-' + uuid + r')/artifacts/handoff-\1\.txt'
+    if not re.fullmatch(pattern, str(path)) or path.resolve(strict=True) != path:
+        raise ValueError('fixed original task document required')
+    info = path.stat()
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or not 0 < info.st_size <= 4096:
+        raise ValueError('saved owned document required')
+    value = _request(identity.pid, identity.started_us, str(path))
+    if type(value) is not dict or set(value) != {'accepted'} or value['accepted'] is not True:
+        raise RuntimeError('NATIVE_DOCUMENT_OPEN_UNCONFIRMED')
+    return True  # New window/AX/file proof remains the caller's responsibility.
