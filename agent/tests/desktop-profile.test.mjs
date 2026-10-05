@@ -31,6 +31,27 @@ test('merge changes only reviewed IDs and retains unrelated account config', () 
   assert.equal(before[1].insert.length, 2);
 });
 
+test('P7 and P6 preset switching removes the other reviewed preset only', () => {
+  const account = { id: 'account', config: { keep: true } };
+  const p7 = [{ insert: [{ id: 'preset-project-handoff' }] }];
+  const p6 = [{ insert: [{ id: 'preset-real-app' }] }];
+  assert.deepEqual(mergeDesktopPatch([account, ...p6], p7), [account, ...p7]);
+  assert.deepEqual(mergeDesktopPatch([account, ...p7], p6), [account, ...p6]);
+});
+
+test('P7 fixed compiler preparation creates only staged profile and keeps active bytes',
+  { skip: !process.env.CUAGENT_TEST_BUILD_TOOLS }, async t => {
+    const f = fixture(t);
+    rmSync(join(f.root, 'desktop-plugins'), { recursive: true });
+    await prepareDesktopProfile(f.root, f.home, process.env.CUAGENT_TEST_BUILD_TOOLS, 'project-handoff');
+    const candidate = readFileSync(join(f.root, 'profile-next.yml'), 'utf8');
+    assert.match(candidate, /default: project-handoff/u);
+    assert.match(candidate, /preset-project-handoff/u);
+    assert.match(candidate, /vm_reopen/u);
+    assert.doesNotMatch(candidate, /preset-real-app/u);
+    assert.equal(readFileSync(f.target, 'utf8'), f.before);
+});
+
 test('prepare does not mutate home; apply then restore returns exact original bytes', t => {
   const f = fixture(t);
   stageProfile(f.root, f.home, '[]\n', f.plugins);

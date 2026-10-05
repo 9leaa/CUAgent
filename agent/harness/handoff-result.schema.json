@@ -1,0 +1,254 @@
+{
+  "$defs": {
+    "Citation": {
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Sourceid",
+          "type": "string"
+        },
+        "sourceSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sourcesha256",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sourceId",
+        "sourceSha256",
+        "start",
+        "end",
+        "quote"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "Counts": {
+      "additionalProperties": false,
+      "properties": {
+        "todo": {
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Todo",
+          "type": "integer"
+        },
+        "doing": {
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Doing",
+          "type": "integer"
+        },
+        "done": {
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "blocked": {
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Blocked",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "todo",
+        "doing",
+        "done",
+        "blocked"
+      ],
+      "title": "Counts",
+      "type": "object"
+    },
+    "Issue": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        },
+        "category": {
+          "enum": [
+            "conflict",
+            "unknown_owner",
+            "overdue",
+            "needs_confirmation"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "taskIds": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Taskids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "citations",
+        "category",
+        "taskIds"
+      ],
+      "title": "Issue",
+      "type": "object"
+    },
+    "Statement": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "citations"
+      ],
+      "title": "Statement",
+      "type": "object"
+    },
+    "TaskReport": {
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "todo",
+            "doing",
+            "done",
+            "blocked"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "due_date": {
+          "title": "Due Date",
+          "type": "string"
+        },
+        "overdue": {
+          "title": "Overdue",
+          "type": "boolean"
+        },
+        "progress": {
+          "$ref": "#/$defs/Statement"
+        },
+        "handoff": {
+          "$ref": "#/$defs/Statement"
+        }
+      },
+      "required": [
+        "task_id",
+        "title",
+        "owner",
+        "status",
+        "due_date",
+        "overdue",
+        "progress",
+        "handoff"
+      ],
+      "title": "TaskReport",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "project-handoff",
+      "title": "Kind",
+      "type": "string"
+    },
+    "runId": {
+      "title": "Runid",
+      "type": "string"
+    },
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "inputSha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Inputsha256",
+      "type": "string"
+    },
+    "counts": {
+      "$ref": "#/$defs/Counts"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/TaskReport"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Tasks",
+      "type": "array"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/Issue"
+      },
+      "maxItems": 60,
+      "title": "Issues",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "runId",
+    "sessionId",
+    "inputSha256",
+    "counts",
+    "tasks",
+    "issues"
+  ],
+  "title": "HandoffResult",
+  "type": "object"
+}

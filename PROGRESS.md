@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7 profile/session与业务输出协议（2026-10-05）：e7e0dcb及3f178bc两份细则先于对应代码。新增固定project-handoff模板、prepare-handoff入口，双向移除旧P6/P7 preset而保留账户，沿原精确配置备份/恢复，不改活动profile。startHandoffSession严格kind/run/session/inputSHA/cwd与私有七工具ready绑定，缺vm_reopen（当前真实插件仅六工具）时零RPC拒绝；否则沿原一次create/selectModel/prompt持久意图，唯一preset及Flash/off，不重建或重发。P6提示保持原字节语义，inspect/cancel继续使用原session；尚未接App启动和后端adapter的P7路由。
+
+HandoffResult JSON schema固定随源码并与Pydantic schema做一致性测试；P7提示要求模型基于材料生成三章节GUI文档，保存后重开/观察/write_result/read_result，最终仅回复来源JSON。backend.handoff_document先结构/来源校验，再生成独立期望文本（CSV顺序、JSON字符串防换行伪造章节、单源引用索引），不写文件、不调用模型、不判语义通过；超4KiB明确失败，不删减/截断，20项最坏输入可失败的限制保留。材料插件对已核验原文计算sourceHashes供引用，不要求模型心算SHA；原guest协议和原输入绑定保持。
+
+验证：新增11项P7会话RPC模拟、2项profile测试、4项Python schema/投影反例；CUAGENT_TEST_BUILD_TOOLS显式指向原私有只读编译依赖，node --test agent/tests/*.test.mjs全126通过（启用原可选编译测试，不再跳过），所有profile编译在临时目录且原配置字节不变；相关后端144通过，官方安装版适配8通过，git diff --check通过。中文源SHA/多行转义、三章节/任务顺序、错误事实及正文超限拒绝已覆盖；schema和投影不代替语义预期/真实GUI。没有派发真实模型、切换App、部署VM或改P5，README同步，阶段未完成。
+
 P7官方插件材料工具（2026-10-05）：739c199设计先行。原c0-vm-tools仅caseId=project_handoff、stage=p7、严格p2 UUID和输入SHA时加vm_read_materials；旧P6五工具不变，混合/缺失绑定拒绝初始化。新工具零参数声明，实际多余参数仍传guest以保留拒绝预算，读取复用原owner/取消/固定URL/无重试通道。新增handoff-materials重算完整材料规范JSON SHA并核对返回SHA、对象字段与1–30整数预算，拒绝篡改/超长/伪哈希，原文只作为数据输出。新kind的就绪记录携带kind/inputSha，旧P6就绪结构未改；模型请求仍需完整白名单，少工具或越权工具均拒绝。
 
 验证：安装版官方App版本只读核实0.2.0-rc.2；沿test-desktop-adapters同样构建/运行方式，明确从原CUAgent私有desktop-build-tools只读加载esbuild，把当前worktree的测试bundle写入.runtime/p7-material-tools-tests.mjs，以官方App ELECTRON_RUN_AS_NODE=1运行--expose-internals --test，不启动GUI或改profile。旧5项+P7新增3项共8/8（内含多组配置/响应反例）通过；python原canonical独立计算中文/emoji/组合字符/CRLF材料SHA 7fbabfe7c6b1f7ac3eb7f83ad3a0ff3fda3d62fd2ef10c0b92ae1ea439d30f33，与JS断言一致。node --test agent/tests/*.test.mjs为112通过/1既有跳过，git diff --check通过。全部为官方工具定义+模拟transport/本地数据，不冒充真实模型或VM；P7 profile/session与报告生成、语义验收、GUI重开仍待，README同步。

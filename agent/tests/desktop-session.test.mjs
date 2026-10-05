@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { realpathSync } from 'node:fs';
+import { realpathSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
-import { startDesktopSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
+import { startDesktopSession, startHandoffSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
+import { HANDOFF_TOOLS } from '../harness/handoff-prompt.mjs';
 import { DAILY_MODEL } from '../harness/daily-report-runner.mjs';
 
 function fixture(t, fault) {
@@ -84,4 +85,58 @@ test('invalid input has no RPC or intent', async t => {
   }
   assert.equal(f.calls.length, 0);
   assert.equal(existsSync(join(f.root, 'create-request.json')), false);
+});
+
+function handoffFixture(t, fault) {
+  const f = fixture(t, fault), originalRpc = f.rpc;
+  const { lines, ...base } = f.binding;
+  f.binding = { ...base, kind: 'project-handoff', inputSha256: 'a'.repeat(64) };
+  f.ready = { runId: base.runId, kind: 'project-handoff', inputSha256: f.binding.inputSha256, toolNames: HANDOFF_TOOLS };
+  writeFileSync(join(f.root, 'vm-tools-ready.json'), JSON.stringify(f.ready), { mode: 0o600 });
+  f.rpc = async (method, args) => {
+    if (method === 'agentPresets/list') {
+      f.calls.push({ method, args });
+      return { presets: [{ id: fault === 'preset' ? 'real-app' : 'project-handoff' }] };
+    }
+    return originalRpc(method, args);
+  };
+  return f;
+}
+
+test('P7 uses source-bound analysis prompt, exact preset and original Flash/off lifecycle', async t => {
+  const f = handoffFixture(t);
+  assert.equal((await startHandoffSession(f.root, f.binding, f.rpc)).accepted, true);
+  const create = f.calls.find(call => call.method === 'session/create');
+  assert.equal(create.args.request.agentPreset, 'project-handoff');
+  const prompt = f.calls.find(call => call.method === 'session/prompt').args.request.content[0].text;
+  for (const value of [f.binding.runId, f.binding.sessionId, f.binding.inputSha256, 'vm_read_materials', 'vm_reopen', 'sourceHashes', 'JSON schema']) assert.ok(prompt.includes(value));
+  assert.ok(!prompt.includes('文本数据：'));
+  assert.deepEqual(f.calls.find(call => call.method === 'session/selectModel').args.request, { sessionId: f.binding.sessionId, ...DAILY_MODEL });
+  assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).promptObserved, true);
+  assert.equal((await cancelDesktopSession(f.root, f.rpc, f.readSession)).cancelRequested, true);
+  await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+  assert.equal(f.calls.filter(call => call.method === 'session/prompt').length, 1);
+});
+
+for (const fault of ['preset', 'model', 'create', 'prompt']) test(`P7 ${fault} failure cannot replay or downgrade`, async t => {
+  const f = handoffFixture(t, fault);
+  await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+  const count = f.calls.length;
+  await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+  assert.equal(f.calls.length, count);
+  if (fault !== 'prompt') assert.equal(f.calls.filter(call => call.method === 'session/prompt').length, 0);
+});
+
+for (const mode of ['six_tools', 'wrong_input', 'extra_tool', 'public_ready', 'extra_lines', 'bad_session']) test(`P7 preflight rejects ${mode} before any RPC`, async t => {
+  const f = handoffFixture(t);
+  if (mode === 'six_tools') f.ready.toolNames = HANDOFF_TOOLS.filter(name => name !== 'vm_reopen');
+  if (mode === 'wrong_input') f.ready.inputSha256 = 'b'.repeat(64);
+  if (mode === 'extra_tool') f.ready.toolNames = [...HANDOFF_TOOLS, 'shell'];
+  if (mode === 'extra_lines') f.binding.lines = ['prewritten answer'];
+  if (mode === 'bad_session') f.binding.sessionId = 'session-not-uuid';
+  writeFileSync(join(f.root, 'vm-tools-ready.json'), JSON.stringify(f.ready));
+  if (mode === 'public_ready') chmodSync(join(f.root, 'vm-tools-ready.json'), 0o644);
+  await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+  assert.equal(f.calls.length, 0);
+  assert.equal(existsSync(join(f.root, 'desktop-session-binding.json')), false);
 });

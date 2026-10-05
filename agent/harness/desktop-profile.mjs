@@ -12,7 +12,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const controlled = new Set(['preset-p1-daily-report', 'preset-p4-report-inputs', 'cuagent-a0-policy',
   'preset-a0-verify', 'cuagent-desktop-request-audit', 'preset-c0-calculator', 'preset-c0-ui',
   'preset-c1-controlled', 'preset-c2-controlled', 'preset-real-app', 'c0-vm-tools',
-  'cuagent-a1-policy', 'preset-a1-controlled', 'preset-a1-readonly', 'cuagent-a1-request-audit', 'desktop-tool-scope']);
+  'cuagent-a1-policy', 'preset-a1-controlled', 'preset-a1-readonly', 'cuagent-a1-request-audit', 'desktop-tool-scope', 'preset-project-handoff']);
 
 function privatePath(path, directory) {
   assert.ok(isAbsolute(path) && resolve(path) === path && realpathSync(path) === path);
@@ -63,7 +63,8 @@ export function stageProfile(root, home, candidate, plugins, expectedBefore, ins
   return { prepared: true, beforeSha256: plan.beforeSha256, afterSha256: plan.afterSha256 };
 }
 
-export async function prepareDesktopProfile(root, home, buildTools) {
+export async function prepareDesktopProfile(root, home, buildTools, kind = 'desktop-textedit') {
+  assert.ok(['desktop-textedit', 'project-handoff'].includes(kind));
   location(root, home);
   // Shared compiler dependencies contain no task credentials; read-only use of
   // an owned 0755 installation is allowed, unlike private home/run evidence.
@@ -84,7 +85,8 @@ export async function prepareDesktopProfile(root, home, buildTools) {
       save(file.path, file.contents);
     }
   });
-  const template = readFileSync(join(project, 'agent/harness/cordis.desktop.real-app.patch.yml'), 'utf8');
+  const template = readFileSync(join(project, 'agent/harness', kind === 'project-handoff'
+    ? 'cordis.desktop.handoff.patch.yml' : 'cordis.desktop.real-app.patch.yml'), 'utf8');
   const installedPlugins = join(home, 'profiles/desktop', 'cuagent-p6-' + randomUUID());
   mkdirSync(installedPlugins, { mode: 0o700 });
   for (const name of ['c0-vm-tools.mjs', 'desktop-tool-scope.mjs']) save(join(installedPlugins, name), readFileSync(join(output, name)));

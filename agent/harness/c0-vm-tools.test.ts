@@ -243,7 +243,13 @@ test('P7 bound materials use only the dedicated sixth tool and retain original c
   for (const name of ['shell', 'vm_click', 'vm_select_target', 'provision_handoff', 'activate_handoff']) assert.match(guard({ name, agent, signal }), /not allowed/)
   assert.match(guard({ name: 'vm_read_materials', agent: { session: { id: 'other' } }, signal }), /not authorized/)
   const read = registered.find(x => x.name === 'vm_read_materials')
-  assert.deepEqual(JSON.parse((await read.execute({}, { agent, signal })).result).materials, materials)
+  const output = JSON.parse((await read.execute({}, { agent, signal })).result)
+  assert.deepEqual(output.materials, materials)
+  assert.deepEqual(output.sourceHashes, {
+    'notes/meeting': createHash('sha256').update(materials.notes[0].content).digest('hex'),
+    tasksCsv: createHash('sha256').update(materials.tasksCsv).digest('hex'),
+    previousReport: createHash('sha256').update('').digest('hex'),
+  })
   await assert.rejects(read.execute({ path: '/tmp/other' }, { agent, signal }), /arguments denied/)
   assert.deepEqual(calls[1].args, { path: '/tmp/other' }) // Guest receives refusal for budget accounting.
   const stream = handlers.get('llm/stream'), next = async function* () { yield 'ok' }

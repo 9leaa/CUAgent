@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, lstatSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createDesktopRpc, startDesktopSession, cancelDesktopSession } from './desktop-session.mjs';
+import { createDesktopRpc, startDesktopSession, startHandoffSession, cancelDesktopSession } from './desktop-session.mjs';
 import { officialSessionReader, inspectAndArchiveDesktopSession } from './desktop-session-evidence.mjs';
 
 export async function sessionCommand(args) {
@@ -20,7 +20,8 @@ export async function sessionCommand(args) {
     assert.equal(realpathSync(path), path);
     const info = lstatSync(path);
     assert.ok(info.isFile() && info.size <= 16384 && !(info.mode & 0o077));
-    return startDesktopSession(root, JSON.parse(readFileSync(path, 'utf8')), rpc);
+    const binding = JSON.parse(readFileSync(path, 'utf8'));
+    return binding.kind === 'project-handoff' ? startHandoffSession(root, binding, rpc) : startDesktopSession(root, binding, rpc);
   }
   if (mode === 'inspect') return inspectAndArchiveDesktopSession(root, rpc, reader);
   return cancelDesktopSession(root, rpc, sessionId => reader(sessionId).rows);

@@ -25,5 +25,11 @@ export function verifyHandoffMaterials(value: any, expected: string): string {
       || createHash('sha256').update(encoded, 'utf8').digest('hex') !== expected) {
     throw new Error('Handoff material bytes differ from frozen input')
   }
-  return JSON.stringify({ materials: value.materials, inputSha256: expected, used: value.used })
+  const sources = [...value.materials.notes.map((note: any) => ['notes/' + note.id, note.content]),
+    ['tasksCsv', value.materials.tasksCsv], ['previousReport', value.materials.previousReport]]
+  const sourceHashes = Object.fromEntries(sources.map(([key, content]) => {
+    if (typeof content !== 'string') throw new Error('Invalid material source text')
+    return [key, createHash('sha256').update(content, 'utf8').digest('hex')]
+  }))
+  return JSON.stringify({ materials: value.materials, sourceHashes, inputSha256: expected, used: value.used })
 }
