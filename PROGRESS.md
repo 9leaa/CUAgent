@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7双日志有序映射（2026-10-05）：623fe26方案先于代码。新增纯handoff_exchanges，先重新核验guest原轨迹，再从成功材料结果/观察/输入保存标记/重开结束/结果读写构建有序逻辑调用，不相信外部“已验证”标签。官方每个call/result必须原ID唯一串行且与逻辑顺序一一对应；严格JSON区分bool/int，逐项核对材料原字节/单源SHA/used、完整观察state/used、输入snapshot/AX index/token/正文、save/reopen snapshot、重开末尾used、write最终snapshot/value及read完整正文。多余参数/返回文本、错误/重复/缺失/并发错序全部拒绝；重开内部关闭/list/native/list仍计原raw，不拆成模型多次调用。
+
+只读历史官方证据确认观察附件实际mediaType=image/webp、attachmentId为sha256，原guest仍PNG；不能把附件摘要直接当原PNG哈希。当前只验证附件ID格式、PNG/WebP类型、正整数尺寸/长度及每次观察附图，返回attachmentsToVerify清单；sessionVerified/imageBytesVerified/semanticVerified保持false，后续必须结合原附件字节、请求审计和session来源/终态。无读取个人图片或新增真实调用。
+
+验证：新增6项unittest包含逐个10调用参数/返回的篡改、snapshot/token/输入/重开预算/读回、ID/顺序/错误/重复/并发、图片缺失/格式/数值、guest轨迹变化等多组反例。真实执行器配模拟Driver生成15raw，独立构造10次官方工具交换匹配；这是模拟证据，不是当前真实模型验收。执行层全293/293通过（私有backend-venv python -m unittest discover -s tools/mac_vm/tests），git diff --check通过。README同步，未修改VM/P5或活动App；请求审计/附件组合、生产入口及真实业务仍待。
+
 P7原官方结果提取（2026-10-05）：ff3f27c先提交设计。只读本地保留的原官方v4 session结构，确认assistant/message的data.message.content、model source、message id、turn/end与原prompt字段；不根据记忆猜字段，不重新派发模型。新增backend.handoff_session纯提取函数：原字节≤64MiB、严格UTF-8/JSON与唯一递增seq，v4原session/cwd/project-handoff preset、非seed/无delegation、唯一原用户rpcId和提示内容、单turn completed、所有请求Flash/off及七工具。assistant消息ID唯一、固定模型来源；工具声明和实际call参数/名称/ID对应，结果唯一且无错误，最终assistant必须在所有工具返回之后且仅文本。
 
 最终正文≤64KiB、只解析一个完整严格JSON，重复键/非有限数/围栏/额外文字拒绝，不从stream或工具返回猜取。调用既有HandoffResult独立校验原run/session/inputSHA、原任务事实/引用及计数，再调用独立文本投影；保留原sessionSHA、最终正文SHA、消息ID/seq及报告。仅返回SESSION_RESULT_EXTRACTED，sessionVerified/guiVerified/semanticVerified均false，尚未做官方工具到guest逐项映射/request-audit/VM证据合并，不能当业务成功。
