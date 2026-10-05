@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7可信guest导出（2026-10-05）：0a667f7方案先行。新增VM限定handoff_export，与P6导出合同隔离；固定run/owner/epoch且原lease已撤销，接有界严格JSON/base64材料及独立正文期望。先完整核验handoff_evidence，再仅收固定材料/预置回执/重开意图/trace/state/PNG/final/document/result；每份有界普通单链接、SHA/长度一致，二次读取核对字节与文件身份，目录及lease不变后才输出USTAR。清单含原binding、输入/正文SHA和guest结论，不声明官方session或语义通过，不导出凭据/lease，不执行GUI或写VM业务正文。
+
+host/guest部署白名单同步新增导出及两项核验依赖，共21个Python模块，旧P6路径保持。新增6项测试覆盖完整模拟原证据tar/无凭据/只读、活跃或缺lease、核验后文件变化、额外敏感路径、lease变化、有界严格输入及host拒绝。执行层302/302、相关后端27/27、diff检查通过；部署单测首轮因旧固定文件数量20而失败，更新为实际23次取源（21模块+许可证+安装器）后通过。未部署、未调用模型、未修改P5；host P7包解码、可信SSH采集、生产adapter及三组真实业务仍待，README同步。
+
 P7执行证据组合核验（2026-10-05）：方案43b1555先行。新增backend.handoff_verify与只读handoff_inspect子进程入口，绑定原run/session/inputSHA/cwd/prompt；原会话提取报告后生成独立正文期望，核对guest材料/文件/轨迹、逐项官方工具交换、PNG转换记录及官方附件字节。原请求审计增加run/session/inputSHA与实际发送的image附件ID列表；每条assistant消息对应一条请求，检查Flash、七工具和累计原图片顺序，缺失/额外/未知图片引用拒绝。原会话与host记录有界私有读取并在返回前复读，guest核验沿原固定文件采集边界。请求压缩或额外尝试未满足严格映射时拒绝，不删去异常后拼成功。
 
 验证：17项新后端用真实执行器配模拟Driver、模拟官方会话/图片完成跨进程组合链，10次模型工具交换对应15raw与11请求；包含原会话/提示/绑定/请求/截图/文档/附件篡改反例和九类请求审计反例。官方适配补实际图片ID审计及未知ID拒绝断言。相关后端236/236、执行层296/296、Node126/126、安装版官方适配11/11通过，均无模型/VM调用。原成功fixture返回EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING，semanticVerified=false，不写SUCCEEDED。
