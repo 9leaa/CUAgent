@@ -42,6 +42,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 原生适配细则：固定VM普通账户检查先于任何系统查询/退出；固定osascript JavaScript经AppKit读取NSRunningApplication的bundle、完整executableURL及launchDate（整数微秒）。未找到应用对象不等于进程不存在：另用signal 0核对，权限失败/非GUI进程拒绝，不猜退出成功。正常terminate在同一原生脚本内再次核对全部身份，只发一次请求；无kill/forceTerminate/保存对话框操作，单次子进程限3秒，原stderr不进入回执。该模块没有独立CLI或模型工具注册，只能由后续持锁生命周期入口使用。原生回调有界不等于整个协调器硬限3秒。
 
+启动接线：仅生产DesktopGuestRuntime为DesktopTask注入可信launch observer，loopback测试默认不访问系统。首次launch_app前记录guest墙钟微秒，成功后在任何窗口查询/正文操作前采集原生身份；要求应用启动时间位于本次launch开始至采集完成之间，防止把旧实例误登记为自有应用。独占0600/fsync写owned-application.json，绑定run/owner/epoch/PID/启动时间/可执行路径，记录失败立即停止任务，不能再次launch。部署包显式携带两项新依赖；当前旧部署保持不动。该启动证据仅证明所有权，不自行触发退出，终态核验与收尾控制通道另接。
+
 1. 输入契约及拒绝反例；不接API，不读取用户任意路径，不调用模型。
 2. 来源绑定结果契约与独立验证器；冻结正常、中文、状态冲突、未知负责人、逾期、注入材料及篡改样本，覆盖不漏任务/不重复归并/不编造引用。
 3. VM受限来源读取、单任务账本、TextEdit文档保存重开；先协议/模拟测试，再后端隔离路由，保持P6旧kind不变。
