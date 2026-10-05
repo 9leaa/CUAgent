@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7固定文件证据核验（2026-10-05）：6131f42先提交设计，再新增只读handoff_evidence。可信调用者传入原run/owner/epoch、冻结材料与独立正文期望；原材料字节/SHA与两份预置回执严格对应，重开intent逐字段等于原trace，复用独立handoff_trace检查完整保存/重开顺序及预算。每个观察的state-NN.json与原result按严格JSON类型对应，PNG原字节哈希/长度匹配observation_evidence；final_state必须是轨迹指定的新观察，固定文档==独立正文，result==正文+约定末尾LF。拒绝重复JSON键/非有限数与True/1类型替换。
+
+固定私有目录以fd逐层O_NOFOLLOW读取，文件限本人普通单链接，材料/intent/trace要求私有权限，单文件限长、总量≤64MiB；O_NONBLOCK避免FIFO阻塞。读取前后及路径身份检查，再在返回前重新读取全部文件核对字节、设备/inode/大小/mtime/ctime/mode/link数和根目录身份，同内容替换也拒绝。这个离线检查不能替代调用者先撤销许可、确认零在途及可信传输；PNG仅验签名/哈希，不声称理解图像。返回VM_EVIDENCE_VERIFIED、filesVerified=true，官方session/semantic仍false，不标业务SUCCEEDED、不触发清理，生产接线和部署白名单尚待随后统一接入。
+
+验证：新增10项测试，以真实HandoffDesktopTask配模拟Driver产出的15raw轨迹和16份临时文件核对原字节不变；覆盖材料/账本/截图/状态/最终文件篡改、错误owner/epoch/状态/SHA/长度、重复键/非有限数、丢文件/权限/超长、symlink/hardlink/FIFO/子目录链接逃逸、读取中途变化及相同字节新inode替换。`/Users/zhangchengjie/CUAgent/.runtime/backend-venv/bin/python -m unittest discover -s tools/mac_vm/tests` 287/287通过；git diff --check通过。README同步，无模型调用、无VM部署、无P5改动。下一步原官方会话JSON提取、结构/语义核对及App/后端P7路由；真实GUI业务验收仍未完成。
+
 P7独立轨迹验收第一步（2026-10-05）：25f2db1先提交设计，再新增纯读取handoff_trace，不改P6验证器或其工具白名单。外部绑定原run/材料规范字节/独立正文期望；核对原approval、空文档初始化、唯一launch PID、来源SHA与原文、唯一串行call_id和连续1–30预算、停止后零派发。输入与保存逐次对应最近新观察，重开前新观察必须位于保存之后且正文一致；每个hotkey归属保存或唯一关闭，重开intent/关闭/native ACK/窗口清单/新窗口标记顺序及PID/窗口/SHA严格一致，两个清单阶段均1–3次。所有内部调用留在原账本，原intent前used≤19，重开后只允许读取/观察及唯一写结果，不允许编辑。
 
 所有get_window_state成功结果必须有唯一observation_evidence且同PID/正确阶段窗口；write_result绑定重开后最新、30秒内且无中间请求的观察，读回必须完整多一个约定末尾LF。材料读取也消耗原观察效力；来源JSON按规范字节比较，不用Python宽松True==1相等代替原字节。当前检查不读取截图、固定文件或官方session，也不验证模型语义，明确返回TRACE_VERIFIED及三个false；任何error/UNKNOWN/拒绝轨迹暂不放行，完整保留供后续分类，不过滤失败拼成功。
