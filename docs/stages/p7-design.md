@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+P7后端官方会话接线细则（先于代码）：新增HandoffSessionClient复用DesktopSessionClient已有单次start/cancel、只读inspect/poll和原raw预算来源，仅替换prepare合同为重验HandoffSubmission并冻结kind/run/session/cwd/inputSHA五字段；不得把原材料或预生成报告塞入宿主提示。现有官方sessionCommand按kind选择已实现startHandoffSession，继续唯一project-handoff preset、Flash/off和七工具，Python不重写模型循环。准备、错误响应和未知退出都不重放原启动意图，旧P6 prepare仍拒绝P7输入。先通过无模型后端/官方命令合同测试；生产adapter/API、语义门槛与实际VM仍另接，不因客户端已存在宣称业务可用。
+
 P7宿主采集接线细则（先于代码）：复用已批准的私有SSH wrapper和固定commit部署路径，仅执行handoff_export原run/owner/epoch；调用前确认原guest停止、零在途、非零预算及撤销lease，独占持久采集意图防重发。有界传输材料与从原会话得到的独立正文，私有保留原tar；调用后状态/预算/lease必须不变。严格解码后新建guest/<原run>私有证据目录，只按已验证固定名称独占写入，不覆盖或extractall；部分写入/响应未知保留原状态且不能重试。返回目录交已有组合核验，不把传输验证当业务成功。模拟SSH测试验证单次/拒绝/部分失败，当前不实际连VM或启用生产任务。
 
 P7宿主包解码细则（先于代码）：独立纯内存handoff_bundle只接可信SSH采集的原tar、绑定身份、规范材料和独立正文期望。严格未压缩USTAR普通文件、固定名单及最多69成员/64MiB内容，拒绝重复、链接、PAX、目录、绝对路径、隐藏尾随数据和缺失配对state/PNG；不调用extractall。清单必须原kind/version/binding/输入与正文SHA，逐项长度/摘要等于实际字节、固定材料/文档/result一致；guest状态只是来源数据，仍需组合核验重算，不标业务或语义通过。此步骤不落盘、不派发、不解锁；随后采集端独占私有目录按已验证固定名称保存，接原会话组合验收。
