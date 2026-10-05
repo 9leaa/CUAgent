@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7原任务发布事务（2026-10-05）：9e48637设计先行。publish_reviewed_task只接受可信TaskService/原taskID/审阅SHA；锁desktop Resource再锁原Task，拒绝活动资源、非UNVERIFIED/非P7、越界run、未关闭Attempt、原失败事件缺失、已有Artifact、控制未停止、输入/session/owner/epoch/预算不一致。锁内重跑发布前证据核验，独占保存发布意图及三份原字节/报告，原控制二次读回后单事务登记Artifact/唯一handoff_published事件/finished通知。旧失败事件和通知保留且未读，session/预算/usage不改，不创建新Attempt。
+
+下载白名单增加P7三份产物，但普通TaskService.finish明确拒绝P7成功，避免直接调用绕过审阅。文件/DB失败保留原意图和已写文件，DB回滚，无成功下载；同记录不重放。验证使用隔离PostgreSQL和模拟Driver/审阅；真实VM、生产入口/任务路由及正式三组验收未执行，P7仍未完成。
+
+新增16项隔离DB测试通过，覆盖原失败/通知保留、三份实际HTTP下载与权限/未成功/篡改拒绝、11种身份状态反例、文件失败/DB回滚、并发两发布者唯一成功、普通finish旁路拒绝；相关后端461/461，另Worker/adapter/下载/发布组合72/72通过（重叠测试不累加）。唯一警告为已有Starlette TestClient/httpx弃用提示；无真实模型调用、未改冻结P5运行源码或服务。
+
 P7发布前证据准备（2026-10-05）：18807a0先提交设计。新增handoff_publication.prepare_publication，限定原run/handoff-reviews/<原记录SHA>，核对私有普通单链接文件、记录原字节摘要、意图时间/当前OS uid/声明身份、完整回执；重新执行原会话/guest/图片/请求组合验收与独立审阅合同，要求原执行摘要一致且审阅全部通过。精确读回原guest文档和result，对照独立正文，返回这两份原字节与原报告规范JSON及SHA；返回前重读所用发布输入不变。不写产物、不改DB、不调用模型或VM，不把身份标签称为外部认证。
 
 新增19项模拟证据测试覆盖只读成功、篡改uid/绑定/回执/意图/审阅/guest/session/context、额外字段/链接、负面审阅、路径参数和核验期间回执变化。首轮两项测试失败：模拟提取文件未模拟生产0600权限，以及guest失败抛RuntimeError；修正fixture权限和预期拒绝类型后19/19通过，相关后端回归434/434通过。不是实际语义验收；原任务事务式成功登记/通知/下载、生产路由、三组真实样本仍待，P7未完成。

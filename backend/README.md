@@ -201,4 +201,6 @@ API为POST/GET /schedules、GET /schedules/ID和POST /schedules/ID/pause，使�
 测试：`.runtime/backend-venv/bin/python -m backend.manage test`，为每项创建并删除独立临时测试数据库。生产任务保留。实际证据及未测范围见 [P2 总结](../docs/stages/p2-summary.md)。此阶段没有开机自启、关闭 App 后执行、数小时持久性或多用户验收。
 # P7 发布前重核验
 
+后续可信本地调用 `publish_reviewed_task(service, task_id, review_sha256)`：只从数据库取得原run，锁定资源和原任务，在原UNVERIFIED/关闭Attempt/停止控制及身份预算匹配下重新核验。独占发布意图之后写三份产物，并在单个数据库事务登记Artifact、唯一发布事件及成功通知；不删除原失败、不动session/预算/usage。成功后原认证下载路由允许document.txt/result.txt/report.json；普通finish禁止P7成功。重复、文件失败或DB结果不明均不得覆盖原意图；查询原task及handoff_published事件判断结果，不重放模型。当前只提供本地函数，尚无生产CLI/HTTP发布路由；旧P5服务不启用这一路径。
+
 可信本地调用 `backend.handoff_publication.prepare_publication(root, review_sha256)`，仅接受原run与已记录审阅的原字节SHA，不接受任意回执路径。入口重跑执行与审阅核验、精确匹配原意图/回执并读回原VM文档，返回`PUBLICATION_EVIDENCE_PREPARED`、`files`字节与摘要；`published`和`databaseChanged`仍为false。不要将该内存结果直接当下载许可；后续必须在原任务身份/终态/撤销权限检查及持久发布事务下登记。此函数不生成PASS审阅、不执行模型、不写业务文件，也不提供HTTP路由。

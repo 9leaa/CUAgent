@@ -230,6 +230,8 @@ class TaskService:
             if resource.owner != owner or resource.task_id != task_id or resource.epoch != epoch or not resource.expires_at or resource.expires_at <= utcnow():
                 raise Conflict('STALE_EXECUTION_OWNER')
             if status == 'SUCCEEDED':
+                if task.payload.get('kind') == 'project-handoff':
+                    raise Conflict('HANDOFF_REVIEWED_PUBLICATION_REQUIRED')
                 if not result or result.get('status') != 'SUCCEEDED' or result.get('sessionId') != task.session_id:
                     raise Conflict('INDEPENDENT_VERIFICATION_REQUIRED')
                 allowed = artifact_names(task.payload)

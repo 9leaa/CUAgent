@@ -6,6 +6,8 @@ def artifact_names(payload):
         return ('report.json', 'report.md')
     if payload['kind'] == 'desktop-textedit':
         return ('document.txt', 'result.txt')
+    if payload['kind'] == 'project-handoff':
+        return ('document.txt', 'result.txt', 'report.json')
     return ()  # Unknown task types never gain a download capability.
 
 
