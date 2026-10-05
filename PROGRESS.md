@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7图片转换来源与字节检查（2026-10-05）：bbfdb97设计先行。新增handoff-image-evidence，P7 observe把同一已收PNG缓冲区送官方saveImage，成功后、返回模型前独占0600/fsync写固定handoff-image-NN.json。记录原run/session/inputSHA/snapshot/1–30 used、输入PNG SHA/字节和输出附件SHA-ID/PNG或WebP类型/字节/尺寸；规范本人私有目录、无链接/不覆盖、有界长度，记录或转换失败关闭本地派发并请求原任务stop，不重试观察/转换。P6行为不变，无新增模型工具或预算。
+
+backend.handoff_images纯核验器接受可信采集的转换记录、双日志观察映射、原PNG和官方附件实际字节，逐项核对身份、顺序、snapshot/used、来源摘要、附件SHA-ID/长度与格式前缀、官方消息元数据；只允许恰好所需的图片集，单图≤8MiB、总≤64MiB，去重附件按同一SHA复用。返回IMAGE_PROVENANCE_VERIFIED/imageBytesVerified=true，但visualSemanticsVerified/sessionVerified仍false；PNG/WebP前缀检查不冒充解码或独立图像语义证明，实际附件存储读取和最终组合入口仍待接。既有双日志输出补used，防同图不同观察记录错配。
+
+验证：新增2项官方工具测试（包含参数/路径/权限/链接/不覆盖反例及记录失败后stop、后续零派发），18项后端字节链反例。首轮两项因测试临时目录未realpath及模拟session缺requestHeader失败，修正夹具后官方安装版10/10通过；未放宽生产约束。Node完整126/126（实际编译器临时profile）、相关后端109/109、执行层293/293及git diff --check通过。全部模拟附件/临时文件，未部署VM、未启用P7真实profile或发送模型请求，README同步；生产采集/请求审计组合、业务入口与真实语义/GUI验收仍待。
+
 P7双日志有序映射（2026-10-05）：623fe26方案先于代码。新增纯handoff_exchanges，先重新核验guest原轨迹，再从成功材料结果/观察/输入保存标记/重开结束/结果读写构建有序逻辑调用，不相信外部“已验证”标签。官方每个call/result必须原ID唯一串行且与逻辑顺序一一对应；严格JSON区分bool/int，逐项核对材料原字节/单源SHA/used、完整观察state/used、输入snapshot/AX index/token/正文、save/reopen snapshot、重开末尾used、write最终snapshot/value及read完整正文。多余参数/返回文本、错误/重复/缺失/并发错序全部拒绝；重开内部关闭/list/native/list仍计原raw，不拆成模型多次调用。
 
 只读历史官方证据确认观察附件实际mediaType=image/webp、attachmentId为sha256，原guest仍PNG；不能把附件摘要直接当原PNG哈希。当前只验证附件ID格式、PNG/WebP类型、正整数尺寸/长度及每次观察附图，返回attachmentsToVerify清单；sessionVerified/imageBytesVerified/semanticVerified保持false，后续必须结合原附件字节、请求审计和session来源/终态。无读取个人图片或新增真实调用。

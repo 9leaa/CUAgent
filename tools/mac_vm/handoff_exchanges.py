@@ -84,7 +84,7 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
                     and re.fullmatch(r'sha256:[0-9a-f]{64}', attachment['attachmentId'])
                     and attachment.get('mediaType') in ('image/png', 'image/webp')
                     and all(type(attachment.get(k)) is int and attachment[k] > 0 for k in ('bytes', 'width', 'height')))
-            attachments.append(dict(snapshotId=response['snapshot_id'], attachment=dict(attachment)))
+            attachments.append(dict(snapshotId=response['snapshot_id'], used=response['used'], attachment=dict(attachment)))
     return {'status': 'EXCHANGES_MATCHED', 'runId': run_id, 'officialToolCalls': len(logical),
             'rawCalls': verified['rawCalls'], 'attachmentsToVerify': attachments,
             'sessionVerified': False, 'imageBytesVerified': False, 'semanticVerified': False}

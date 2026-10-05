@@ -1,12 +1,85 @@
 /** No VM, model or credentials: adapter boundary tests only. */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, statSync, existsSync, chmodSync, symlinkSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from './c0-vm-tools.ts'
 import { createHash } from 'node:crypto'
 import { verifyHandoffMaterials } from './handoff-materials.ts'
+import { recordHandoffImage } from './handoff-image-evidence.ts'
+
+test('P7 conversion provenance is private, source-bound and never overwritten', t => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-p7-image-')))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const binding = { runId: 'p2-11111111-1111-1111-1111-111111111111',
+    sessionId: 'session-22222222-2222-2222-2222-222222222222', inputSha256: 'b'.repeat(64) }
+  const png = Buffer.from([137,80,78,71,13,10,26,10])
+  const image = { attachmentId: 'sha256:' + 'a'.repeat(64), mediaType: 'image/webp', bytes: 12, width: 1, height: 1 }
+  recordHandoffImage(dir, binding, { snapshot_id: 's' }, 4, png, image)
+  const path = join(dir, 'handoff-image-04.json'), raw = readFileSync(path)
+  assert.equal(statSync(path).mode & 0o777, 0o600)
+  assert.deepEqual(JSON.parse(raw.toString()), { version: 1, ...binding, snapshotId: 's', used: 4,
+    source: { sha256: createHash('sha256').update(png).digest('hex'), bytes: 8 }, attachment: image })
+  assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 'new' }, 4, png, image))
+  assert.deepEqual(readFileSync(path), raw)
+  symlinkSync(path, join(dir, 'handoff-image-05.json'))
+  assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 's' }, 5, png, image))
+  assert.deepEqual(readFileSync(path), raw)
+  for (const change of [{ bytes: true }, { mediaType: 'image/jpeg' }, { width: 0 }, { attachmentId: '/other' }, { bytes: 8388609 }]) {
+    assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 's' }, 6, png, { ...image, ...change } as any))
+    assert.equal(existsSync(join(dir, 'handoff-image-06.json')), false)
+  }
+  for (const used of [0, 31, 1.5, true]) assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 's' }, used as any, png, image))
+  assert.throws(() => recordHandoffImage(dir, { ...binding, sessionId: 'other' }, { snapshot_id: 's' }, 6, png, image))
+  assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: '' }, 6, png, image))
+  assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 's' }, 6, Buffer.from('not png'), image))
+  chmodSync(dir, 0o755)
+  assert.throws(() => recordHandoffImage(dir, binding, { snapshot_id: 's' }, 6, png, image))
+})
+
+test('P7 observe persists conversion evidence before return; failed recording stops without reobserve', async t => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-p7-observe-')))
+  const old = { connection: process.env.CUAGENT_C0_CONNECTION, audit: process.env.CUAGENT_C0_AUDIT_PATH, fetch: globalThis.fetch }
+  t.after(() => {
+    globalThis.fetch = old.fetch
+    for (const [key, value] of [['CUAGENT_C0_CONNECTION', old.connection], ['CUAGENT_C0_AUDIT_PATH', old.audit]]) {
+      if (value === undefined) delete process.env[key!]; else process.env[key!] = value
+    }
+    rmSync(dir, { recursive: true, force: true })
+  })
+  const config = { url: 'http://192.168.64.3:8766', token: 'x'.repeat(43), caseId: 'project_handoff', stage: 'p7',
+    runId: 'p2-11111111-1111-1111-1111-111111111111', inputSha256: 'b'.repeat(64) }
+  process.env.CUAGENT_C0_CONNECTION = join(dir, 'connection.json'); process.env.CUAGENT_C0_AUDIT_PATH = join(dir, 'audit.jsonl')
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify(config), { mode: 0o600 })
+  const registered: any[] = [], handlers = new Map(), calls: string[] = []
+  const png = Buffer.from([137,80,78,71,13,10,26,10])
+  const image = { attachmentId: 'sha256:' + 'a'.repeat(64), mediaType: 'image/webp', bytes: 12, width: 1, height: 1 }
+  const ctx: any = { inject() {}, on: (name: string, fn: any) => handlers.set(name, fn), logger: { error() {} },
+    tools: { register: (tool: any) => registered.push(tool), guard() {} },
+    get: (name: string) => name === 'llm' ? { resolveModelInfo: async () => ({ inputModalities: ['image'] }) }
+      : { saveImage: async ({ data }: any) => { assert.deepEqual(Buffer.from(data), png); return image } } }
+  globalThis.fetch = (async (_url: any, options: any) => {
+    const body = JSON.parse(options.body); calls.push(body.op)
+    return { ok: true, json: async () => body.op === 'stop' ? { stopped: true }
+      : { state: { snapshot_id: 'original' }, used: 4, png: png.toString('base64') } }
+  }) as any
+  apply(ctx)
+  const agent: any = { session: { id: 'session-22222222-2222-2222-2222-222222222222',
+    requestHeader: () => ({ config: { provider: 'deepseek-account', model: 'deepseek-flash' } }) } }
+  const signal = new AbortController().signal
+  await handlers.get('agent/pre-step')({ agent, signal }, async () => ({}))
+  const observe = registered.find(tool => tool.name === 'vm_observe')
+  const result = await observe.execute({}, { agent, signal })
+  assert.equal(result.image.attachmentId, image.attachmentId)
+  const path = join(dir, 'handoff-image-04.json'), raw = readFileSync(path)
+  assert.equal(JSON.parse(raw.toString()).sessionId, agent.session.id)
+  await assert.rejects(observe.execute({}, { agent, signal })) // Simulated repeated used would overwrite evidence.
+  assert.deepEqual(calls, ['observe', 'observe', 'stop'])
+  await assert.rejects(observe.execute({}, { agent, signal }), /stopped/)
+  assert.deepEqual(calls, ['observe', 'observe', 'stop'])
+  assert.deepEqual(readFileSync(path), raw)
+})
 
 test('C0 fixed tools, ownership, fresh image attachment, cancellation and no retry', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-c0-test-'))
