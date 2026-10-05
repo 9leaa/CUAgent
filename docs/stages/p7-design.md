@@ -44,6 +44,10 @@ P7激活细则：独立/activate-handoff只接受inputSha256，重新读取私�
 
 来源SHA供给补充：模型不能可靠地心算SHA。插件完整材料哈希核验通过后，从原notes/content、tasksCsv、previousReport的UTF-8字节计算sourceHashes并附于模型工具输出；模型引用使用这些可信计算值。原guest三字段协议及整体inputSha不变，不允许模型提交覆盖摘要；跨语言测试核对单源SHA。
 
+GUI重开细则：vm_reopen只接当前snapshot_id，必须本任务原PID/窗口的新AX正文与私有已保存文件一致且此前确有save动作。冻结原文SHA和独占reopen intent后，仅一次Driver Command-W关闭该窗口；最多三次预算内list_windows确认旧窗口消失，再由可信native回调向原PID/启动时间/固定TextEdit路径绑定的进程发送Open Documents AppleEvent，目标仅该run固定文档，禁止按应用名/默认应用重新选进程或新建实例。native调用使用NSAppleEventDescriptor（本机SDK声明核对）、NeverInteract和有界超时，不执行正文、不修改文件或处理保存/丢弃对话框。ACK不等于重开成功：最多三次同PID窗口清单确认唯一任务窗口，原文件SHA仍相同，清除旧snapshot；模型必须再次observe后才能write_result。重开后禁止继续type/save，结果必须绑定重开前冻结正文；只读材料读取仍计预算。
+
+关闭、每次窗口清单、native打开分别计原raw；最多8次内部请求加后续观察/写结果/读结果3次，重开前至少预留11次（used≤19），不运行时扩预算。每轮等待≤0.1秒、每阶段最多3次查询，不盲重试关闭/打开；任何中途失败停止原任务、保留意图/原状态及UNKNOWN，重建对象不得重放。native打开回调仅可信runtime注入，loopback测试可模拟；旧P6无此工具或快捷键权限。先实现执行器和native适配反例，再做插件注册与独立证据核验；只有代码/本地测试不声称真实VM重开通过。
+
 2026-10-04用户要求清理VM残留进程。检查发现P6只停止工具/桥接、不退出其启动的TextEdit，导致23个已停止测试实例积累；已逐PID关联原trace并持共享锁，备份63份文档/轨迹后正常请求退出，23个全部退出且原文件哈希未变，不强杀。P7真实运行前增加可信生命周期收尾设计：仅退出本任务明确启动且身份仍匹配的应用实例，先核对terminal/零在途/已保存产物，完成独立验收后正常退出并确认PID消失；未保存提示或退出未确认单独告警，不擅自丢弃内容或结束其他应用。收尾不作为模型新工具，不清预算/历史证据。该自动收尾尚未实现，不把本次人工清理称为长期修复。
 
 仍复用官方App唯一循环，deepseek-account/deepseek-flash、reasoningEffort=off。原任务全程30raw，包括来源读取、失败、观察、GUI内部调用及重开；不拆子任务清预算。新来源读取只接受可信配置固定source ID，所有材料在VM专用目录，模型无任意路径、shell、网络或修改材料/证据权限。来源内的“忽略规则”等内容只是数据，不授予工具权限。
