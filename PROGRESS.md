@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7任务适配器/官方App启动接线（2026-10-05）：be9f1a0、fbe8d26先定义方案。P6 adapter提取内部固定合同/会话/控制client/profile/app/连接/预置方法，默认行为不变；HandoffTaskAdapter选择P7输入、官方会话客户端和材料控制客户端。prepare沿原guest bootstrap/端口选择/准备失败收尾，冻结stage=p7/case=project_handoff/inputSHA连接；start重新gate，在切换App前单次预置原材料，再stop/apply/start-p7/activate/最终gate/唯一prompt。材料未知即阻止App切换及prompt，重复start禁止。
+
+App显式start-p7验证固定run、stage/case/inputSHA、原profile apply SHA；启动后要求唯一project-handoff preset和逐字段一致的七工具ready回执，保留唯一进程、版本、恢复及持久不重试约束，start-p6不接受P7连接。verify先从原私有session/prompt/binding提取独立正文，经单次可信采集和完整组合核验后再比较原sessionSHA，私有保存handoff-execution-verification.json。因语义门槛尚未完成，明确抛HANDOFF_SEMANTIC_REVIEW_REQUIRED，供Worker归UNVERIFIED；没有SUCCEEDED或下载产物/成功退出凭证，不把程序核验当用户采用。该中间限制不是最终产品范围，后续需接语义与业务成功入口。
+
+新增5项adapter测试及2项App测试；真实本地组合子进程配模拟guest/会话证明执行证据保留而不误放行。P6/P7 adapter与Worker50/50（独立临时测试数据库，不迁移P5）、相关后端353/353、Node128/128及diff检查通过。外部App/SSH/模型边界均mock，无真实启动/部署/GUI操作；README同步。API/队列尚不注册P7、三组真实业务样本与自动应用收尾实测仍待，P7未完成。
+
 P7后端官方会话客户端（2026-10-05）：1e06f27方案先行。核对现有desktop-session-command按kind选择startHandoffSession及五字段合同；新增HandoffSessionClient，只覆盖prepare并重新校验不可变HandoffSubmission（包括不安全model_copy），规范原输入SHA、固定run/session/workspace和project-handoff写入独占私有desktop-request.json。start/inspect/poll/cancel沿原官方子进程与持久单次意图，Flash/off、唯一preset/七工具校验保持；不传原材料或代码预制正文到prompt，材料仍通过VM受限工具读取。
 
 新增9项测试覆盖私有绑定/不隐式启动/不覆盖、P6及非法额外字段和不安全对象拒绝、原官方命令/错误模型与会话/未知响应不重放、查询按guest实际raw而非模型工具数、取消单次。相关后端348/348、Node126/126通过，README同步；全部临时文件/mock RPC，无真实App/模型/VM调用。下一步连接任务adapter的准备/材料预置/启动/结果采集，再完成语义与真实业务验收；API仍未启用P7，未宣称产品已可用。

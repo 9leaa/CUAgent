@@ -40,6 +40,27 @@ class DesktopAdapterSettings:
 
 
 class DesktopTaskAdapter:
+    def submission(self, payload):
+        return DesktopSubmission.model_validate(payload)
+
+    def session_client(self, **kwargs):
+        return DesktopSessionClient(**kwargs)
+
+    def control_client(self, **kwargs):
+        return DesktopControlClient(**kwargs)
+
+    def profile_mode(self):
+        return 'prepare'
+
+    def app_mode(self):
+        return 'start-p6'
+
+    def connection(self, root, ready, submission):
+        return {'runId': root.name, 'caseId': 'real_textedit', 'url': ready['modelUrl'], 'token': ready['modelToken']}
+
+    def provision(self, prepared, context):
+        pass  # P6 fixed lines have no materials provisioning step.
+
     def __init__(self, service, settings, *, execution_gate):
         if not isinstance(settings, DesktopAdapterSettings) or not callable(execution_gate):
             raise ValueError('explicit settings and live execution gate required')
@@ -59,7 +80,7 @@ class DesktopTaskAdapter:
         script = Path(__file__).resolve().parents[1] / 'agent/harness' / ('desktop-' + group + '-command.mjs')
         if group == 'profile':
             args = [str(settings.node), str(script), mode, str(root), str(settings.official_home), str(settings.build_tools)]
-            expected = {'prepare': 'prepared', 'apply': 'applied', 'restore': 'restored'}[mode]
+            expected = {'prepare': 'prepared', 'prepare-handoff': 'prepared', 'apply': 'applied', 'restore': 'restored'}[mode]
         elif group == 'app':
             launch = settings.base_tasks if mode == 'start-restore' else root / 'c0-connection.json'
             args = [str(settings.node), str(script), mode, str(root), str(settings.official_home), str(settings.cookie), str(launch)]
@@ -73,7 +94,7 @@ class DesktopTaskAdapter:
 
     def prepare(self, task):
         self.gate(task)
-        submission = DesktopSubmission.model_validate(task.payload)
+        submission = self.submission(task.payload)
         root = private_path(self.service.settings.root, directory=True) / ('p2-' + task.id)
         root.mkdir(mode=0o700)
         stage = ['local-preparation']
@@ -119,11 +140,11 @@ class DesktopTaskAdapter:
         wrapper = create_ssh_wrapper(root=root, known_hosts=self.settings.known_hosts, askpass=self.settings.askpass)
         resources['wrapper'] = wrapper
         session_id = 'session-' + str(uuid.uuid4())
-        session = DesktopSessionClient(root=root, session_id=session_id, node=self.settings.node,
+        session = self.session_client(root=root, session_id=session_id, node=self.settings.node,
                                        official_home=self.settings.official_home, cookie=self.settings.cookie)
         session.prepare(submission)
         stage[0] = 'profile-prepare'
-        self.command(root, 'profile', 'prepare')
+        self.command(root, 'profile', self.profile_mode())
         resources['bootstrap_attempted'] = False
         stage[0] = 'tunnel-port-preflight'
         tunnel_port = select_tunnel_port(self.settings.tunnel_port)
@@ -137,7 +158,7 @@ class DesktopTaskAdapter:
                                 owner=task.owner, epoch=task.epoch)
         resources['ready'] = ready
         stage[0] = 'control-client'
-        client = DesktopControlClient(port=tunnel_port, token=ready['controlToken'],
+        client = self.control_client(port=tunnel_port, token=ready['controlToken'],
                                       run_id=root.name, owner=task.owner, epoch=task.epoch)
         tunnel = GuestControlTunnel(root=root, ssh_wrapper=wrapper,
                                     guest_port=ready['controlPort'], client=client)
@@ -145,8 +166,7 @@ class DesktopTaskAdapter:
         stage[0] = 'tunnel-start'
         tunnel.start()
         stage[0] = 'connection-record'
-        save_exclusive(root / 'c0-connection.json', json.dumps({'runId': root.name, 'caseId': 'real_textedit',
-                         'url': ready['modelUrl'], 'token': ready['modelToken']}).encode())
+        save_exclusive(root / 'c0-connection.json', json.dumps(self.connection(root, ready, submission)).encode())
         prepared = PreparedDesktop(root, session_id, client)
         self.contexts[root] = {'prepared': prepared, 'task': task, 'submission': submission,
                                'session': session, 'tunnel': tunnel, 'ssh_wrapper': wrapper, 'started': False}
@@ -164,9 +184,10 @@ class DesktopTaskAdapter:
             raise RuntimeError('DESKTOP_ADAPTER_START_ALREADY_ATTEMPTED')
         context['started'] = True
         self.gate(context['task'])
+        self.provision(prepared, context)
         self.command(prepared.run, 'app', 'stop-activate')
         self.command(prepared.run, 'profile', 'apply')
-        self.command(prepared.run, 'app', 'start-p6')
+        self.command(prepared.run, 'app', self.app_mode())
         task = context['task']
         prepared.control_client.activate(lambda: self.service.desktop_authority(
             task.id, task.owner, task.epoch, clock=prepared.control_client.clock))

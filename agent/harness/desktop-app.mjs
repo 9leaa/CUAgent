@@ -6,6 +6,7 @@ import { closeSync, constants, fsyncSync, lstatSync, openSync, readFileSync, rea
 import { isAbsolute, join, resolve } from 'node:path';
 import { createDesktopRpc } from './desktop-session.mjs';
 import { loadA1TaskConfig } from '../a1-task-config.mjs';
+import { HANDOFF_TOOLS } from './handoff-prompt.mjs';
 
 const APP = '/Applications/DeepSeek Harness.app';
 const EXECUTABLE = APP + '/Contents/MacOS/DeepSeek Harness';
@@ -70,7 +71,8 @@ export async function stopIdleDesktop(root, cookie, phase, dependencies = {}) {
 
 export async function startDesktop(root, home, cookie, mode, launchFile, dependencies = {}) {
   privatePath(root, true); privatePath(home, true);
-  assert.ok(['p6', 'restore'].includes(mode));
+  assert.ok(['p6', 'p7', 'restore'].includes(mode));
+  const taskMode = mode !== 'restore';
   const exec = dependencies.execute ?? execute, wait = dependencies.sleep ?? sleep;
   const rpc = dependencies.rpc ?? createDesktopRpc(cookie);
   assert.equal(pids(exec).length, 0);
@@ -78,20 +80,26 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
   const plan = load(join(root, 'profile-plan.json'));
   assert.equal(plan.root, root); assert.equal(plan.home, home);
   assert.equal(plan.target, join(home, 'profiles/desktop/cordis.patch.yml'));
-  const hash = mode === 'p6' ? plan.afterSha256 : plan.beforeSha256;
-  assert.equal(load(join(root, `profile-${mode === 'p6' ? 'apply' : 'restore'}-receipt.json`)).sha256, hash);
+  const hash = taskMode ? plan.afterSha256 : plan.beforeSha256;
+  assert.equal(load(join(root, `profile-${taskMode ? 'apply' : 'restore'}-receipt.json`)).sha256, hash);
   assert.equal(sha(readFileSync(privatePath(plan.target))), hash);
-  let environment, expected;
-  if (mode === 'p6') {
+  let environment, expected, handoffBinding;
+  if (taskMode) {
     assert.equal(launchFile, join(root, 'c0-connection.json'));
     const connection = load(launchFile);
     assert.equal(connection.runId, root.split('/').at(-1));
-    assert.equal(connection.caseId, 'real_textedit');
+    assert.equal(connection.caseId, mode === 'p7' ? 'project_handoff' : 'real_textedit');
+    if (mode === 'p7') {
+      assert.equal(connection.stage, 'p7');
+      assert.match(connection.runId, /^p2-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
+      assert.match(connection.inputSha256, /^[0-9a-f]{64}$/u);
+      handoffBinding = { runId: connection.runId, kind: 'project-handoff', inputSha256: connection.inputSha256, toolNames: HANDOFF_TOOLS };
+    }
     assert.equal(connection.url, 'http://192.168.64.3:8766');
     assert.match(connection.token, /^[A-Za-z0-9_-]{43,60}$/u);
     environment = [`DSH_HOME=${home}`, `CUAGENT_C0_CONNECTION=${launchFile}`,
       `CUAGENT_C0_AUDIT_PATH=${join(root, 'request-audit.jsonl')}`, 'CUAGENT_A1_TASKS_PATH='];
-    expected = ['real-app'];
+    expected = [mode === 'p7' ? 'project-handoff' : 'real-app'];
   } else {
     privatePath(launchFile);
     (dependencies.validateA1 ?? loadA1TaskConfig)(launchFile);
@@ -114,10 +122,11 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
       continue;
     }
     assert.deepEqual(presets, expected);
-    if (mode === 'p6') {
+    if (taskMode) {
       const ready = load(join(root, 'vm-tools-ready.json'));
       assert.equal(ready.runId, root.split('/').at(-1));
-      assert.deepEqual(ready.toolNames, ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result']);
+      if (mode === 'p7') assert.deepEqual(ready, handoffBinding);
+      else assert.deepEqual(ready.toolNames, ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result']);
     }
     assert.equal(pids(exec).length, 1);
     assert.equal(sha(readFileSync(privatePath(plan.target))), hash);

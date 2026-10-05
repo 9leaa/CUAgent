@@ -6,10 +6,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stopIdleDesktop, startDesktop } from '../harness/desktop-app.mjs';
 
-function fixture(t) {
+function fixture(t, handoff = false) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'desktop-app-')));
   t.after(() => rmSync(base, { recursive: true }));
-  const root = join(base, 'run'), home = join(base, 'home');
+  const runId = handoff ? 'p2-11111111-1111-1111-1111-111111111111' : 'run';
+  const root = join(base, runId), home = join(base, 'home');
   for (const path of [root, home, join(home, 'profiles'), join(home, 'profiles/desktop')]) mkdirSync(path, { mode: 0o700 });
   const save = (path, data) => writeFileSync(path, JSON.stringify(data), { mode: 0o600 });
   const target = join(home, 'profiles/desktop/cordis.patch.yml');
@@ -18,8 +19,12 @@ function fixture(t) {
   save(join(root, 'profile-plan.json'), { root, home, target, beforeSha256: hash, afterSha256: hash });
   for (const phase of ['apply', 'restore']) save(join(root, `profile-${phase}-receipt.json`), { sha256: hash });
   const connection = join(root, 'c0-connection.json');
-  save(connection, { runId: 'run', caseId: 'real_textedit', url: 'http://192.168.64.3:8766', token: 'x'.repeat(43) });
-  save(join(root, 'vm-tools-ready.json'), { runId: 'run', toolNames: ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result'] });
+  save(connection, { runId, caseId: handoff ? 'project_handoff' : 'real_textedit',
+    ...(handoff ? { stage: 'p7', inputSha256: 'a'.repeat(64) } : {}), url: 'http://192.168.64.3:8766', token: 'x'.repeat(43) });
+  save(join(root, 'vm-tools-ready.json'), { runId,
+    ...(handoff ? { kind: 'project-handoff', inputSha256: 'a'.repeat(64) } : {}),
+    toolNames: handoff ? ['vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result']
+      : ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result'] });
   const tasks = join(root, 'base-tasks.json'); save(tasks, {});
   const state = { running: true, busy: false, presets: ['p1-daily-report'], commands: [], now: 0 };
   const dependencies = {
@@ -34,7 +39,7 @@ function fixture(t) {
       if (program === '/usr/libexec/PlistBuddy') return '0.2.0-rc.2\n';
       if (program === '/usr/bin/open') {
         state.running = true;
-        state.presets = args.includes('CUAGENT_C0_CONNECTION=' + connection) ? ['real-app'] : ['p1-daily-report'];
+        state.presets = args.includes('CUAGENT_C0_CONNECTION=' + connection) ? [handoff ? 'project-handoff' : 'real-app'] : ['p1-daily-report'];
         return '';
       }
       throw Error('unexpected command');
@@ -57,6 +62,28 @@ test('mock App stop/start/restore preserves original preset and explicit environ
   assert.equal(opens.length, 2);
   assert.ok(opens[0][1].includes('CUAGENT_A1_TASKS_PATH='));
   assert.ok(opens[1][1].includes('CUAGENT_C0_CONNECTION='));
+});
+
+test('P7 explicit launch verifies original input identity and seven tools then restores', async t => {
+  const f = fixture(t, true);
+  await stopIdleDesktop(f.root, 'unused', 'activate', f.dependencies);
+  await startDesktop(f.root, f.home, 'unused', 'p7', f.connection, f.dependencies);
+  assert.ok(existsSync(join(f.root, 'app-p7-start-receipt.json')));
+  await stopIdleDesktop(f.root, 'unused', 'restore', f.dependencies);
+  await startDesktop(f.root, f.home, 'unused', 'restore', f.tasks, f.dependencies);
+  assert.deepEqual(f.state.presets, ['p1-daily-report']);
+});
+
+test('P6 cannot launch P7 connection and P7 cannot accept mismatched ready receipt', async t => {
+  const f = fixture(t, true); f.state.running = false;
+  await assert.rejects(startDesktop(f.root, f.home, 'unused', 'p6', f.connection, f.dependencies));
+  assert.ok(!f.state.commands.some(([program]) => program === '/usr/bin/open'));
+  writeFileSync(join(f.root, 'vm-tools-ready.json'), JSON.stringify({ runId: 'wrong', toolNames: [] }), { mode: 0o600 });
+  await assert.rejects(startDesktop(f.root, f.home, 'unused', 'p7', f.connection, f.dependencies));
+  assert.ok(!existsSync(join(f.root, 'app-p7-start-receipt.json')));
+  f.state.running = false;
+  await assert.rejects(startDesktop(f.root, f.home, 'unused', 'p7', f.connection, f.dependencies));
+  assert.equal(f.state.commands.filter(([program]) => program === '/usr/bin/open').length, 1);
 });
 
 test('busy App never receives TERM', async t => {

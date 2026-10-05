@@ -4,7 +4,7 @@ import { stopIdleDesktop, startDesktop } from './desktop-app.mjs';
 
 try {
   const [mode, root, home, cookie, launchFile] = process.argv.slice(2);
-  if (process.argv.length !== 7 || !['stop-activate', 'stop-restore', 'start-p6', 'start-restore'].includes(mode)
+  if (process.argv.length !== 7 || !['stop-activate', 'stop-restore', 'start-p6', 'start-p7', 'start-restore'].includes(mode)
       || ![root, home, cookie, launchFile].every(value => typeof value === 'string' && isAbsolute(value))) throw Error('arguments');
   const result = mode.startsWith('stop-') ? await stopIdleDesktop(root, cookie, mode.slice(5))
     : await startDesktop(root, home, cookie, mode.slice(6), launchFile);
