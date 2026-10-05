@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+生产路由接线（先于代码）：沿用独立desktop服务的数据库/端口/认证/共享锁和实时额度、VM解锁、基线空闲/切换审批门禁；新增显式kind=project-handoff启动选择，默认仍desktop-textedit。专用/handoff-tasks只接HandoffSubmission并由独立开关启用，旧/tasks及/desktop-tasks不接P7。TaskService规范校验P7输入，claim精确选择kind；Worker复用原停止/预算/恢复流程，只新增受限kind选择。操作员只有显式P7选择时构建HandoffTaskAdapter，before_claim还须原QUEUED、未Attempt/session/run/calls并与kind一致；记录launch意图中的kind，不开放自动重试或恢复。服务POST白名单仅选定kind的创建与原stop，不开放语义审阅/发布给HTTP或模型。先隔离DB/接口/操作员mock测试，尚不实际启动服务或执行VM任务。
+
 数据库发布事务补充（先于代码）：可信本地函数只收TaskService、原task ID与审阅SHA，run路径从DB读取并要求位于私有backend根下、名称为原p2-taskID；不接调用者生成的成功结果。按已有顺序锁desktop Resource再锁Task，拒绝资源占用、非UNVERIFIED、身份/输入摘要/预算不符、未关闭Attempt、未停止原控制文件、已登记产物或缺少原UNVERIFIED终态事件。锁内重跑发布准备，独占写发布意图和三份workspace文件，再以同一DB事务登记全部Artifact、原身份的唯一发布事件及finished/通知；旧UNVERIFIED事件保留，预算/session不改。任何意图后的异常保留原文件并回滚DB，重复拒绝，操作者查询原task/event判断未知结果。下载仍需SUCCEEDED及登记摘要；普通finish明确拒绝project-handoff成功，避免新增下载白名单成为旁路。先隔离数据库/模拟Driver测试，不开放模型或HTTP发布能力。
 
 审阅后发布细则（先于代码）：发布不能只信REVIEW_ACCEPTED字符串。先提供只读发布准备入口，从原run/handoff-reviews/<原review字节SHA>读取review、意图和回执，核对当前OS uid、声明身份、目录摘要及完整回执，重跑原执行组合核验和独立审阅合同，二次读取所用文件不变。只返回经过原VM字节读回核对的document.txt、result.txt及原报告规范JSON和绑定摘要，不落盘、不写DB、不派发。后续发布事务须锁定原Task及desktop Resource，只接受原UNVERIFIED、相同输入/session/run/owner/epoch、已终止Attempt和撤销执行权；私有持久发布意图与唯一事件防止并发/响应丢失重发，保存原失败事件，不清预算或创建新会话。成功产物与新终态事件/通知同事务登记后才能由原下载门禁提供；文件失败或DB结果不明保留原意图，先查询不能覆盖重试。准备回执不等于发布成功，当前先实现可独立测试的重核验和原字节选择，DB事务/下载/生产路由随后接通。
