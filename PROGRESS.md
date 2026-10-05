@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7原官方结果提取（2026-10-05）：ff3f27c先提交设计。只读本地保留的原官方v4 session结构，确认assistant/message的data.message.content、model source、message id、turn/end与原prompt字段；不根据记忆猜字段，不重新派发模型。新增backend.handoff_session纯提取函数：原字节≤64MiB、严格UTF-8/JSON与唯一递增seq，v4原session/cwd/project-handoff preset、非seed/无delegation、唯一原用户rpcId和提示内容、单turn completed、所有请求Flash/off及七工具。assistant消息ID唯一、固定模型来源；工具声明和实际call参数/名称/ID对应，结果唯一且无错误，最终assistant必须在所有工具返回之后且仅文本。
+
+最终正文≤64KiB、只解析一个完整严格JSON，重复键/非有限数/围栏/额外文字拒绝，不从stream或工具返回猜取。调用既有HandoffResult独立校验原run/session/inputSHA、原任务事实/引用及计数，再调用独立文本投影；保留原sessionSHA、最终正文SHA、消息ID/seq及报告。仅返回SESSION_RESULT_EXTRACTED，sessionVerified/guiVerified/semanticVerified均false，尚未做官方工具到guest逐项映射/request-audit/VM证据合并，不能当业务成功。
+
+验证：新增33项模拟v4证据测试，覆盖会话/提示/preset/模型/工具变化、seq/多轮/未完成、错误call/result/来源、最终消息位置/重复ID、非法JSON/伪造引用与原事实、工具返回或stream内假报告。相关输入/结果/投影/P6会话回归合计180项通过，命令为私有backend-venv python -m pytest backend/tests/test_handoff_session.py backend/tests/test_handoff_result.py backend/tests/test_handoff_document.py backend/tests/test_handoff_contract.py backend/tests/test_desktop_verify.py backend/tests/test_desktop_session.py -q；git diff --check通过。无VM/配置/真实模型变化，README同步；后端生产路由、完整双日志验收和真实业务样本仍待。
+
 P7固定文件证据核验（2026-10-05）：6131f42先提交设计，再新增只读handoff_evidence。可信调用者传入原run/owner/epoch、冻结材料与独立正文期望；原材料字节/SHA与两份预置回执严格对应，重开intent逐字段等于原trace，复用独立handoff_trace检查完整保存/重开顺序及预算。每个观察的state-NN.json与原result按严格JSON类型对应，PNG原字节哈希/长度匹配observation_evidence；final_state必须是轨迹指定的新观察，固定文档==独立正文，result==正文+约定末尾LF。拒绝重复JSON键/非有限数与True/1类型替换。
 
 固定私有目录以fd逐层O_NOFOLLOW读取，文件限本人普通单链接，材料/intent/trace要求私有权限，单文件限长、总量≤64MiB；O_NONBLOCK避免FIFO阻塞。读取前后及路径身份检查，再在返回前重新读取全部文件核对字节、设备/inode/大小/mtime/ctime/mode/link数和根目录身份，同内容替换也拒绝。这个离线检查不能替代调用者先撤销许可、确认零在途及可信传输；PNG仅验签名/哈希，不声称理解图像。返回VM_EVIDENCE_VERIFIED、filesVerified=true，官方session/semantic仍false，不标业务SUCCEEDED、不触发清理，生产接线和部署白名单尚待随后统一接入。
