@@ -44,6 +44,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 启动接线：仅生产DesktopGuestRuntime为DesktopTask注入可信launch observer，loopback测试默认不访问系统。首次launch_app前记录guest墙钟微秒，成功后在任何窗口查询/正文操作前采集原生身份；要求应用启动时间位于本次launch开始至采集完成之间，防止把旧实例误登记为自有应用。独占0600/fsync写owned-application.json，绑定run/owner/epoch/PID/启动时间/可执行路径，记录失败立即停止任务，不能再次launch。部署包显式携带两项新依赖；当前旧部署保持不动。该启动证据仅证明所有权，不自行触发退出，终态核验与收尾控制通道另接。
 
+终态控制通道先接guest：新增仅独立控制token可用的`/cleanup-app`，严格接受sessionTerminal/sessionVerified两个true和document/result/trace三个SHA；这些声明只能由可信host在原官方会话独立核验后发送，不由模型填写。guest必须仍持原共享锁、原对象已停止/零在途/无UNKNOWN且有本次应用身份；再次运行只读GUI证据核验，核对原调用数与host哈希后才进入协调器。整个操作串行于runtime锁，清理不调用Task.stop以免改变已冻结trace。未知结果不重发、不清隔离、不把业务状态改成功；guest回执不是host会话核验的替代品。此路由先通过角色和篡改反例，再接host正式验收路径；没有host接线前生产不会自动调用。
+
 1. 输入契约及拒绝反例；不接API，不读取用户任意路径，不调用模型。
 2. 来源绑定结果契约与独立验证器；冻结正常、中文、状态冲突、未知负责人、逾期、注入材料及篡改样本，覆盖不漏任务/不重复归并/不编造引用。
 3. VM受限来源读取、单任务账本、TextEdit文档保存重开；先协议/模拟测试，再后端隔离路由，保持P6旧kind不变。
