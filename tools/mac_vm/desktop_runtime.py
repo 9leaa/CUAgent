@@ -16,6 +16,7 @@ from desktop_app_cleanup import ApplicationCleanup, CleanupState
 from desktop_evidence import inspect_guest_evidence
 from handoff_input import provision, verify_provision
 from handoff_task import HandoffDesktopTask
+from handoff_evidence import inspect_handoff_evidence
 
 
 class DesktopGuestRuntime:
@@ -130,8 +131,18 @@ class DesktopGuestRuntime:
                     if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 4096:
                         raise ValueError('document type or size invalid')
                     expected = stream.read(4097)
-                report = inspect_guest_evidence(self.directory, run_id=gate.run_id, expected=expected)
-                if report['vmStatus'] != 'VERIFIED' or report['rawCalls'] != task.used:
+                if isinstance(task, HandoffDesktopTask):
+                    verify_provision(self, task.input_sha256)
+                    materials = json.dumps(task._read_frozen_input(), ensure_ascii=False,
+                        sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+                    report = inspect_handoff_evidence(self.directory,
+                        binding=dict(version=1, runId=gate.run_id, owner=gate.owner, epoch=gate.epoch),
+                        materials=materials, expected=expected)
+                    verified = report['status'] == 'VM_EVIDENCE_VERIFIED'
+                else:
+                    report = inspect_guest_evidence(self.directory, run_id=gate.run_id, expected=expected)
+                    verified = report['vmStatus'] == 'VERIFIED'
+                if not verified or report['rawCalls'] != task.used:
                     raise ValueError('guest verification changed')
                 names = {'document': 'artifacts/handoff-' + gate.run_id + '.txt',
                          'result': 'result.txt', 'trace': 'trace.jsonl'}

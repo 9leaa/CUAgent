@@ -15,10 +15,11 @@ from handoff_evidence import inspect_handoff_evidence
 class HandoffEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.fixture = test_handoff_trace.HandoffTraceTests()
+        self.fixture.owner = getattr(self, 'owner', 'worker')
         self.addCleanup(self.fixture.doCleanups)
         self.fixture.setUp()
         self.root = self.fixture.task.directory
-        self.binding = dict(version=1, runId=self.fixture.run, owner='worker', epoch=1)
+        self.binding = dict(version=1, runId=self.fixture.run, owner=self.fixture.owner, epoch=1)
         for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]:
             path = self.root / name
             path.write_text(json.dumps(dict(status=status, binding=self.binding,

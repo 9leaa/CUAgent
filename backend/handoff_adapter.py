@@ -68,6 +68,12 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
             submission=submission.model_dump(mode='json'), sessionId=prepared.session_id,
             binding=prepared.control_client.identity, home=str(self.settings.official_home))))
         save_exclusive(prepared.run / 'handoff-execution-verification.json', canonical(result))
+        # Saved-byte/session evidence permits a normal owned-app exit, not
+        # semantic acceptance or publication. Guest rechecks these files.
+        names = {'document': 'artifacts/handoff-' + prepared.run.name + '.txt',
+                 'result': 'result.txt', 'trace': 'trace.jsonl'}
+        context['verified_cleanup_hashes'] = {
+            key: result['guest']['files'][name]['sha256'] for key, name in names.items()}
         # The Worker catches verification failures as UNVERIFIED. Never issue
-        # success artifacts or cleanup authority solely from execution evidence.
+        # success artifacts solely from execution evidence.
         raise ValueError('HANDOFF_SEMANTIC_REVIEW_REQUIRED')

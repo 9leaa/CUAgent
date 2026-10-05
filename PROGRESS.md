@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7自有应用清理（2026-10-05）：e7305e3设计先行。adapter完整原会话/guest/图片/请求核验并保存私有回执后，为原restore提供document/result/trace三摘要，但仍抛语义审阅必需、保持UNVERIFIED，不生成成功产物。guest cleanup按实际HandoffDesktopTask选择独立P7核验，重新核对原材料SHA/预置绑定、保存/重开/读回轨迹及预算，再复用ApplicationCleanup原PID/启动时间/可执行文件、零在途/无UNKNOWN/撤销许可、单次正常退出/观察。失败不回退P6、不强制终止、不删除证据，原告警和隔离流程保留。
+
+新清理测试使用真实P7执行器生成的模拟Driver证据及模拟native退出；原文件/预算不变、单次退出、改材料/结果、PID复用、在途/UNKNOWN、host摘要不符均覆盖。首轮fixture owner使用旧worker标签，被生产UUID门禁拒绝；修正测试生成原UUID身份，不放宽生产校验。尚未真实VM退出/部署，三组真实业务/语义审阅未完成，P7仍未完成。
+
+新增清理7项通过，完整guest执行层309/309，handoff全组及旧adapter/worker/deploy组合433/433通过；后端仅已有httpx TestClient弃用警告。README和使用说明同步；旧P5服务/源码未动，未调用实际模型或VM。
+
 P7可信发布CLI（2026-10-05）：cfccb49设计先行。新增backend.handoff_publish_operator，publish/inspect只接受canonical task UUID、私有隔离service profile及publish必需的审阅原字节SHA，复用原profile隔离门禁，不能传任意DB URL/成功JSON。publish只调用已验证的原任务事务，不执行模型/VM；inspect锁定读取原Task及唯一发布事件/Artifact元数据、原意图是否存在，不读为已读通知、不重验文件字节、不授予重试。DB已登记与仅有文件意图分别展示；所有异常输出固定脱敏摘要，提交不明不假称回滚、不自动再发。
 
 新增CLI边界10项，含真实子进程拒绝及错误脱敏，隔离DB补成功前后/事务失败后inspect断言，发布组合45/45通过；唯一警告为已有httpx TestClient弃用。成功路由用mock验证且DB另测，不冒充生产CLI已发布真实业务。未部署、未调用模型/VM、未改变原P5服务；README/命令说明同步。下一步完成P7自有应用清理，再进行真实三组任务及实际独立审阅，P7未完成。

@@ -58,8 +58,8 @@ class ApplicationCleanup:
                 or type(application) is not ApplicationIdentity):
             raise ValueError('bound cleanup identity required')
         LeaseGate.private(self.directory.stat(), directory=True)
-        # This initial P6-compatible prerequisite intentionally cannot accept
-        # arbitrary file paths. P7 artifacts need their own reviewed contract.
+        # Only fixed document/result/trace hashes; task-specific independent
+        # evidence checking is supplied by the trusted runtime, never the model.
         required = {'document', 'result', 'trace'}
         if (type(verified_hashes) is not dict or set(verified_hashes) != required
                 or any(not isinstance(v, str) or not re.fullmatch(r'[0-9a-f]{64}', v)

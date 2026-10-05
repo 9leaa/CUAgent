@@ -59,7 +59,7 @@ def test_wrong_kind_is_rejected_before_guest_bootstrap(handoff):
     session.prepare.assert_not_called(); client.activate.assert_not_called()
 
 
-def test_real_combined_evidence_retained_but_no_success_or_cleanup_authority(handoff, evidence):
+def test_real_combined_evidence_allows_saved_app_cleanup_but_not_success(handoff, evidence):
     adapter, _, _, _, _, _ = handoff
     args, _, _ = evidence
     adapter.settings = replace(adapter.settings, official_home=args['home'])
@@ -74,7 +74,10 @@ def test_real_combined_evidence_retained_but_no_success_or_cleanup_authority(han
     result = json.loads((prepared.run / 'handoff-execution-verification.json').read_bytes())
     assert result['sessionVerified'] is True and result['semanticVerified'] is False
     assert json.loads((prepared.run / 'handoff-review-context.json').read_bytes())['binding'] == args['binding']
-    assert 'verified_cleanup_hashes' not in adapter.context(prepared)
+    hashes = adapter.context(prepared)['verified_cleanup_hashes']
+    assert hashes == {key: result['guest']['files'][name]['sha256'] for key, name in {
+        'document': 'artifacts/handoff-' + prepared.run.name + '.txt',
+        'result': 'result.txt', 'trace': 'trace.jsonl'}.items()}
     assert not (prepared.run / 'desktop-verification.json').exists()
     assert not (prepared.run / 'workspace/document.txt').exists()
     control.cleanup_application.assert_not_called()

@@ -27,9 +27,10 @@ class HandoffTraceTests(unittest.TestCase):
         self.closing_waits = self.opening_waits = getattr(self, 'poll_delays', 0)
         self.was_closed = False
         lease = self.root / 'lease.json'
-        lease.write_text(json.dumps(dict(version=1, runId=self.run, owner='worker', epoch=1, stopped=False, expiresAt=120000)))
+        owner = getattr(self, 'owner', 'worker')
+        lease.write_text(json.dumps(dict(version=1, runId=self.run, owner=owner, epoch=1, stopped=False, expiresAt=120000)))
         lease.chmod(0o600)
-        gate = LeaseGate(lease, run_id=self.run, owner='worker', epoch=1, clock=lambda: 100.)
+        gate = LeaseGate(lease, run_id=self.run, owner=owner, epoch=1, clock=lambda: 100.)
         self.task = HandoffDesktopTask(self.root / self.run, self.transport, lambda _: None, lease=gate,
             approved=True, environment=lambda: None, input_sha256=hashlib.sha256(self.materials).hexdigest(),
             document_opener=self.open_document)
