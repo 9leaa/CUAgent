@@ -63,6 +63,10 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
         result = verify_handoff_execution(prepared.run, guest_directory=directory, home=self.settings.official_home,
             submission=submission, session_id=prepared.session_id, binding=prepared.control_client.identity)
         require(result['sessionSha256'] == extracted['sessionSha256'])
+        require(directory == prepared.run / 'guest' / prepared.run.name)
+        save_exclusive(prepared.run / 'handoff-review-context.json', canonical(dict(version=1,
+            submission=submission.model_dump(mode='json'), sessionId=prepared.session_id,
+            binding=prepared.control_client.identity, home=str(self.settings.official_home))))
         save_exclusive(prepared.run / 'handoff-execution-verification.json', canonical(result))
         # The Worker catches verification failures as UNVERIFIED. Never issue
         # success artifacts or cleanup authority solely from execution evidence.

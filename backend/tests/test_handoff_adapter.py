@@ -1,5 +1,6 @@
 from dataclasses import replace
 import json
+import shutil
 from unittest.mock import Mock, patch
 import pytest
 from backend.handoff_adapter import HandoffTaskAdapter
@@ -65,10 +66,14 @@ def test_real_combined_evidence_retained_but_no_success_or_cleanup_authority(han
     control = Mock(identity=args['binding'])
     prepared = PreparedDesktop(args['root'], args['session_id'], control)
     adapter.contexts[prepared.run] = dict(prepared=prepared, submission=args['submission'], ssh_wrapper='unused')
-    with patch('backend.handoff_adapter.collect_handoff_bundle', return_value=args['guest_directory']):
+    directory = prepared.run / 'guest' / prepared.run.name
+    directory.parent.mkdir(mode=0o700)
+    shutil.copytree(args['guest_directory'], directory)
+    with patch('backend.handoff_adapter.collect_handoff_bundle', return_value=directory):
         with pytest.raises(ValueError, match='HANDOFF_SEMANTIC_REVIEW_REQUIRED'): adapter.verify(prepared)
     result = json.loads((prepared.run / 'handoff-execution-verification.json').read_bytes())
     assert result['sessionVerified'] is True and result['semanticVerified'] is False
+    assert json.loads((prepared.run / 'handoff-review-context.json').read_bytes())['binding'] == args['binding']
     assert 'verified_cleanup_hashes' not in adapter.context(prepared)
     assert not (prepared.run / 'desktop-verification.json').exists()
     assert not (prepared.run / 'workspace/document.txt').exists()

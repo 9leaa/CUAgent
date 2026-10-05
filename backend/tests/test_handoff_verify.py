@@ -16,8 +16,8 @@ import test_handoff_exchanges
 
 
 @pytest.fixture
-def evidence(tmp_path):
-    source, report = fixture()
+def evidence(tmp_path, request):
+    source, report = request.param if hasattr(request, 'param') else fixture()
     executor = test_handoff_trace.HandoffTraceTests()
     executor.run_id, executor.material_bytes = RUN, canonical(source.model_dump())
     executor.document_bytes = expected_document(source, report, run_id=RUN, session_id=SESSION)

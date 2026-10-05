@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7可信本地审阅入口（2026-10-05）：d241d3c设计先行。adapter完整组合核验后限定原root/guest/run目录，保存私有原submission/session/binding/home上下文及执行回执。handoff_operator仅本地CLI、无HTTP/模型注册；校验当前OS用户私有规范文件、普通单链接、有界读取与文件身份稳定，reviewer类型/标签由调用者显式给定并匹配原record，回执声明authenticatedReviewerLabel=false，不能声称标签已通过外部身份认证。
+
+读取原review后按其原字节SHA独占建审阅目录，保存原record与当前OS uid/来源意图；随后重跑原session/guest文件/图片/工具/请求组合核验，要求与既有执行回执一致，再校验逐项语义声明，返回前重读context/执行回执/review。接受、明确未通过和合同/证据拒绝均持久留回执，写入失败保留原意图，重复同记录不自动重试。无DB修改/产物发布/VM或模型动作；同机受信任用户边界及下一步发布前重验要求写入backend/README，模型七工具无host审阅写权限。
+
+新增13项测试含真实本地CLI子进程、完整执行组合重核验、PASS声明/FAIL/UNVERIFIED保留、错reviewer/原文件/会话/执行回执/context/缺失/链接拒绝、私有权限/hardlink拒绝、保存失败与不重放；使用三组中normal的模拟Driver/合成报告/合成独立审阅，不冒充实际语义或视觉检查。相关后端415/415通过，README与使用说明同步。成功DB/下载/真实样本仍待，adapter门禁未放开，P7未完成。
+
 P7独立语义审阅记录合同（2026-10-05）：7919772先写方案。handoff_review重新校验冻结case输入/报告事实、原执行报告/会话/正文SHA及图片集合，构建原任务每个progress/handoff、每项issue、每条rubric要求与三项全局检查的精确审阅清单。审阅记录绑定case/run/session/input/report/session/document/rubric/整个execution摘要，human或codex身份声明、非未来带时区时间、全部原snapshot，以及每项PASS/FAIL/UNVERIFIED和非空理由。非全局PASS须有原报告文字精确码点摘录，限制引用当前字段或对应任务/问题；拒绝缺项/重复、额外字段、空理由、错误引用/类型/错图/改报告/改执行证据。已声明冲突任务集合还须与冻结rubric一致，不能靠全PASS覆盖此确定性差异。
 
 返回REVIEW_ACCEPTED或REVIEW_NOT_PASSED并保留各判定、外部审阅身份/摘要、automaticSemanticProof=false及userAdoption=NOT_ASSESSED。纯函数不认证操作者，不证明摘录支持结论、不发产物/改DB/解除adapter门禁；模型生成同形JSON无发布权，后续可信操作员入口必须认证来源、私有保存并重验执行。当前只覆盖三组固定验收样本的审阅合同，不声称任意用户输入都已解决语义验证。

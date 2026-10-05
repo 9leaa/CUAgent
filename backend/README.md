@@ -1,5 +1,20 @@
 # 单人本地任务服务（P2）
 
+## P7 独立审阅记录（开发中）
+
+原adapter完整执行核验后会保存私有`handoff-review-context.json`与`handoff-execution-verification.json`。本地受信任操作者实际检查原材料、报告各条结论和截图后，才能准备审阅JSON；`handoff_review.review_subject`提供绑定和必审字段，不能自动填PASS或用受测模型自评代替。输入JSON需0600、当前用户所有、普通单链接文件；只支持已冻结三组验收case，不是通用语义评测服务。
+
+```sh
+.runtime/backend-venv/bin/python -m backend.handoff_operator \
+  --root /absolute/private/jobs/p2-<original-task-uuid> \
+  --review /absolute/private/independent-review.json \
+  --reviewer-kind codex --reviewer-id <actual-reviewer-label>
+```
+
+CLI重新核验原证据，按审阅原字节SHA独占保存`handoff-reviews/<sha>/review.json`、`intent.json`与`receipt.json`。`REVIEW_ACCEPTED`只代表外部审阅声明完整、原证据匹配；`REVIEW_NOT_PASSED`保留FAIL/UNVERIFIED；`REVIEW_RECORD_REJECTED`为证据或合同拒绝。未知结果/同一记录重交返回非零，不清目录或覆盖记录，应先查原回执。原始记录可能包含业务文本，不上传Git。身份边界是本机当前OS用户及私有文件访问；reviewer标签是操作者声明，不是密码学认证。模型七工具无此CLI或host写权限。同机受信任用户仍能修改文件，因此后续发布必须重新核验，不能仅信回执存在。
+
+此入口不改任务数据库、不开模型或VM、不发放成功产物；P7 API尚未启用，adapter仍要求语义审阅并保留UNVERIFIED。用户实际阅读/采用仍独立待反馈。
+
 P6限定工程验收已完成，当前证据与限制见[P6总结](../docs/stages/p6-summary.md)：同版VM TextEdit三例、正式下载及原安装日报兼容通过。仍需操作者明确授权/额度核对/环境切换，不自动派发或升级P5；不是新机器安装交付。下文分别说明桌面专用与旧日报入口，二者不能混用。
 
 P6消息证据：原用户prompt必须唯一且rpcId匹配。官方默认repeat-tool-reminder的3/5/8次提醒，只有来源/form、完整固定模板、已完成的同名同参数调用链均匹配才单独计为frameworkNotices；未知来源、自定义阈值/模板或额外用户指令继续拒绝。JS观测/原字节归档与Python独立验收共享模板策略，不删除会话行、不关闭提醒。归档被取消的会话不代表业务成功；若含无完整用量的assistant/attempt，usage仍unknown/null，不将此前部分token冒充完整总量。
