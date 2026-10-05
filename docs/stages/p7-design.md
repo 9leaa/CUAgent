@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+P7有界观察投影细则（先于代码）：官方spill-policy按token预算保留头尾，超限加入[...]，没有可依赖的固定字符阈值。P7的vm_observe改用可独立复算handoff-body-v1投影：原snapshot/PID/window/app/title/截图有效标志/used，以及唯一属于目标AXWindow的AXTextArea完整正文、原index/token/enabled及最多16层原祖先链。移除菜单、重复tree_markdown与无关字段，不改变原索引/token/parent关系，不裁正文；有sheet/dialog、重复索引、歧义正文、失效截图/身份、正文>4KiB或投影>8KiB均拒绝并停止，不放宽spill预算或开放read恢复工具。guest全部原state/PNG/trace保留，Python独立按同一字段契约复算并精确比较官方投影，旧P6不变。8KiB仅是本地输出上限，不能承诺任意官方token配置均不截断；仍须真实原会话验收确认完整保留。
+
 官方附件采集细则（先于代码）：已只读核对安装版attachment-local实现，normalizedImagePath为DSH_HOME/attachments/v1/objects/<SHA前两位>/<SHA>。新增只读受限采集器，只接受原会话与guest双日志匹配生成的观察附件清单，不列目录/搜索别的会话、不接受模型路径或display name。可信home必须本人私有规范目录；逐层目录fd/O_NOFOLLOW读取固定摘要路径，文件本人普通单链接且私有，单附件≤8MiB/总≤64MiB，验证实际SHA/字节数，重复SHA去重但元数据矛盾拒绝。每份证据二次读取并核对文件/目录身份和内容稳定；缺失/链接/变化/未知格式拒绝，不创建替代附件、不调用转换。此入口仅采集原始字节，实际尺寸/视觉语义不由PNG/WebP签名前缀推断；随后交给已有转换来源验证及组合验收。当前阶段不扫描个人home或执行真实模型。
 
 图片转换来源细则（先于代码）：本地官方记录证明saveImage会将PNG转换为WebP，不能要求两种编码摘要相同。P7插件在一次observe返回后，使用同一已收PNG缓冲区交给官方saveImage；获得附件后、返回模型前，独占0600/fsync记录handoff-image-NN.json，绑定原run/session/inputSHA/snapshot/used、输入PNG SHA/长度和输出附件SHA-ID/格式/长度/尺寸。只允许原私有配置目录、固定1–30编号、本人规范目录、无链接及不覆盖；失败立即关闭本地派发并请求原任务停止，不重试观察或转换。记录不包含凭据、正文或任意路径，不新增模型工具或预算。后续可信采集读取附件实际字节，核对官方SHA-ID与长度，并把此转换记录和guest原PNG哈希、official观察附件绑定；该证据证明同次可信转换的输入输出，不声称独立视觉语义/像素无损。先测试原生文件安全和P7官方工具集成，P6不改变。
