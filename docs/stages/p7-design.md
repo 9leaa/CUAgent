@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+可信发布命令补充（先于代码）：独立handoff_publish_operator仅接受私有隔离service profile、原canonical UUID task及审阅原字节SHA；复用load_profile的基线DB/目录/认证隔离核验，不接数据库URL或模型成功回执。publish调用原publish_reviewed_task，无VM/App/模型操作；当前OS用户是可信边界，非远程HTTP能力。原发布意图/唯一DB事件仍防重放，异常仅输出PUBLICATION_UNCONFIRMED及查询建议，不能泄露连接异常或假称回滚。inspect只读原Task/发布事件/Artifact元数据与原意图是否存在，明确DB成功和未知文件意图的区别；不恢复、不重试、不生成审阅。此命令不需要新的模型额度许可，因为不发起推理；它不授予任何未来执行权。先本地CLI参数/错误脱敏/入口绑定测试，加既有隔离DB发布/下载回归。
+
 生产路由接线（先于代码）：沿用独立desktop服务的数据库/端口/认证/共享锁和实时额度、VM解锁、基线空闲/切换审批门禁；新增显式kind=project-handoff启动选择，默认仍desktop-textedit。专用/handoff-tasks只接HandoffSubmission并由独立开关启用，旧/tasks及/desktop-tasks不接P7。TaskService规范校验P7输入，claim精确选择kind；Worker复用原停止/预算/恢复流程，只新增受限kind选择。操作员只有显式P7选择时构建HandoffTaskAdapter，before_claim还须原QUEUED、未Attempt/session/run/calls并与kind一致；记录launch意图中的kind，不开放自动重试或恢复。服务POST白名单仅选定kind的创建与原stop，不开放语义审阅/发布给HTTP或模型。先隔离DB/接口/操作员mock测试，尚不实际启动服务或执行VM任务。
 
 数据库发布事务补充（先于代码）：可信本地函数只收TaskService、原task ID与审阅SHA，run路径从DB读取并要求位于私有backend根下、名称为原p2-taskID；不接调用者生成的成功结果。按已有顺序锁desktop Resource再锁Task，拒绝资源占用、非UNVERIFIED、身份/输入摘要/预算不符、未关闭Attempt、未停止原控制文件、已登记产物或缺少原UNVERIFIED终态事件。锁内重跑发布准备，独占写发布意图和三份workspace文件，再以同一DB事务登记全部Artifact、原身份的唯一发布事件及finished/通知；旧UNVERIFIED事件保留，预算/session不改。任何意图后的异常保留原文件并回滚DB，重复拒绝，操作者查询原task/event判断未知结果。下载仍需SUCCEEDED及登记摘要；普通finish明确拒绝project-handoff成功，避免新增下载白名单成为旁路。先隔离数据库/模拟Driver测试，不开放模型或HTTP发布能力。
