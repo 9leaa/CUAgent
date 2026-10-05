@@ -42,6 +42,8 @@ P7激活细则：独立/activate-handoff只接受inputSha256，重新读取私�
 
 新会话创建前要求私有vm-tools-ready绑定原run/kind/inputSha，工具清单完整包含vm_reopen在内七项；目前插件只有六项，因此必须先拒绝而不能绕过GUI重开。随后才沿原一次create/selectModel/prompt持久意图，严格唯一project-handoff preset与Flash/off；inspect/cancel继续查询原session。P7 profile以显式prepare-handoff选择固定模板，原prepare仍P6；模板迁移移除另一preset，账号及原配置恢复机制保持。schema文件由HandoffResult生成并以测试对照防漂移；schema/提示不能替代运行时验收。先测试准备/会话RPC模拟和投影反例，不切换真实App，待重开工具及业务验证器完成后才实际放行。
 
+来源SHA供给补充：模型不能可靠地心算SHA。插件完整材料哈希核验通过后，从原notes/content、tasksCsv、previousReport的UTF-8字节计算sourceHashes并附于模型工具输出；模型引用使用这些可信计算值。原guest三字段协议及整体inputSha不变，不允许模型提交覆盖摘要；跨语言测试核对单源SHA。
+
 2026-10-04用户要求清理VM残留进程。检查发现P6只停止工具/桥接、不退出其启动的TextEdit，导致23个已停止测试实例积累；已逐PID关联原trace并持共享锁，备份63份文档/轨迹后正常请求退出，23个全部退出且原文件哈希未变，不强杀。P7真实运行前增加可信生命周期收尾设计：仅退出本任务明确启动且身份仍匹配的应用实例，先核对terminal/零在途/已保存产物，完成独立验收后正常退出并确认PID消失；未保存提示或退出未确认单独告警，不擅自丢弃内容或结束其他应用。收尾不作为模型新工具，不清预算/历史证据。该自动收尾尚未实现，不把本次人工清理称为长期修复。
 
 仍复用官方App唯一循环，deepseek-account/deepseek-flash、reasoningEffort=off。原任务全程30raw，包括来源读取、失败、观察、GUI内部调用及重开；不拆子任务清预算。新来源读取只接受可信配置固定source ID，所有材料在VM专用目录，模型无任意路径、shell、网络或修改材料/证据权限。来源内的“忽略规则”等内容只是数据，不授予工具权限。
