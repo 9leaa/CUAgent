@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7独立语义审阅记录合同（2026-10-05）：7919772先写方案。handoff_review重新校验冻结case输入/报告事实、原执行报告/会话/正文SHA及图片集合，构建原任务每个progress/handoff、每项issue、每条rubric要求与三项全局检查的精确审阅清单。审阅记录绑定case/run/session/input/report/session/document/rubric/整个execution摘要，human或codex身份声明、非未来带时区时间、全部原snapshot，以及每项PASS/FAIL/UNVERIFIED和非空理由。非全局PASS须有原报告文字精确码点摘录，限制引用当前字段或对应任务/问题；拒绝缺项/重复、额外字段、空理由、错误引用/类型/错图/改报告/改执行证据。已声明冲突任务集合还须与冻结rubric一致，不能靠全PASS覆盖此确定性差异。
+
+返回REVIEW_ACCEPTED或REVIEW_NOT_PASSED并保留各判定、外部审阅身份/摘要、automaticSemanticProof=false及userAdoption=NOT_ASSESSED。纯函数不认证操作者，不证明摘录支持结论、不发产物/改DB/解除adapter门禁；模型生成同形JSON无发布权，后续可信操作员入口必须认证来源、私有保存并重验执行。当前只覆盖三组固定验收样本的审阅合同，不声称任意用户输入都已解决语义验证。
+
+新增29项合成记录测试通过，含明确失败/不确定保留、九绑定篡改、逐项漏审/伪造/时区未来时间/受测模型身份拒绝及冲突集合反例；这些测试不是实际人或Codex完成了原业务审阅。无真实模型/VM调用；README同步，真实三样本、操作员审阅入口、成功下载和生产API仍待，P7未完成。
+
 P7正式业务材料/独立语义标准冻结（2026-10-05）：051f77b设计先行。新增backend/fixtures/handoff-v1下normal/conflict/dependencies及manifest，三组3/3/4项任务、2/3/3份笔记、各有CSV与上周报告，全部为虚构测试项目。普通组区分历史推进与当前冲突、有限测试与全场景覆盖；冲突组同刻完成/联调矛盾、待批准延期、未知负责人并含不具权限的恶意便签；依赖组区分沙箱/生产、预计映射/上线承诺、同人多任务、已完成/当天截止不逾期及待指派负责人。每项有必须表达/禁止编造的要求与精确来源摘录，无预制完整报告正文。
 
 handoff_acceptance只读取三个固定case，重验输入合同/状态计数/逾期/未知负责人、逐任务覆盖、唯一要求ID、准确唯一摘录及跨来源冲突证据，返回来源码点位置和SHA；固定manifest分别绑定文件原字节、规范输入及rubric摘要，变更拒绝。返回ACCEPTANCE_FIXTURE_CONSISTENT且semanticVerified/realExecutionVerified=false，不能把原文存在当报告含义正确。rubric只供外部独立审阅；提交只接受input，整个wrapper被合同拒绝，不经模型工具传出审阅期望。
