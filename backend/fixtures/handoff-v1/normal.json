@@ -1,0 +1,19 @@
+{
+  "input": {
+    "kind": "project-handoff", "project": "测试项目：订单审计交接", "asOf": "2026-10-05",
+    "notes": [
+      {"id": "meeting", "content": "10月5日例会：N1审计字段已经验收，林澄负责；N2导出任务由周禾继续，已完成分页，还需跑大数据量回归；N3操作手册由许宁编写，尚未开始。交接时先把N1字段说明给周禾，再由周禾提供导出截图供许宁写手册。"},
+      {"id": "qa", "content": "测试记录：N1在10月4日通过固定三例字段校验，不代表所有订单场景已覆盖。N2当前只测过100条，计划验证一万条及取消导出；尚无这两项结果。N3需包含导出失败后的处理说明。"}
+    ],
+    "tasksCsv": "task_id,title,owner,status,due_date\nN1,审计字段,林澄,done,2026-10-04\nN2,订单导出,周禾,doing,2026-10-06\nN3,操作手册,许宁,todo,2026-10-08\n",
+    "previousReport": "截至10月2日：N1仍在字段校验，N2刚完成接口草案，N3等待导出界面稳定。"
+  },
+  "rubric": {
+    "counts": {"todo": 1, "doing": 1, "done": 1, "blocked": 0}, "overdue": [], "unknownOwners": [], "conflictTasks": [],
+    "requirements": [
+      {"id": "n1-progress", "taskIds": ["N1"], "mustExpress": "N1从上周校验中推进到固定三例验收通过；建议把字段说明交给周禾。历史进度变化不是当前冲突。", "mustNotExpress": "不得说所有订单场景均已覆盖。", "evidence": [{"sourceId": "notes/qa", "quote": "N1在10月4日通过固定三例字段校验，不代表所有订单场景已覆盖。"}, {"sourceId": "notes/meeting", "quote": "交接时先把N1字段说明给周禾"}]},
+      {"id": "n2-risk", "taskIds": ["N2"], "mustExpress": "N2仅分页和100条测试已完成，一万条及取消导出仍待验证；建议周禾补回归并提供截图。", "mustNotExpress": "不得把计划测试写成通过，不能说N2已完成。", "evidence": [{"sourceId": "notes/qa", "quote": "N2当前只测过100条，计划验证一万条及取消导出；尚无这两项结果。"}]},
+      {"id": "n3-dependency", "taskIds": ["N3"], "mustExpress": "N3尚未开始，依赖周禾的导出截图；建议许宁写入失败处理说明。", "mustNotExpress": "不得声称手册已交付或给出材料未提供的承诺日期。", "evidence": [{"sourceId": "notes/meeting", "quote": "再由周禾提供导出截图供许宁写手册。"}, {"sourceId": "notes/qa", "quote": "N3需包含导出失败后的处理说明。"}]}
+    ]
+  }
+}

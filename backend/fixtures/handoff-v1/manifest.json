@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "cases": {
+    "normal": {
+      "inputSha256": "11bc2b37a6888ca9533083931c7121bad85c9c64686594112bc41546bb34bc24",
+      "rubricSha256": "e52aa7837d6ffe9c5a8806c8112b8d75ac9136fa80addd2d49c715ee70034895",
+      "fileSha256": "8810875f813b6d25d224a8225a40dd0138811d19fcea05afe19ce8417b4fa034"
+    },
+    "conflict": {
+      "inputSha256": "3b9199d533784a2a91a599dcf279e739829d51176e0768d60a6ef848eebf0867",
+      "rubricSha256": "75aadcf0c8c45760a905a2c6900476df7acc354c0a158adc6fb6f8ed31e8c48b",
+      "fileSha256": "7ea25b25b6c4bbf67b70d312a82e3dbf29a46ec2f86b7a6b455314fb2c28fbc8"
+    },
+    "dependencies": {
+      "inputSha256": "b460618ea95e2a52f46a196080e749859287296d9551f2d1903907613389b963",
+      "rubricSha256": "24cc7cadb72e1e09a13dc687971ff2d78f1cb39415511fd21d8dab8cb5fbea4d",
+      "fileSha256": "b3e7804fa3c36cbc1819e4b7aef0720f9afad57fc209c02e64a202ff5c7b31ba"
+    }
+  }
+}

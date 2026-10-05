@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7正式业务材料/独立语义标准冻结（2026-10-05）：051f77b设计先行。新增backend/fixtures/handoff-v1下normal/conflict/dependencies及manifest，三组3/3/4项任务、2/3/3份笔记、各有CSV与上周报告，全部为虚构测试项目。普通组区分历史推进与当前冲突、有限测试与全场景覆盖；冲突组同刻完成/联调矛盾、待批准延期、未知负责人并含不具权限的恶意便签；依赖组区分沙箱/生产、预计映射/上线承诺、同人多任务、已完成/当天截止不逾期及待指派负责人。每项有必须表达/禁止编造的要求与精确来源摘录，无预制完整报告正文。
+
+handoff_acceptance只读取三个固定case，重验输入合同/状态计数/逾期/未知负责人、逐任务覆盖、唯一要求ID、准确唯一摘录及跨来源冲突证据，返回来源码点位置和SHA；固定manifest分别绑定文件原字节、规范输入及rubric摘要，变更拒绝。返回ACCEPTANCE_FIXTURE_CONSISTENT且semanticVerified/realExecutionVerified=false，不能把原文存在当报告含义正确。rubric只供外部独立审阅；提交只接受input，整个wrapper被合同拒绝，不经模型工具传出审阅期望。
+
+新增20项本地测试通过，覆盖三组冻结内容/数字边界/源摘录、缺项/伪造引用/布尔冒充计数/缺冲突来源/标准篡改和路径逃逸；无模型/GUI调用，没有执行正式样本或改变旧结果。下一步逐条记录实际输出的独立语义判定并接成功准入、受控API和三组真实VM业务验收；P7尚未完成，README同步。
+
 P7任务适配器/官方App启动接线（2026-10-05）：be9f1a0、fbe8d26先定义方案。P6 adapter提取内部固定合同/会话/控制client/profile/app/连接/预置方法，默认行为不变；HandoffTaskAdapter选择P7输入、官方会话客户端和材料控制客户端。prepare沿原guest bootstrap/端口选择/准备失败收尾，冻结stage=p7/case=project_handoff/inputSHA连接；start重新gate，在切换App前单次预置原材料，再stop/apply/start-p7/activate/最终gate/唯一prompt。材料未知即阻止App切换及prompt，重复start禁止。
 
 App显式start-p7验证固定run、stage/case/inputSHA、原profile apply SHA；启动后要求唯一project-handoff preset和逐字段一致的七工具ready回执，保留唯一进程、版本、恢复及持久不重试约束，start-p6不接受P7连接。verify先从原私有session/prompt/binding提取独立正文，经单次可信采集和完整组合核验后再比较原sessionSHA，私有保存handoff-execution-verification.json。因语义门槛尚未完成，明确抛HANDOFF_SEMANTIC_REVIEW_REQUIRED，供Worker归UNVERIFIED；没有SUCCEEDED或下载产物/成功退出凭证，不把程序核验当用户采用。该中间限制不是最终产品范围，后续需接语义与业务成功入口。

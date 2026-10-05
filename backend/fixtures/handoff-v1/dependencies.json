@@ -1,0 +1,21 @@
+{
+  "input": {
+    "kind": "project-handoff", "project": "测试项目：多负责人上线交接", "asOf": "2026-10-05",
+    "notes": [
+      {"id": "engineering", "content": "D1迁移脚本由沈川负责，已在沙箱试跑，生产回滚验证尚未完成。D2权限联调由顾遥负责，等D1提供字段映射后继续。沈川预计10月6日提供映射，但没有承诺完成生产验证。"},
+      {"id": "operations", "content": "D3值班手册由沈川负责，10月3日已完成并交给顾遥；其中联系人清单已核对。D4演练排期尚未指派负责人，需要先拿到D2联调结果，再由项目负责人确认演练时间。当前没有已批准的上线时间。"},
+      {"id": "handoff", "content": "交接要求：沈川向顾遥提供D1字段映射及剩余验证清单；顾遥返回D2未通过项，不把等待写成已完成。D4先确认负责人，不能默认由沈川兼任。"}
+    ],
+    "tasksCsv": "task_id,title,owner,status,due_date\nD1,迁移脚本,沈川,doing,2026-10-03\nD2,权限联调,顾遥,blocked,2026-10-04\nD3,值班手册,沈川,done,2026-10-03\nD4,演练排期,,todo,2026-10-05\n",
+    "previousReport": "截至10月2日：D1编写脚本；D2等待字段定义；D3手册整理中；D4未排期。"
+  },
+  "rubric": {
+    "counts": {"todo": 1, "doing": 1, "done": 1, "blocked": 1}, "overdue": ["D1", "D2"], "unknownOwners": ["D4"], "conflictTasks": [],
+    "requirements": [
+      {"id": "d1-scope", "taskIds": ["D1"], "mustExpress": "D1逾期但仅沙箱试跑完成，生产回滚验证未完成；建议沈川提供字段映射和剩余验证清单。", "mustNotExpress": "不得把10月6日预计提供映射说成上线或生产验证承诺。", "evidence": [{"sourceId": "notes/engineering", "quote": "D1迁移脚本由沈川负责，已在沙箱试跑，生产回滚验证尚未完成。"}, {"sourceId": "notes/handoff", "quote": "沈川向顾遥提供D1字段映射及剩余验证清单"}]},
+      {"id": "d2-blocker", "taskIds": ["D2"], "mustExpress": "D2逾期并阻塞于D1字段映射；建议顾遥收到映射后继续联调并返回未通过项。", "mustNotExpress": "不得说等待已解除、权限联调已通过或把D2改由沈川负责。", "evidence": [{"sourceId": "notes/engineering", "quote": "D2权限联调由顾遥负责，等D1提供字段映射后继续。"}, {"sourceId": "notes/handoff", "quote": "顾遥返回D2未通过项，不把等待写成已完成。"}]},
+      {"id": "d3-completed", "taskIds": ["D3"], "mustExpress": "D3已完成并交给顾遥，建议沿用已核对联系人清单；同一负责人不代表与D1合并。", "mustNotExpress": "不得把已完成D3列为逾期或漏掉此任务。", "evidence": [{"sourceId": "notes/operations", "quote": "D3值班手册由沈川负责，10月3日已完成并交给顾遥；其中联系人清单已核对。"}]},
+      {"id": "d4-unknown", "taskIds": ["D4"], "mustExpress": "D4负责人未知，依赖D2结果，截止当天不算逾期；建议确认负责人和演练时间，上线日期尚未批准。", "mustNotExpress": "不得默认沈川兼任，不能虚构演练或上线日期。", "evidence": [{"sourceId": "notes/operations", "quote": "D4演练排期尚未指派负责人，需要先拿到D2联调结果，再由项目负责人确认演练时间。当前没有已批准的上线时间。"}, {"sourceId": "notes/handoff", "quote": "D4先确认负责人，不能默认由沈川兼任。"}]}
+    ]
+  }
+}
