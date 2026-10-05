@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7宿主证据包/可信采集（2026-10-05）：d952abe及dfe8c77分别先定义包解码和单次采集。handoff_bundle只在内存解析未压缩USTAR，严格最多69成员/64MiB、固定文件名单/普通文件/原身份/材料和正文摘要，拒绝链接/目录/PAX/GNU/重复/隐藏尾部/缺配对图片及数值类型替代，不用extractall。返回TRANSPORT_VERIFIED，原guest声明仍须由组合核验重算，不登记业务或语义成功。
+
+handoff_collect限定HandoffControlClient、私有SSH wrapper和固定commit部署路径，先核对停止/零在途/1–30raw/撤销lease，独占采集意图后单次调用guest导出。原tar私有保存，结束后预算/停止/lease不变且包中raw与runtime一致；解码成功才新建guest/<run>/artifacts私有目录，逐个固定文件独占0600写入，最后保存传输回执。响应未知、坏包、已存在目录或部分失败不清意图、不重发，不输出token或改写VM业务文档。
+
+新增19项包测试和11项采集测试：真实执行器配模拟Driver生成原证据，实际guest导出函数→模拟SSH传输→真实host解码/私有落盘→实际组合核验子进程，证明原会话/文件/图片链一致但semanticVerified仍false。活跃/在途/预算/部署拒绝、传输未知、坏包、状态/lease变化、预算不一致、目录冲突及重复采集均拒绝。相关handoff/P6采集/部署/会话/验收339/339通过，git diff --check通过；未调用模型/SSH/VM、未修改P5服务，README同步。生产任务adapter/API、语义预期与三组真实业务仍待，P7不标完成。
+
 P7可信guest导出（2026-10-05）：0a667f7方案先行。新增VM限定handoff_export，与P6导出合同隔离；固定run/owner/epoch且原lease已撤销，接有界严格JSON/base64材料及独立正文期望。先完整核验handoff_evidence，再仅收固定材料/预置回执/重开意图/trace/state/PNG/final/document/result；每份有界普通单链接、SHA/长度一致，二次读取核对字节与文件身份，目录及lease不变后才输出USTAR。清单含原binding、输入/正文SHA和guest结论，不声明官方session或语义通过，不导出凭据/lease，不执行GUI或写VM业务正文。
 
 host/guest部署白名单同步新增导出及两项核验依赖，共21个Python模块，旧P6路径保持。新增6项测试覆盖完整模拟原证据tar/无凭据/只读、活跃或缺lease、核验后文件变化、额外敏感路径、lease变化、有界严格输入及host拒绝。执行层302/302、相关后端27/27、diff检查通过；部署单测首轮因旧固定文件数量20而失败，更新为实际23次取源（21模块+许可证+安装器）后通过。未部署、未调用模型、未修改P5；host P7包解码、可信SSH采集、生产adapter及三组真实业务仍待，README同步。
