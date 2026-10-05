@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+文件证据核验细则（先于代码）：在P7独立轨迹检查之外增加只读handoff_evidence入口，可信调用者必须先撤销许可并确认零在途，传入原run/owner/epoch绑定、冻结材料字节和独立正文期望。仅读取固定私有run目录内的材料及预置intent/receipt、重开intent、原trace、每次观察的state-NN.json/PNG、final_state、固定文档和result；目录fd逐层O_NOFOLLOW，文件必须本人普通单链接、限定长度，拒绝FIFO/路径逃逸/重复JSON键/非有限数。材料及两份预置回执逐项绑定原身份/SHA/长度；重开intent逐字段等于原轨迹，最终状态等于轨迹核验指定的重开后新观察，文档和读回字节精确匹配独立期望。所有成功观察的JSON/PNG哈希与原observation_evidence一致，PNG签名只证明格式前缀，不能冒充视觉内容/语义证明。单次收集总量≤64MiB，返回前再次读回所有文件及核对根目录身份，变化拒绝；此检查不替代调用者冻结执行和可信传输。仅输出VM_EVIDENCE_VERIFIED并保持sessionVerified/semanticVerified为false，不直接标业务成功或触发应用退出。
+
 独立轨迹核验细则（2026-10-05，先于代码）：P7单独实现纯读取轨迹核验器，不扩大P6验收白名单。外部传入原run、冻结材料及独立正文期望，核对连续1–30 raw、唯一且串行配对的dispatch/result、停止后零派发、无UNKNOWN。材料原规范字节/SHA必须在原read_materials结果出现且先于输入；输入与每次保存必须绑定最近一次新观察、同PID/旧窗口、30秒内且无中间请求。重开严格匹配唯一intent→一次关闭hotkey→1–3次窗口清单证明原窗口消失→唯一native打开结果→1–3次清单确认唯一同PID目标窗口→reopened标记；ACK本身不算证明。每个hotkey必须归属保存或唯一关闭，拒绝遗漏/重复/穿插动作。关闭前新观察与重开后新观察均须对应原文；最终write/read绑定重开后的最新观察及相同正文，重开后不得再编辑。
 
 第一步只输出TRACE_VERIFIED，明确filesVerified/sessionVerified/semanticVerified均false；随后由固定私有文件采集器核对每个截图/状态、原intent/材料/文档/result/final_state及稳定哈希，再与原官方session结果和独立语义预期组成业务验收。不能让轨迹核验单独返回SUCCEEDED或启动清理。测试包括真实执行器配模拟Driver的完整轨迹、篡改顺序/窗口/材料/原预算/停止/中间派发等拒绝；本地模拟不冒充VM现场证据。
