@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+P7宿主包解码细则（先于代码）：独立纯内存handoff_bundle只接可信SSH采集的原tar、绑定身份、规范材料和独立正文期望。严格未压缩USTAR普通文件、固定名单及最多69成员/64MiB内容，拒绝重复、链接、PAX、目录、绝对路径、隐藏尾随数据和缺失配对state/PNG；不调用extractall。清单必须原kind/version/binding/输入与正文SHA，逐项长度/摘要等于实际字节、固定材料/文档/result一致；guest状态只是来源数据，仍需组合核验重算，不标业务或语义通过。此步骤不落盘、不派发、不解锁；随后采集端独占私有目录按已验证固定名称保存，接原会话组合验收。
+
 P7可信导出接线细则（先于代码）：生产采集先增加独立handoff_export入口，不修改P6 lines导出合同。仅固定VM账户、原run/owner/epoch及已撤销lease可读；stdin只接有界materialsBase64/expectedBase64，后者由host原会话独立结果生成，不写guest业务文件。先运行完整handoff_evidence核验，再只读固定原材料/两预置回执/重开意图/trace/state/PNG/final/document/result，逐项SHA与长度一致且lease前后不变，全部读完后才输出USTAR。禁止导出token、lease或任意模型路径；清单绑定原身份、材料SHA、正文SHA及guest核验结果，session/semantic仍false。同步host/guest部署白名单及依赖，先用模拟真实执行器证据检验篡改/活跃lease/凭据排除，不实际部署；host压缩包解码与adapter路由随后接通。
 
 组合验收细则（先于代码）：host先读取私有原session绑定/prompt/session字节，运行结果来源与结构核验以得到独立正文；固定本地只读子进程调用guest文件核验与双日志映射，不在backend临时修改全局Python模块路径。子进程仅接原guest证据目录/原session文件及有界绑定/材料/正文，输出摘要且绑定sessionSHA。host再按摘要读取原PNG、私有转换记录及官方引用附件，进行图片来源/实际字节核验。P7 llm/stream审计增加原run/session/inputSHA及每次请求实际imageAttachmentIds；每条审计与对应assistant步骤逐一核对此前官方工具图像序列、固定模型/七工具和时间顺序，不能仅凭“有图片”通过。最后重读所有读取过的host输入文件，变化拒绝。输出EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING，明确业务语义未验且非SUCCEEDED；入口只读、不授予许可、不执行/补跑模型、不自动清理应用。生产adapter、下载及冻结语义预期仍另接，模拟组合测试不得称真实验收。
