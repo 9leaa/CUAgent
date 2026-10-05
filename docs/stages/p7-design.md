@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+P7任务适配器接线细则（先于代码）：复用P6原准备失败清理、端口选择/guest bootstrap/隧道、显式cutover与实时额度/数据库authority门禁；通过内部固定工厂分别选HandoffSubmission、HandoffSessionClient和HandoffControlClient，旧P6默认工厂不变。P7 profile用prepare-handoff，连接严格增加stage=p7/caseId=project_handoff/inputSHA；worker先续原guest许可后，adapter在切换App前单次预置材料，再沿原stop/apply/start/activate/最终gate/唯一prompt启动，不对未知副作用自动重试。核验从原私有session/prompt/binding提取独立正文，调用可信采集和完整组合核验，核对前后sessionSHA，保存私有执行核验回执。语义门槛尚未实现前明确拒绝返回SUCCEEDED或复制可下载成功产物，也不赋予应用退出的成功凭证；已有恢复路径保存未验清理告警。此适配器先无模型测试，不注册API/队列或执行真实任务；随后接语义审阅、业务状态及生产入口，不能把中间UNVERIFIED当最终产品目标。
+
 P7后端官方会话接线细则（先于代码）：新增HandoffSessionClient复用DesktopSessionClient已有单次start/cancel、只读inspect/poll和原raw预算来源，仅替换prepare合同为重验HandoffSubmission并冻结kind/run/session/cwd/inputSHA五字段；不得把原材料或预生成报告塞入宿主提示。现有官方sessionCommand按kind选择已实现startHandoffSession，继续唯一project-handoff preset、Flash/off和七工具，Python不重写模型循环。准备、错误响应和未知退出都不重放原启动意图，旧P6 prepare仍拒绝P7输入。先通过无模型后端/官方命令合同测试；生产adapter/API、语义门槛与实际VM仍另接，不因客户端已存在宣称业务可用。
 
 P7宿主采集接线细则（先于代码）：复用已批准的私有SSH wrapper和固定commit部署路径，仅执行handoff_export原run/owner/epoch；调用前确认原guest停止、零在途、非零预算及撤销lease，独占持久采集意图防重发。有界传输材料与从原会话得到的独立正文，私有保留原tar；调用后状态/预算/lease必须不变。严格解码后新建guest/<原run>私有证据目录，只按已验证固定名称独占写入，不覆盖或extractall；部分写入/响应未知保留原状态且不能重试。返回目录交已有组合核验，不把传输验证当业务成功。模拟SSH测试验证单次/拒绝/部分失败，当前不实际连VM或启用生产任务。
