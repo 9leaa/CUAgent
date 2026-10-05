@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7独立轨迹验收第一步（2026-10-05）：25f2db1先提交设计，再新增纯读取handoff_trace，不改P6验证器或其工具白名单。外部绑定原run/材料规范字节/独立正文期望；核对原approval、空文档初始化、唯一launch PID、来源SHA与原文、唯一串行call_id和连续1–30预算、停止后零派发。输入与保存逐次对应最近新观察，重开前新观察必须位于保存之后且正文一致；每个hotkey归属保存或唯一关闭，重开intent/关闭/native ACK/窗口清单/新窗口标记顺序及PID/窗口/SHA严格一致，两个清单阶段均1–3次。所有内部调用留在原账本，原intent前used≤19，重开后只允许读取/观察及唯一写结果，不允许编辑。
+
+所有get_window_state成功结果必须有唯一observation_evidence且同PID/正确阶段窗口；write_result绑定重开后最新、30秒内且无中间请求的观察，读回必须完整多一个约定末尾LF。材料读取也消耗原观察效力；来源JSON按规范字节比较，不用Python宽松True==1相等代替原字节。当前检查不读取截图、固定文件或官方session，也不验证模型语义，明确返回TRACE_VERIFIED及三个false；任何error/UNKNOWN/拒绝轨迹暂不放行，完整保留供后续分类，不过滤失败拼成功。
+
+验证：新增8项unittest、多组源/正文/回执/时间/预算/窗口/观察篡改反例，采用真实HandoffDesktopTask产生原轨迹、模拟Driver/native且只写临时目录。正常15raw通过；12次真实本地材料读取加两个阶段各3次清单合计30raw也通过，验证预留与内部计数；关闭失败/ACK无窗口/正文变化/错误材料、停止后派发、旧观察重用、动作前穿插材料读取均拒绝。执行 `/Users/zhangchengjie/CUAgent/.runtime/backend-venv/bin/python -m unittest discover -s tools/mac_vm/tests` 共277/277通过，git diff --check通过。README同步；私有文件采集、官方最终JSON、语义验收和App/后端P7路线仍待，未部署VM、未切换App、未使用真实模型，P7阶段未验收。
+
 P7受限GUI重开实现（2026-10-05）：1a41bb6细则先于代码。HandoffDesktopTask要求已save、当前新snapshot/原PID/窗口、AX正文与固定文件一致和used≤19；独占0600/fsync原重开意图，唯一Command-W关闭、最多3次预算内窗口清单证明旧窗口消失，再由可信runtime绑定原ApplicationIdentity和固定文档调用native Open Documents，最多3次清单确认同PID唯一窗口。关闭/每次清单/native打开均走原raw审计；ACK不当窗口证明，原文件SHA不变，清除snapshot要求新观察，重开后type/save拒绝、write_result只接受重开原正文。失败停止原任务，native不确定标UNKNOWN，意图保留且不重放，STOP期间不继续派发后续窗口查询。
 
 native以NSRunningApplication核对原PID/bundle/可执行路径/launchDate，再用NSAppleEventDescriptor向该PID发送仅原run固定文件的Open Documents，NeverInteract、AppleEvent1秒/进程3秒超时，无默认应用查找、新实例、强杀、保存/丢弃或任意路径。本机SDK头确认方法/常量；另在host只构造未发送的AppleEvent并查询selector，constructed/sendSelectorAvailable均true、NeverInteract=16，没有发送事件或操作宿主应用。此语法证据不替代VM实际发送/TCC许可/文件窗口证明；真实VM仍未验证。
