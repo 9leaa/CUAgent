@@ -8,6 +8,35 @@ import { apply } from './c0-vm-tools.ts'
 import { createHash } from 'node:crypto'
 import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
+import { handoffObservation } from './handoff-observation.ts'
+
+test('P7 bounded AX projection preserves complete original body and identities, not menus', () => {
+  const title = 'handoff-p2-11111111-1111-1111-1111-111111111111.txt'
+  const state = { snapshot_id: 's', pid: 10, window_id: 20, app_name: 'TextEdit', window_title: title,
+    screenshot_frame_valid: true, tree_markdown: 'irrelevant'.repeat(20000), elements: [
+      { element_index: 1, role: 'AXWindow', label: title },
+      { element_index: 2, parent_index: 1, role: 'AXScrollArea' },
+      { element_index: 3, parent_index: 2, role: 'AXTextArea', element_token: 's:3', value: '中文🙂\n完整正文' },
+      { element_index: 4, role: 'AXMenu', label: 'irrelevant'.repeat(10000) }] }
+  const original = JSON.stringify(state), projected: any = handoffObservation(state, 4)
+  assert.equal(projected.projection, 'handoff-body-v1')
+  assert.deepEqual(projected.elements, [state.elements[0], state.elements[1], { ...state.elements[2], enabled: true }])
+  assert.ok(Buffer.byteLength(JSON.stringify(projected)) < 1024)
+  assert.equal(JSON.stringify(state), original)
+  for (const fault of ['duplicate', 'dialog', 'ambiguous', 'cycle', 'disabled', 'large', 'bad-title', 'bad-frame', 'bad-token']) {
+    const changed = JSON.parse(original)
+    if (fault === 'duplicate') changed.elements.push(changed.elements[0])
+    if (fault === 'dialog') changed.elements[3].role = 'AXSheet'
+    if (fault === 'ambiguous') changed.elements.push({ ...changed.elements[2], element_index: 5 })
+    if (fault === 'cycle') changed.elements[1].parent_index = 3
+    if (fault === 'disabled') changed.elements[2].enabled = false
+    if (fault === 'large') changed.elements[2].value = 'x'.repeat(4097)
+    if (fault === 'bad-title') changed.window_title = 'other'
+    if (fault === 'bad-frame') changed.screenshot_frame_valid = false
+    if (fault === 'bad-token') changed.elements[2].element_token = ''
+    assert.throws(() => handoffObservation(changed, 4), fault)
+  }
+})
 
 test('P7 conversion provenance is private, source-bound and never overwritten', t => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-p7-image-')))
@@ -62,7 +91,11 @@ test('P7 observe persists conversion evidence before return; failed recording st
   globalThis.fetch = (async (_url: any, options: any) => {
     const body = JSON.parse(options.body); calls.push(body.op)
     return { ok: true, json: async () => body.op === 'stop' ? { stopped: true }
-      : { state: { snapshot_id: 'original' }, used: 4, png: png.toString('base64') } }
+      : { state: { snapshot_id: 'original', pid: 10, window_id: 20, app_name: 'TextEdit',
+          window_title: 'handoff-' + config.runId + '.txt', screenshot_frame_valid: true,
+          elements: [{ element_index: 1, role: 'AXWindow', label: 'handoff-' + config.runId + '.txt' },
+            { element_index: 2, parent_index: 1, role: 'AXTextArea', element_token: 's:2', value: '' }] },
+          used: 4, png: png.toString('base64') } }
   }) as any
   apply(ctx)
   const agent: any = { session: { id: 'session-22222222-2222-2222-2222-222222222222',
@@ -71,6 +104,7 @@ test('P7 observe persists conversion evidence before return; failed recording st
   await handlers.get('agent/pre-step')({ agent, signal }, async () => ({}))
   const observe = registered.find(tool => tool.name === 'vm_observe')
   const result = await observe.execute({}, { agent, signal })
+  assert.equal(JSON.parse(result.state).projection, 'handoff-body-v1')
   assert.equal(result.image.attachmentId, image.attachmentId)
   const path = join(dir, 'handoff-image-04.json'), raw = readFileSync(path)
   assert.equal(JSON.parse(raw.toString()).sessionId, agent.session.id)

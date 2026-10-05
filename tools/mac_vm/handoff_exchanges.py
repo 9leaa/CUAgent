@@ -7,6 +7,7 @@ import hashlib
 import re
 from handoff_evidence import strict_json, same_json
 from handoff_trace import verify_handoff_trace
+from handoff_observation import project_handoff_observation
 
 
 def require(condition):
@@ -31,7 +32,7 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
         if event == 'observation_evidence':
             state = raw_results[by_used[row['used']]['call_id']]
             states[state['snapshot_id']] = state
-            logical.append(('vm_observe', {}, dict(state, used=row['used'])))
+            logical.append(('vm_observe', {}, project_handoff_observation(state, row['used'])))
         elif event in ('attempted_input', 'attempted_save'):
             state = states[row['snapshot_id']]
             args = dict(snapshot_id=row['snapshot_id'])

@@ -7,6 +7,7 @@ import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { assertImageCapableRoute } from './image-probe.ts'
 import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
+import { handoffObservation } from './handoff-observation.ts'
 
 export const name = 'cuagent-c0-vm-tools'
 export const inject = ['tools', 'attachments', 'llm']
@@ -129,7 +130,9 @@ export function apply(ctx: Context): void {
       const value = await request('observe', {}, exec.signal)
       const png = Buffer.from(value.png, 'base64')
       let image
+      let observation = { ...value.state, used: value.used }
       try {
+        if (handoff) observation = handoffObservation(value.state, value.used)
         image = await ctx.get('attachments')!.saveImage({ data: new Uint8Array(png), mediaType: 'image/png', name: 'vm-calculator.png' })
         if (handoff) recordHandoffImage(dirname(configPath), { runId: connection.runId,
           sessionId: owner!, inputSha256: connection.inputSha256 }, value.state, value.used, png, image)
@@ -137,7 +140,7 @@ export function apply(ctx: Context): void {
         if (handoff) await stop().catch(() => ctx.logger.error('P7 image evidence failed; stop delivery unconfirmed'))
         throw error
       }
-      return { state: JSON.stringify({ ...value.state, used: value.used }), image: {
+      return { state: JSON.stringify(observation), image: {
         attachmentId: image.attachmentId, mediaType: image.mediaType, bytes: image.bytes, width: image.width, height: image.height,
       } }
     },

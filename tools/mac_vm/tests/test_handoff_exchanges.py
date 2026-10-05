@@ -18,6 +18,10 @@ class HandoffExchangeTests(unittest.TestCase):
         hashes = {**{'notes/' + n['id']: hashlib.sha256(n['content'].encode()).hexdigest() for n in source['notes']},
                   **{k: hashlib.sha256(source[k].encode()).hexdigest() for k in ('tasksCsv', 'previousReport')}}
         states = [r['value'] for r in f.rows if r['event'] == 'result' and r.get('tool') == 'get_window_state']
+        def projected(state, used):
+            return dict(projection='handoff-body-v1', **{k: state[k] for k in (
+                'snapshot_id', 'pid', 'window_id', 'app_name', 'window_title', 'screenshot_frame_valid')}, used=used,
+                elements=[state['elements'][0], dict(state['elements'][1], enabled=True)])
         self.rows = []
         def call(name, args, value, image=False):
             key = str(len(self.rows)); seq = len(self.rows)
@@ -28,13 +32,13 @@ class HandoffExchangeTests(unittest.TestCase):
                 dict(type='tool/result', seq=seq+1, data=dict(message=dict(toolCallId=key, isError=False, content=content)))])
         call('vm_read_materials', {}, dict(materials=source, sourceHashes=hashes,
              inputSha256=hashlib.sha256(f.materials).hexdigest(), used=1))
-        call('vm_observe', {}, dict(states[0], used=4), True)
+        call('vm_observe', {}, projected(states[0], 4), True)
         call('vm_type', dict(snapshot_id='1', element_index=2, element_token='body', text=f.expected.decode()), dict(ok=True))
-        call('vm_observe', {}, dict(states[1], used=6), True)
+        call('vm_observe', {}, projected(states[1], 6), True)
         call('vm_save', dict(snapshot_id='2'), dict(ok=True))
-        call('vm_observe', {}, dict(states[2], used=8), True)
+        call('vm_observe', {}, projected(states[2], 8), True)
         call('vm_reopen', dict(snapshot_id='3'), dict(requires_new_observation=True, used=12))
-        call('vm_observe', {}, dict(states[3], used=13), True)
+        call('vm_observe', {}, projected(states[3], 13), True)
         call('vm_write_result', dict(snapshot_id='4', value=f.expected.decode()),
              dict(created='result.txt', value=f.expected.decode(), used=14))
         call('vm_read_result', {}, dict(content=f.expected.decode()+'\n', used=15))

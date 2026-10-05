@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+P7有界AX观察投影（2026-10-05）：e73335c设计先行。源码核对spill-policy以maxInlineTokens计文本+图片，不存在通用固定字符阈值；新增TS handoffObservation和Python project_handoff_observation独立实现同契约。P7 observe保留原snapshot/PID/window/title/app/截图有效标志/used，唯一目标AXWindow→AXTextArea最多16层原祖先链，只投影原index/parent/role/window label/body token/enabled及完整value，去菜单/重复tree/无关字段。拒绝重复索引、循环/无匹配/多正文、AXSheet/AXDialog、无效身份/截图、禁用正文、正文>4KiB、投影>8KiB；不裁正文或增加恢复工具，失败沿原stop关闭派发。P6输出未改；guest全state/PNG/trace仍保留，双日志核验按Python复算投影而非宽松解析或删[...]。
+
+验证：新增官方投影反例1项、Python3项，更新官方observe集成及双日志独立期望。官方安装版11/11、Node全126/126（真实编译器临时profile）、执行层296/296通过，git diff --check通过。额外只读投影一份旧state-11.json：原62,729字节、168元素→516字节、2元素，完整正文逐字一致；当前TS经esbuild临时编译与Python独立复算deepEqual通过，未修改旧证据或改变旧任务状态。这是数据投影/历史形状验证，不是新真实P7模型会话通过。
+
+限制：8KiB是自有输出上限，不保证任意官方token配置和图片价格都不触发spill；材料读取等其他输出仍需在最终官方会话逐项完整核对。没有禁用官方全局保留策略、运行模型、部署VM或更改P5。下一步组合原session、工具交换、请求审计、附件/guest文件与语义预期并接生产入口；README同步，P7未验收。
+
 P7官方附件只读采集（2026-10-05）：bce148d设计先行。只读核对安装版app.asar内attachment-local的normalizedImagePath/readImageFile，确认objects/<前两位>/<SHA>固定布局及官方摘要语义；新增backend.handoff_attachments，仅接已匹配原观察的附件列表，不遍历目录、不使用display name为路径。本人私有规范home，逐层目录fd/O_NOFOLLOW，文件本人私有普通单链接，O_NONBLOCK拒绝FIFO，按已批准长度限读且校验SHA；同SHA去重但矛盾元数据拒绝，单件≤8MiB、总≤64MiB，二次读取比对原字节及文件/目录身份，根身份再次核对。无文件写入或转换。
 
 新增21项采集测试，覆盖无扫描/重复摘要、恶意ID/额外路径/身份/格式/数量/大小、摘要或长度变化、权限/文件目录链接/hardlink/FIFO/缺失、相同字节新inode和总量上限。首次测试收集遇新增代码括号缺失，修正后相关输入/报告/会话/图片/P6回归219/219通过；git diff --check通过。另从指定旧正式任务原session提取一张image附件引用，通过原项目home真实只读读回92,650字节WebP，SHA匹配原官方ID；这是存储格式探针，不计P7真实业务验收，不改变旧样本状态。
