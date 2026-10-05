@@ -58,6 +58,8 @@ P5目录、冻结源码/计划/数据库不动。开发只跑隔离测试，真�
 
 ## 实施与验收次序
 
+官方App启动补充：新增显式start-p7，不放宽start-p6原case。启动前检查P7连接stage/case/run/inputSHA；启动后只接受project-handoff单一preset及完全匹配原run/inputSHA的七工具ready回执，继续核对profile SHA、唯一进程和原启动意图，未知结果不重启。此检查也只验证mock生命周期，不能宣称已切换真实App。
+
 P7任务适配器接线细则（先于代码）：复用P6原准备失败清理、端口选择/guest bootstrap/隧道、显式cutover与实时额度/数据库authority门禁；通过内部固定工厂分别选HandoffSubmission、HandoffSessionClient和HandoffControlClient，旧P6默认工厂不变。P7 profile用prepare-handoff，连接严格增加stage=p7/caseId=project_handoff/inputSHA；worker先续原guest许可后，adapter在切换App前单次预置材料，再沿原stop/apply/start/activate/最终gate/唯一prompt启动，不对未知副作用自动重试。核验从原私有session/prompt/binding提取独立正文，调用可信采集和完整组合核验，核对前后sessionSHA，保存私有执行核验回执。语义门槛尚未实现前明确拒绝返回SUCCEEDED或复制可下载成功产物，也不赋予应用退出的成功凭证；已有恢复路径保存未验清理告警。此适配器先无模型测试，不注册API/队列或执行真实任务；随后接语义审阅、业务状态及生产入口，不能把中间UNVERIFIED当最终产品目标。
 
 P7后端官方会话接线细则（先于代码）：新增HandoffSessionClient复用DesktopSessionClient已有单次start/cancel、只读inspect/poll和原raw预算来源，仅替换prepare合同为重验HandoffSubmission并冻结kind/run/session/cwd/inputSHA五字段；不得把原材料或预生成报告塞入宿主提示。现有官方sessionCommand按kind选择已实现startHandoffSession，继续唯一project-handoff preset、Flash/off和七工具，Python不重写模型循环。准备、错误响应和未知退出都不重放原启动意图，旧P6 prepare仍拒绝P7输入。先通过无模型后端/官方命令合同测试；生产adapter/API、语义门槛与实际VM仍另接，不因客户端已存在宣称业务可用。
