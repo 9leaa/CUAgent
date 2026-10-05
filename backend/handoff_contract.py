@@ -34,7 +34,7 @@ def calendar_date(value):
 
 
 class HandoffNote(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid', frozen=True, revalidate_instances='always')
     id: StrictStr
     content: StrictStr
 
@@ -47,7 +47,7 @@ class HandoffNote(BaseModel):
 
 
 class HandoffTask(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid', frozen=True, revalidate_instances='always')
     task_id: StrictStr
     title: StrictStr
     owner: StrictStr
@@ -64,7 +64,7 @@ class HandoffTask(BaseModel):
 
 
 class HandoffSubmission(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid', frozen=True, revalidate_instances='always')
     kind: Literal['project-handoff']
     project: StrictStr
     asOf: StrictStr

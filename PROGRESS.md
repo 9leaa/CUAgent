@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7来源绑定结果校验（2026-10-05）：cc3e940方案先于代码。新增backend.handoff_result的结果/引用/问题契约及verify_result，绑定可信原run/session与完整请求SHA；CSV任务恰好一次、事实原值、四状态计数、严格早于asOf且未done的逾期、未知owner/逾期问题集合独立复算。引用按Unicode码点精确切片、源SHA及去重，冲突至少两个不同引用，额外权限字段/控制字符/单文本2KiB和结果64KiB边界拒绝。不读写文件、不派发模型或GUI，不将结构校验映射为任务SUCCEEDED；语义及GUI标记始终false。反例明确证明“真实引用+错误结论”仍需独立语义验收，不能把本模块当业务完成判据。
+
+首轮119通过/1失败：model_copy绕过StrictInt后，model_dump(mode=json)把布尔值转换为数字1，原序列化后重验未拒绝。修正输入及结果所有嵌套模型revalidate_instances=always，先验证原实例字段再序列化；新增5个嵌套copy/construct绕过反例。最终54项结果测试，与输入及P6契约合计125通过（0.08秒）；命令为原backend-venv/bin/python -m pytest backend/tests/test_handoff_result.py backend/tests/test_handoff_contract.py backend/tests/test_desktop_contract.py -q。只跑相关纯本地测试，没有数据库/完整后端/模型/VM验收；README同步，P5冻结目录与服务未改，阶段仍未完成。
+
 P7现场前检与输入契约（2026-10-05）：实时Codex剩余71%、普通可用、积分基准未变/重置卡未用。SSH身份mvpagent/VirtualMac2,1、Driver602仍在，未发现TextEdit；只读AppKit查询实际取得Driver完整路径及launchDate微秒，证明该读取语法现场可执行，不冒充TextEdit退出验证。ioreg显示VM锁屏；原P5 API80171和scheduler81383均不存在、18089无监听，Worker30244仍在。首次schedule-status误用位置参数被CLI拒绝，改为--schedule后实际连接拒绝；没有推断计划已暂停/结束，也未重启服务、解锁策略、部署或调用模型。现场缺就绪条件，先继续离线业务实现，不标整体目标阻塞或完成。
 
 863685e输入细则先于代码：新增backend.handoff_contract的冻结HandoffSubmission/Note/Task，严格1–3笔记、1–20任务、固定CSV列、唯一id、日期、状态、空owner未知、控制字符和UTF-8分项/32KiB总界限，额外字段禁止。原文本不裁剪或Unicode归一化，来源SHA独立命名，CSV公式及提示注入只保留为数据，不执行；返回tuple任务，不生成交接内容或文件。新增37项测试，与旧P6输入契约合计71通过（0.04秒），含中文边界、非法CSV、冻结/往返、来源变化、额外权限和旧类型拒绝；未跑完整后端，不倒填新的总回归数。结果契约/语义核验、来源读取、API与真实GUI交接仍待，README同步。
