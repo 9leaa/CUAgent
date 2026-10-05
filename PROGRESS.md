@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7后端官方会话客户端（2026-10-05）：1e06f27方案先行。核对现有desktop-session-command按kind选择startHandoffSession及五字段合同；新增HandoffSessionClient，只覆盖prepare并重新校验不可变HandoffSubmission（包括不安全model_copy），规范原输入SHA、固定run/session/workspace和project-handoff写入独占私有desktop-request.json。start/inspect/poll/cancel沿原官方子进程与持久单次意图，Flash/off、唯一preset/七工具校验保持；不传原材料或代码预制正文到prompt，材料仍通过VM受限工具读取。
+
+新增9项测试覆盖私有绑定/不隐式启动/不覆盖、P6及非法额外字段和不安全对象拒绝、原官方命令/错误模型与会话/未知响应不重放、查询按guest实际raw而非模型工具数、取消单次。相关后端348/348、Node126/126通过，README同步；全部临时文件/mock RPC，无真实App/模型/VM调用。下一步连接任务adapter的准备/材料预置/启动/结果采集，再完成语义与真实业务验收；API仍未启用P7，未宣称产品已可用。
+
 P7宿主证据包/可信采集（2026-10-05）：d952abe及dfe8c77分别先定义包解码和单次采集。handoff_bundle只在内存解析未压缩USTAR，严格最多69成员/64MiB、固定文件名单/普通文件/原身份/材料和正文摘要，拒绝链接/目录/PAX/GNU/重复/隐藏尾部/缺配对图片及数值类型替代，不用extractall。返回TRANSPORT_VERIFIED，原guest声明仍须由组合核验重算，不登记业务或语义成功。
 
 handoff_collect限定HandoffControlClient、私有SSH wrapper和固定commit部署路径，先核对停止/零在途/1–30raw/撤销lease，独占采集意图后单次调用guest导出。原tar私有保存，结束后预算/停止/lease不变且包中raw与runtime一致；解码成功才新建guest/<run>/artifacts私有目录，逐个固定文件独占0600写入，最后保存传输回执。响应未知、坏包、已存在目录或部分失败不清意图、不重发，不输出token或改写VM业务文档。
