@@ -14,6 +14,7 @@ from desktop_tools_http import tools_server
 from desktop_app_native import read_identity, request_terminate
 from desktop_app_cleanup import ApplicationCleanup, CleanupState
 from desktop_evidence import inspect_guest_evidence
+from handoff_input import provision
 
 
 class DesktopGuestRuntime:
@@ -139,10 +140,15 @@ class DesktopGuestRuntime:
                 request_terminate=request_terminate)
             return cleaner.run()
 
+    def provision_handoff(self, body):
+        return provision(self, body)
+
     def activate(self):
         with self.lock:
             if self.closed or self.task is not None:
                 raise ValueError('activation already attempted or closed')
+            if os.path.lexists(self.directory / 'handoff-input-intent.json'):
+                raise ValueError('P7 activation not yet enabled; P6 fallback denied')
             try:
                 # Even an unconfirmed startup cannot be replayed after restart.
                 path = self.directory / 'guest-activation-intent.json'

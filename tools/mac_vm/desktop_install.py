@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 FILES = ('desktop_guest.py', 'desktop_export.py', 'desktop_runtime.py', 'desktop_control.py',
-         'desktop_app_cleanup.py', 'desktop_app_native.py',
+         'desktop_app_cleanup.py', 'desktop_app_native.py', 'handoff_input.py', 'handoff_task.py',
          'desktop_control_http.py', 'desktop_lease.py', 'desktop_tools_http.py', 'desktop_evidence.py',
          'real_app_bridge.py', 'real_app_verifier.py', 'c0_bridge.py', 'c0_cases.py', 'c0_identity.py',
          'driver_smoke.py', 'LICENSE-cua.md')

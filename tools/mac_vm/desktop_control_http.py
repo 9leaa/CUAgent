@@ -57,14 +57,14 @@ def control_server(controller, token, *, port=0, runtime=None):
         def do_POST(self):
             if not self.authorized():
                 return self.reply(403, {'error': 'CONTROL_AUTH_REQUIRED'})
-            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown', '/cleanup-app') if runtime is not None else ('/renew', '/revoke')):
+            if self.path not in (('/renew', '/revoke', '/activate', '/shutdown', '/cleanup-app', '/handoff-input') if runtime is not None else ('/renew', '/revoke')):
                 return self.reply(404, {'error': 'CONTROL_OPERATION_NOT_ALLOWED'})
             try:
                 sizes = self.headers.get_all('Content-Length', [])
                 if self.headers.get('Transfer-Encoding') or len(sizes) != 1 or not sizes[0].isdigit():
                     raise ValueError('invalid framing')
                 size = int(sizes[0])
-                if not 0 < size <= 4096:
+                if not 0 < size <= (384 * 1024 if self.path == '/handoff-input' else 4096):
                     raise ValueError('invalid size')
                 raw = self.rfile.read(size)
                 if len(raw) != size:
@@ -79,7 +79,9 @@ def control_server(controller, token, *, port=0, runtime=None):
                 body = json.loads(raw, object_pairs_hook=unique)
                 if not isinstance(body, dict):
                     raise ValueError('object required')
-                if self.path == '/cleanup-app':
+                if self.path == '/handoff-input':
+                    return self.reply(200, runtime.provision_handoff(body))
+                elif self.path == '/cleanup-app':
                     return self.reply(200, runtime.cleanup_application(body))
                 elif self.path == '/renew':
                     if set(body) != {'sequence', 'ttlMs', 'notAfterMs'} or type(body['notAfterMs']) is not int:

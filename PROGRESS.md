@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7材料可信传输（2026-10-05）：7b27e61方案先于实现。新增HandoffControlClient与guest handoff_input，host严格验证输入后编码原规范JSON、实时检查authority/租约；独立控制token的/handoff-input匹配原run/owner/epoch，未激活且有效lease才接收。guest核对SHA、固定输入对象与JSON合法性，通过原私有目录fd独占0600/fsync保存intent→原输入→receipt，保存后重新检查租约；部分失败/已有意图不覆盖或重发。回执精确匹配绑定/哈希/字节数/STORED；新client也不能绕过guest持久意图。该路由请求上限384KiB，其他控制路由仍4096字节。生产尚未部署；新增材料意图会拒绝旧P6 activate，直至独立P7激活/工具链完成，不能将上传成功称业务执行完成。
+
+新增19项真实localhost HTTP/临时文件测试：host输入→guest原字节→HandoffDesktopTask原预算读取跨层一致；模型403、错误身份/布尔epoch/哈希/base64/额外路径/重复JSON拒绝；ACK丢失无重发、部分意图/旧文件保留、authority失败/租约撤销、写后到期不回成功、超过4KiB合法材料及旧路由限制、原激活意图拒绝后置上传。初轮32通过/1失败仅部署测试旧18次Git读取断言过期，新增两模块后明确改为20次（18模块+license+installer），未放松部署文件集合；最终相关后端127通过，执行层257通过，git diff --check通过。README及部署白名单同步；没有复制凭据、启动服务、操作VM或模型推理。报告生成/语义预期/保存重开与正式验收仍待。
+
 P7 guest受限材料读取（2026-10-05）：f8238d9方案先行。新增独立HandoffDesktopTask，可信构造侧绑定inputSha256，只读原目录handoff-input.json；原lease/admit/dispatch/result/error/inflight账本共用，每次读取/失败计一次raw，不调用Driver或其他程序，不重置30次预算。固定目录fd、O_NOFOLLOW/非阻塞、私有普通单链接文件、256KiB JSON开销上限、原字节SHA及严格JSON解析；拒绝模型路径/哈希参数。读前使GUI快照失效，停止前已准入的只读结果可以返回并记录，停止后不再准入；重建对象保留停止状态及原调用数。host输入语义合同仍是可信预置前提，未声称guest再次实现全套Pydantic合同。
 
 新增10项临时文件/模拟lease测试，包括真实累计30次读取、第31次及重启拒绝、在途停止、原文注入不执行、哈希篡改、缺文件、符号/硬链接、FIFO、公开权限、超长文件、非法UTF-8/重复键/NaN。首轮9项中权限反例产生2个断言错误：现有LeaseGate.private抛ValueError，测试仅接受StopRun/OSError；实际已拒绝，补正确异常预期后全通过。最终python -m unittest discover -s tools/mac_vm/tests为257项通过；没有部署VM、调用模型或改P6生产HTTP工具清单/部署白名单，不把新增类当生产已启用。可信材料安装、独立kind入口、模型生成及GUI保存重开仍待；README同步，P5服务和冻结源码未改。
