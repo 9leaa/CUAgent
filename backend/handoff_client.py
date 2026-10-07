@@ -2,17 +2,30 @@
 import base64
 import hashlib
 import math
+import re
 from backend.desktop_client import DesktopControlClient, ControlUnconfirmed
 from backend.handoff_contract import HandoffSubmission
 from backend.handoff_result import canonical
 
 
 class HandoffControlClient(DesktopControlClient):
+    def bind_draft_session(self, session_id):
+        with self._lifecycle_lock:
+            if (self._activation_attempted
+                    or getattr(self, '_draft_session_id', None) is not None
+                    or type(session_id) is not str
+                    or not re.fullmatch(r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',session_id)):
+                raise ControlUnconfirmed('HANDOFF_SESSION_BINDING_REQUIRED')
+            self._draft_session_id = session_id
+
     def activation_request(self):
         receipt = getattr(self, '_input_receipt', None)
         if receipt is None or receipt['binding'] != self.identity:
             raise ControlUnconfirmed('HANDOFF_INPUT_NOT_CONFIRMED')
-        return '/activate-handoff', {'inputSha256': receipt['inputSha256']}
+        body = {'inputSha256': receipt['inputSha256']}
+        if getattr(self, '_draft_session_id', None) is not None:
+            body['sessionId'] = self._draft_session_id
+        return '/activate-handoff', body
 
     def provision_handoff(self, submission, authority):
         with self._lifecycle_lock:

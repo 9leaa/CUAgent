@@ -68,6 +68,43 @@ def test_model_credential_cannot_upload(transfer):
     assert not (runtime.directory / 'handoff-input-intent.json').exists()
 
 
+def test_control_activation_binds_private_session_once(transfer):
+    client,runtime,source,_=transfer
+    session='session-22222222-2222-2222-2222-222222222222'
+    client.bind_draft_session(session)
+    with pytest.raises(ControlUnconfirmed):client.bind_draft_session(session)
+    client.provision_handoff(source,lambda:65.)
+    assert client.activation_request()[1]['sessionId']==session
+    client.activate(lambda:65.)
+    assert runtime.task.draft_session_id==session
+    path=runtime.directory/'handoff-session-binding.json'
+    assert json.loads(path.read_bytes())==dict(runId='task',sessionId=session,inputSha256=input_digest(source))
+    assert path.stat().st_mode & 0o777==0o600
+    with pytest.raises(ControlUnconfirmed):client.request('POST','/activate-handoff',client.activation_request()[1])
+    assert runtime.task.used==0
+
+
+@pytest.mark.parametrize('session',[None,True,'session-invalid','../other'])
+def test_invalid_draft_session_binding_refused(transfer,session):
+    client,runtime,source,_=transfer
+    with pytest.raises(ControlUnconfirmed):client.bind_draft_session(session)
+
+
+@pytest.mark.parametrize('provision', [False, True])
+def test_session_cannot_bind_after_successful_or_failed_activation(transfer, provision):
+    client, runtime, source, _ = transfer
+    if provision:
+        client.provision_handoff(source, lambda: 65.)
+        client.activate(lambda: 65.)
+    else:
+        with pytest.raises(ControlUnconfirmed):
+            client.activate(lambda: 65.)
+    with pytest.raises(ControlUnconfirmed):
+        client.bind_draft_session('session-22222222-2222-2222-2222-222222222222')
+    assert not (runtime.directory / 'handoff-session-binding.json').exists()
+    assert not (runtime.directory/'handoff-session-binding.json').exists()
+
+
 @pytest.mark.parametrize('change', ['identity', 'bool_epoch', 'sha', 'base64', 'path', 'duplicate_json'])
 def test_bad_envelope_refused_without_writes(transfer, change):
     client, runtime, source, _ = transfer

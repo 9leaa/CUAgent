@@ -34,6 +34,7 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
 
     def provision(self, prepared, context):
         task = context['task']
+        prepared.control_client.bind_draft_session(prepared.session_id)
         prepared.control_client.provision_handoff(context['submission'], lambda: self.service.desktop_authority(
             task.id, task.owner, task.epoch, clock=prepared.control_client.clock))
 

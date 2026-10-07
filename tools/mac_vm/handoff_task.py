@@ -59,11 +59,16 @@ def close_target(state):
 
 
 class HandoffDesktopTask(DesktopTask):
-    def __init__(self, *args, input_sha256, document_opener=None, **kwargs):
+    def __init__(self, *args, input_sha256, document_opener=None, draft_session_id=None, **kwargs):
         # Trusted constructor binding, never accepted from model tool arguments.
         if not isinstance(input_sha256, str) or not re.fullmatch(r'[0-9a-f]{64}', input_sha256):
             raise ValueError('frozen input digest required')
         self.input_sha256 = input_sha256
+        if draft_session_id is not None and (type(draft_session_id) is not str or not re.fullmatch(
+                r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',draft_session_id)):
+            raise ValueError('trusted draft session required')
+        self.draft_session_id = draft_session_id
+        self.validated_draft = None
         if document_opener is not None and not callable(document_opener):
             raise ValueError('trusted document opener required')
         self.document_opener = document_opener
@@ -235,6 +240,33 @@ class HandoffDesktopTask(DesktopTask):
             finally:
                 with self.dispatch_lock:
                     self.inflight.discard(call_id)
+
+    def check_draft(self, args):
+        """Not exposed yet. Identity comes only from trusted activation."""
+        from handoff_draft import check
+        with self.lock:
+            self.snapshot = None
+            with self.dispatch_lock:
+                call_id = self.admit('check_draft')
+            self.validated_draft = None
+            try:
+                if self.draft_session_id is None or self.reopen_phase is not None or self.saved_once:
+                    raise StopRun('BLOCKED', 'Bound pre-save draft required')
+                if (type(args) is not dict or set(args) != {'raw'} or type(args['raw']) is not str
+                        or not 0 < len(args['raw'].encode()) <= 65536):
+                    raise ValueError('bounded draft arguments required')
+                result = check(self._read_frozen_input(),args['raw'],run_id=self.directory.name,
+                               session_id=self.draft_session_id)
+                response = dict(result,inputSha256=self.input_sha256,used=self.used)
+                self.record(dict(event='helper_arguments',tool='check_draft',call_id=call_id,args=dict(args)))
+                self.record(dict(event='result',tool='check_draft',call_id=call_id,value=response))
+                if result['status']=='DRAFT_STRUCTURE_VALID': self.validated_draft = dict(result)
+                return response
+            except Exception as error:
+                self.record(dict(event='error',tool='check_draft',call_id=call_id,error=type(error).__name__))
+                raise
+            finally:
+                with self.dispatch_lock: self.inflight.discard(call_id)
 
     def read_materials(self):
         with self.lock:
