@@ -104,7 +104,13 @@ def inspect_handoff_evidence(directory, *, binding, materials, expected):
                     and type(record['binding'].get('version')) is int and type(record['binding'].get('epoch')) is int)
         trace_raw = read('trace.jsonl', 8 * 1024 * 1024, private=True)
         rows = [strict_json(line) for line in trace_raw.splitlines()]
-        trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected)
+        session_id = None
+        if any(r.get('tool') == 'check_draft' for r in rows):
+            session = strict_json(read('handoff-session-binding.json', 4096, private=True))
+            require(type(session) is dict and set(session) == {'runId', 'sessionId', 'inputSha256'}
+                    and session['runId'] == run and session['inputSha256'] == input_sha)
+            session_id = session['sessionId']
+        trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected, session_id=session_id)
         intent = strict_json(read('handoff-reopen-intent.json', 4096, private=True))
         marker = next(row for row in rows if row['event'] == 'handoff_reopen_intent')
         require(type(intent) is dict and set(intent) == {'snapshot_id', 'pid', 'window_id', 'sha256', 'element_index', 'element_token'})

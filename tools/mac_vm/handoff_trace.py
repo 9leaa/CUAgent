@@ -18,7 +18,7 @@ def require(condition):
         raise ValueError('HANDOFF_TRACE_UNVERIFIED')
 
 
-def verify_handoff_trace(rows, *, run_id, materials, expected):
+def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     require(isinstance(run_id, str) and re.fullmatch(
         r'p2-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', run_id))
     require(type(materials) is bytes and 0 < len(materials) <= 256 * 1024)
@@ -32,7 +32,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     expected_text = expected.decode('utf8')
     require(type(rows) is list and 0 < len(rows) <= 512)
     tools = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey', 'click',
-             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result', 'locate_quote'}
+             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result', 'locate_quote', 'check_draft'}
     events = {'approval', 'setup_empty_document', 'dispatch', 'result', 'observation_evidence', 'attempted_input',
               'attempted_save', 'handoff_reopen_intent', 'handoff_window_closed',
               'handoff_window_reopened', 'stop', 'window_readiness_wait', 'observation_recovery', 'helper_arguments'}
@@ -125,8 +125,9 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     # Independently recompute exact Unicode offsets; do not trust the helper's
     # claimed status/hash/ranges or call its implementation as our oracle.
     quote_calls = tool_calls('locate_quote')
+    draft_calls = tool_calls('check_draft')
     arguments = by_event.get('helper_arguments', [])
-    require(len(arguments) == len(quote_calls))
+    require(len(arguments) == len(quote_calls) + len(draft_calls))
     sources = {f"notes/{n['id']}": n['content'] for n in source['notes']}
     sources.update(tasksCsv=source['tasksCsv'], previousReport=source['previousReport'])
     matched_arguments = set()
@@ -156,6 +157,28 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
                     sourceId=sid,sourceSha256=hashlib.sha256(original.encode()).hexdigest(),matches=spans,truncated=False)
         response.update(inputSha256=input_digest,used=rows[call]['used'])
         require(json.dumps(value(call),sort_keys=True,allow_nan=False) == json.dumps(response,sort_keys=True,allow_nan=False))
+    if draft_calls:
+        require(type(session_id) is str and re.fullmatch(
+            r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', session_id))
+        # Protocol replay only. Host Pydantic verification is a separate,
+        # independent gate; this does not establish business/semantic truth.
+        from handoff_draft import check
+        last_draft = None
+        for call in draft_calls:
+            key = rows[call]['call_id']; end = returned[key]
+            matches = [i for i in arguments if rows[i].get('call_id') == key]
+            require(len(matches) == 1 and call < matches[0] < end < intent_at)
+            i = matches[0]; matched_arguments.add(i)
+            require(rows[i].get('tool') == 'check_draft')
+            args = rows[i].get('args')
+            require(type(args) is dict and set(args) == {'raw'} and type(args['raw']) is str
+                    and 0 < len(args['raw'].encode()) <= 65536)
+            recomputed = check(source, args['raw'], run_id=run_id, session_id=session_id)
+            response = dict(recomputed, inputSha256=input_digest, used=rows[call]['used'])
+            require(json.dumps(value(call),sort_keys=True,allow_nan=False) == json.dumps(response,sort_keys=True,allow_nan=False))
+            last_draft = recomputed
+        require(last_draft['status'] == 'DRAFT_STRUCTURE_VALID'
+                and last_draft['document'].encode() == expected)
     require(matched_arguments == set(arguments))
     intent, closed, opened = (rows[i] for i in (intent_at, closed_at, opened_at))
     for row, fields in ((intent, ('pid', 'window_id')), (closed, ('pid', 'window_id')),
@@ -211,6 +234,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     inputs = tool_calls('type_text')
     saves = by_event.get('attempted_save', [])
     require(len(inputs) == 1 and bool(saves) and input_at < min(saves) <= max(saves) < intent_at)
+    require(all(returned[rows[i]['call_id']] < inputs[0] for i in draft_calls))
     require(rows[input_at].get('sha256') == digest and type(rows[input_at].get('bytes')) is int
             and rows[input_at]['bytes'] == len(expected))
     save_calls = []

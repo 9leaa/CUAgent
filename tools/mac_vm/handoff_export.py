@@ -37,6 +37,8 @@ def build_bundle(directory, controller, materials, expected):
     fixed = {'handoff-input.json', 'handoff-input-intent.json', 'handoff-input-receipt.json',
              'handoff-reopen-intent.json', 'trace.jsonl', 'final_state.json', 'result.txt',
              'artifacts/handoff-' + root.name + '.txt'}
+    if 'handoff-session-binding.json' in report['files']:
+        fixed.add('handoff-session-binding.json')
     contents, signatures = {}, {}
     signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns, s.st_mode, s.st_nlink)
     root_signature = signature(root.stat())

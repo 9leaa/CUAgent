@@ -37,7 +37,10 @@ class HandoffExchangeTests(unittest.TestCase):
         quotes = getattr(f, 'quote_args', [])
         completed = [r['value'] for r in f.rows if r['event']=='result' and r.get('tool')=='locate_quote']
         for args, response in zip(quotes,completed): call('vm_locate_quote',args,response)
-        shift = len(quotes)
+        drafts = getattr(f, 'draft_args', [])
+        completed = [r['value'] for r in f.rows if r['event']=='result' and r.get('tool')=='check_draft']
+        for args, response in zip(drafts,completed): call('vm_check_draft',args,response)
+        shift = len(quotes) + len(drafts)
         call('vm_observe', {}, projected(states[0], 4+shift), True)
         call('vm_type', dict(snapshot_id='1', element_index=2, element_token='body', text=f.expected.decode()), dict(ok=True))
         call('vm_observe', {}, projected(states[1], 6+shift), True)
@@ -51,7 +54,8 @@ class HandoffExchangeTests(unittest.TestCase):
 
     def match(self):
         f = self.fixture
-        return match_handoff_exchanges(self.rows, f.rows, run_id=f.run, materials=f.materials, expected=f.expected)
+        return match_handoff_exchanges(self.rows, f.rows, run_id=f.run, materials=f.materials, expected=f.expected,
+                                       session_id=getattr(f, 'draft_session_id', None))
 
     def test_all_ten_logical_calls_match_fifteen_raw_without_image_claim(self):
         original = copy.deepcopy(self.rows)

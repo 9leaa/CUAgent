@@ -40,8 +40,13 @@ def main():
     trace_raw = read(Path(args.directory).absolute() / 'trace.jsonl', 8 * 1024 * 1024)
     require(hashlib.sha256(trace_raw).hexdigest() == guest['files']['trace.jsonl']['sha256'])
     trace = [strict_json(line) for line in trace_raw.splitlines()]
+    session_id = None
+    if any(r.get('tool') == 'check_draft' for r in trace):
+        session_raw = read(Path(args.directory).absolute() / 'handoff-session-binding.json', 4096)
+        require(hashlib.sha256(session_raw).hexdigest() == guest['files']['handoff-session-binding.json']['sha256'])
+        session_id = strict_json(session_raw)['sessionId']
     exchanges = match_handoff_exchanges([strict_json(line) for line in raw.splitlines()], trace,
-        run_id=value['binding']['runId'], materials=materials, expected=expected)
+        run_id=value['binding']['runId'], materials=materials, expected=expected, session_id=session_id)
     require(read() == raw)
     print(json.dumps(dict(guest=guest, exchanges=exchanges, sessionSha256=hashlib.sha256(raw).hexdigest())))
 

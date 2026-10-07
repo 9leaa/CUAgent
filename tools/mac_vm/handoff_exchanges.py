@@ -15,8 +15,8 @@ def require(condition):
         raise ValueError('HANDOFF_EXCHANGES_UNVERIFIED')
 
 
-def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
-    verified = verify_handoff_trace(trace, run_id=run_id, materials=materials, expected=expected)
+def match_handoff_exchanges(official, trace, *, run_id, materials, expected, session_id=None):
+    verified = verify_handoff_trace(trace, run_id=run_id, materials=materials, expected=expected, session_id=session_id)
     source = strict_json(materials)
     hashes = {**{'notes/' + n['id']: hashlib.sha256(n['content'].encode()).hexdigest() for n in source['notes']},
               **{k: hashlib.sha256(source[k].encode()).hexdigest() for k in ('tasksCsv', 'previousReport')}}
@@ -56,8 +56,8 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
                                 dict(created='result.txt', value=row['value'], used=used)))
             elif row['tool'] == 'read_result':
                 logical.append(('vm_read_result', {}, dict(content=row['value'], used=used)))
-            elif row['tool'] == 'locate_quote':
-                logical.append(('vm_locate_quote', helper_args[row['call_id']], row['value']))
+            elif row['tool'] in ('locate_quote', 'check_draft'):
+                logical.append(('vm_' + row['tool'], helper_args[row['call_id']], row['value']))
     require(type(official) is list and bool(official))
     events = [r for r in official if r.get('type') in ('tool/call', 'tool/result')]
     require(len(events) == 2 * len(logical))

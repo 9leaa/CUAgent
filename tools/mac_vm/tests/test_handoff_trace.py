@@ -33,11 +33,12 @@ class HandoffTraceTests(unittest.TestCase):
         gate = LeaseGate(lease, run_id=self.run, owner=owner, epoch=1, clock=lambda: 100.)
         self.task = HandoffDesktopTask(self.root / self.run, self.transport, lambda _: None, lease=gate,
             approved=True, environment=lambda: None, input_sha256=hashlib.sha256(self.materials).hexdigest(),
-            document_opener=self.open_document)
+            document_opener=self.open_document, draft_session_id=getattr(self, 'draft_session_id', None))
         path = self.task.directory / 'handoff-input.json'; path.write_bytes(self.materials); path.chmod(0o600)
         for _ in range(getattr(self, 'extra_reads', 0)): self.task.read_materials()
         self.task.read_materials()
         for args in getattr(self, 'quote_args', []): self.task.locate_quote(args)
+        for args in getattr(self, 'draft_args', []): self.task.check_draft(args)
         state = self.task.observe()['state']
         self.task.type_text(dict(snapshot_id=state['snapshot_id'], element_index=2, element_token='body', text=self.expected.decode()))
         state = self.task.observe()['state']; self.task.save(dict(snapshot_id=state['snapshot_id']))
@@ -80,7 +81,8 @@ class HandoffTraceTests(unittest.TestCase):
         return dict(ok=True)
 
     def verify(self):
-        return verify_handoff_trace(self.rows, run_id=self.run, materials=self.materials, expected=self.expected)
+        return verify_handoff_trace(self.rows, run_id=self.run, materials=self.materials, expected=self.expected,
+                                    session_id=getattr(self, 'draft_session_id', None))
 
     def event(self, name):
         return next(r for r in self.rows if r['event'] == name)
