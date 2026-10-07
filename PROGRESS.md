@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第五批固定候选部署与准备
+
+- 6e80682先提交candidate-005方案。host/guest固定07badd89219a79cf5a18543077ec37a8b0bcf563，新的commit命名VM目录安装24个包文件，独立SSH读回每个SHA及manifest摘要完全一致；只解析源码，没有启动guest服务、GUI或模型。原部署保留，私有回执p7-draft-deployment-005/verified.json。
+- 按原prepare流程在新隔离p7-handoff-005/18124初始化API（PID98370），冻结源码摘要、原三组input/rubric及部署摘要。normal b754ec2d-e4b4-44e4-a028-2886e04fc342；conflict 0580f3bd-c79a-4d1c-9d4f-2e676974618c；dependencies dc752fc3-804c-48d4-a882-93ea5f381f71。均QUEUED/0raw，未建模型会话、未请求模型，旧四批失败/未派发身份不变。
+- 前后readiness均确认P5源码未变、配置恢复、基础队列空闲、资源空闲、无host/guest隔离、Worker96131存在、无TextEdit。12:11:21Z后检回执readiness-a59796918f5c48a89ced619c12ba1843。P5下次仍10月8日04:10Z，不提前授权。
+- VM当前锁屏；CUA两次选择ScreenSharing均cgWindowNotFound，inventory能看到应用运行但不能得到可操作窗口。没有盲发按键、用shell模拟GUI或改变锁屏/安全设置。需要恢复可见屏幕共享窗口才能继续解锁与任务派发；届时必须重新核验额度/空闲/源码，不重建此批。当前不代表P7真实验收通过。
+
 ## 2026-10-07：第9个工具草稿预检源码入口
 
 - 沿既有draft-preflight设计，P7新增vm_check_draft/raw，HTTP/Harness注册、就绪工具集、官方会话/请求审计白名单统一9项；P6仍拒绝。提示明确输入前预检，使用返回document和同一canonicalJson，拒绝自行修正但不换会话/预算，输入后不能再预检或重复输入。
