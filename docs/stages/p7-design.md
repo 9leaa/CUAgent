@@ -1,5 +1,11 @@
 # P7：三个复杂桌面工作流
 
+## 2026-10-07：隔离任务失败收尾（实施前）
+
+新增仅可信本地调用的收尾函数，不注册模型工具或HTTP入口。持有原共享flock，要求原quarantine绑定task；从原私有guest回执/端口记录/本地stopped控制重建只读客户端，实际查询原官方会话terminal且不运行、原guest stopped且零在途。所有run/session/owner/epoch需与数据库原Task、唯一未结束Attempt及已过期Resource一致，预算单调且不超过30，无成功产物。只有这些条件全部满足，才在原数据库事务记UNVERIFIED/DESKTOP_INTERRUPTED_RECONCILED，结束原Attempt、记录实际usage与审计回执摘要、释放旧Resource，不新建任务/Attempt、不更新epoch、不重放模型、不恢复执行许可。
+
+网络检查在DB锁之前完成，之后重验本地控制与证据未变及原Resource仍过期；guest停止是持久单向状态，原共享锁阻止其他桌面操作者并行。私有收尾意图独占保存，未知提交结果只能查原DB和意图，不重复执行。隔离文件不移除，App/profile和P5 Worker不自动恢复；后续配置恢复需要单独完整证据。测试覆盖活跃/在途/未停止、身份/预算/执行权/产物/重复意图，失败保持数据库与隔离。
+
 ## 2026-10-07：运行异常脱敏诊断（实施前）
 
 第三例在第9raw点击仍在途时被撤销，随后点击返回；原官方会话已只读确认interrupted/terminal，但原Worker没有保存首次异常阶段，不能推断为关窗失败。新增纯诊断：outcome保存可信枚举阶段与异常大类、是否已提交/已确认terminal/心跳失权；不记录异常message/args/traceback、外部类名或凭据。主异常与心跳异常分别保留，异常分类固定为OS_ERROR/VALIDATION_ERROR/EXECUTION_ERROR/OTHER_ERROR。不改变取消、隔离、权限、恢复、数据库收尾或重试规则；合成含凭据异常测试确认内容不泄漏。旧失败不能补造首次原因；安全恢复原隔离仍须原会话、VM零在途、停止与配置证据，诊断字段不充当解除隔离许可。
