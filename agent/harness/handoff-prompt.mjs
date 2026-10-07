@@ -32,6 +32,8 @@ export function handoffPrompt({ runId, sessionId, inputSha256 }) {
   来源: <citations格式>
 若issues为空，该节仅写：无已列出问题（不等于无风险）
 “每项四行/两行”等解释不写入正文；仅三个章节之间各一个空行，项目日期后一个空行。
+严格区分结果对象R和上面投影的正文D：vm_type.text传正文D，vm_write_result.value也传正文D，绝不是HandoffResult JSON字符串。最终助手消息才输出R的JSON。工具参数按正常JSON编码一次，不手动二次转义正文。D的真实换行使用LF，末尾恰好一个LF；正文中的字段引号仍按上述投影规则保留。
+保存、vm_reopen、新vm_observe后，确认最新观察的完整正文与D逐字一致，再用该次snapshot_id调用vm_write_result，value必须为该观察原文D。工具会额外追加一个LF，所以vm_read_result应读到D加一个LF；不要为补偿这一个LF而删去D本身的末尾LF。若重开后正文不一致，明确失败，不再输入或保存；若write_result被拒，不能重复观察并提交同一个错误值耗尽预算。
 GUI保存后必须vm_reopen并新观察核对完整正文，再写result.txt并读回。最终回复只输出同一个HandoffResult JSON，不加围栏或解释；整个最终消息必须能直接解析为一个JSON对象，前后不得添加进度、总结、致歉或成功声明。不得宣称已独立验收，结构、语义和GUI证据由外部验证器核对。
 JSON schema：${JSON.stringify(schema)}`;
 }

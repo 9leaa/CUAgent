@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第三批失败收尾与正文契约澄清
+
+- 固定host4f5c7e4/guestdd8b456、Flash/off，normal6723d020-cd36-4d52-b32a-562fb3bc92d6使用30/30raw后UNVERIFIED。旧窗口986消失、单次原生重开成功并出现994；第14raw起write_result被拒，第23raw读取尚不存在的result报错，后续无成功产物。剩余两例QUEUED/0raw，本批停止，不替换失败样本。
+- 原session694f01f1的首个write_result.arguments独立JSON解析成功，value是HandoffResult JSON而非GUI报告正文；不是外层语法错误。原正文还缺少投影要求的末尾LF。尚未独立语义审阅，不宣称内容通过。usage输入25749、输出28701、cacheRead668544、cacheWrite0、合计722994，费用未知。
+- 首次人工清理等待超时，finally恢复Worker95476；第二次重新核对原PID56753/出生时间及原文件，持锁经VM Dock Quit正常退出。独立确认PID消失、2044字节及SHA68ef338c050d39fb9a6d439447d809020d66bac3386f5356a80d309e055b5d22不变，Worker95572恢复。两次回执分别保留于私有p7-handoff-003/manual-cleanup-normal-001和002，不冒充自动清理。
+- 30ef7ca先提交正文契约方案，再仅澄清通用prompt：输入和write_result传相同正文D，最终消息才为对象R；保留投影末尾LF和传输额外LF，禁止二次转义及重复错误提交。执行器、独立期望、预算不变；本地回归与后续固定新候选实机验收分开记录。
+- prompt及desktop-session回归19/19通过；不是模型遵循或语义验收证明。没有新增真实模型请求，也没有恢复失败任务预算。
+
 ## 2026-10-07：第三批业务候选准备
 
 - 8ebd8df先提交candidate-003方案，继续同一P7分支；完整三组固定材料、独立rubric、Flash/off、30raw、失败停止批次和全部旧失败保留规则不变。
