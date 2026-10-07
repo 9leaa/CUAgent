@@ -140,6 +140,31 @@ class HandoffReopenTests(unittest.TestCase):
         self.assertEqual(self.task.used, 20)
         self.opener.assert_not_called()
 
+    def test_native_diagnostic_stays_unknown_and_stops(self):
+        from desktop_app_native import NativeRequestError
+        self.opener.side_effect = NativeRequestError('send', -1743)
+        with self.assertRaises(NativeRequestError): self.task.reopen({'snapshot_id': 'fresh'})
+        rows = [json.loads(line) for line in self.task.ledger.read_text().splitlines()]
+        unknown = [r for r in rows if r['event'] == 'UNKNOWN']
+        self.assertEqual(len(unknown), 1)
+        self.assertEqual(unknown[0]['nativeDiagnostic'], {'phase': 'send', 'code': -1743})
+        self.assertTrue(self.task.uncertain); self.assertTrue(self.task.stopped.is_set())
+        self.assertFalse(self.task.reopened); self.assertEqual(self.task.inflight, set())
+        with self.assertRaises(StopRun): self.task.reopen({'snapshot_id': 'fresh'})
+        self.opener.assert_called_once()
+
+    def test_mutated_native_diagnostic_never_leaks_or_drops_unknown(self):
+        from desktop_app_native import NativeRequestError
+        error = NativeRequestError('send')
+        error.diagnostic = {'phase': 'private-secret', 'code': None}
+        self.opener.side_effect = error
+        with self.assertRaises(NativeRequestError): self.task.reopen({'snapshot_id': 'fresh'})
+        raw = self.task.ledger.read_text()
+        unknown = [json.loads(l) for l in raw.splitlines() if json.loads(l)['event'] == 'UNKNOWN']
+        self.assertEqual(len(unknown), 1)
+        self.assertNotIn('nativeDiagnostic', unknown[0]); self.assertNotIn('private-secret', raw)
+        self.assertTrue(self.task.uncertain); self.assertTrue(self.task.stopped.is_set())
+
     def test_prior_intent_and_changed_document_never_overwritten(self):
         path = self.task.directory / 'handoff-reopen-intent.json'; path.write_text('prior')
         with self.assertRaises(FileExistsError): self.task.reopen({'snapshot_id': 'fresh'})

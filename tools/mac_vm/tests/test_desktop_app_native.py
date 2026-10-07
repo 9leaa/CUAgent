@@ -135,6 +135,35 @@ class NativeAppTests(unittest.TestCase):
                 native.read_identity(pid)
         self.process.assert_not_called()
 
+    def test_failure_envelope_is_bounded_and_not_a_success(self):
+        for phase in ('identity', 'build', 'send', 'reply'):
+            for code in (None, -1743, -1708, -(2**31), 2**31-1):
+                self.response({'nativeFailure': {'phase': phase, 'code': code}})
+                with self.assertRaises(native.NativeRequestError) as caught:
+                    native.read_identity(123)
+                self.assertEqual(caught.exception.diagnostic, {'phase': phase, 'code': code})
+                self.assertEqual(str(caught.exception), 'NATIVE_APP_RESPONSE_UNCONFIRMED')
+
+    def test_failure_envelope_rejects_private_text_and_wrong_types(self):
+        for failure in ({'phase':'send','code':True}, {'phase':'send','code':2**31},
+                        {'phase':'send','code':-2**31-1}, {'phase':'send','code':'secret'},
+                        {'phase':'send','code':0,'message':'secret'},
+                        {'phase':'secret','code':None}, {'phase':[],'code':None}, None):
+            self.response({'nativeFailure': failure})
+            with self.assertRaises(native.NativeRequestError) as caught:
+                native.read_identity(123)
+            self.assertEqual(caught.exception.diagnostic, {'phase':'protocol','code':None})
+            self.assertNotIn('secret', str(caught.exception))
+
+    def test_process_failures_preserve_safe_phase_without_retry(self):
+        for failure, phase in ((OSError('secret'), 'spawn'),
+                               (subprocess.TimeoutExpired('secret',3), 'timeout')):
+            self.process.reset_mock(); self.process.side_effect=failure
+            with self.assertRaises(native.NativeRequestError) as caught:
+                native.read_identity(123)
+            self.assertEqual(caught.exception.diagnostic, {'phase':phase,'code':None})
+            self.process.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()

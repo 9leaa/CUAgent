@@ -179,7 +179,17 @@ class HandoffDesktopTask(DesktopTask):
                                  'value': {'requested': True, 'pid': self.pid, 'documentSha256': self.reopen_digest}})
                 except Exception as error:
                     self.uncertain = True
-                    self.record({'event': 'UNKNOWN', 'tool': 'reopen_document', 'call_id': call, 'error': type(error).__name__})
+                    from desktop_app_native import NativeRequestError
+                    detail = {}
+                    if type(error) is NativeRequestError:
+                        # Revalidate the mutable attribute before writing a trace.
+                        try:
+                            checked = NativeRequestError(**error.diagnostic)
+                            detail['nativeDiagnostic'] = checked.diagnostic
+                        except (TypeError, ValueError):
+                            pass
+                    self.record({'event': 'UNKNOWN', 'tool': 'reopen_document', 'call_id': call,
+                                 'error': type(error).__name__, **detail})
                     raise
                 finally:
                     with self.dispatch_lock: self.inflight.discard(call)

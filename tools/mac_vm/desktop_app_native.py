@@ -11,11 +11,24 @@ from driver_smoke import require_vm
 from real_app_bridge import EXECUTABLE
 
 
+class NativeRequestError(RuntimeError):
+    """Fixed diagnostic vocabulary only; never serialize external exceptions."""
+    def __init__(self, phase, code=None):
+        if phase not in {'identity', 'build', 'send', 'reply', 'spawn', 'timeout', 'exit', 'protocol'}:
+            raise ValueError('invalid native diagnostic phase')
+        if code is not None and (type(code) is not int or not -(2**31) <= code < 2**31):
+            raise ValueError('invalid native diagnostic code')
+        super().__init__('NATIVE_APP_RESPONSE_UNCONFIRMED')
+        self.diagnostic = {'phase': phase, 'code': code}
+
+
 # Only validated integers and a fixed executable are interpolated. Query and
 # termination use the same NSRunningApplication object, never app-name lookup.
 SCRIPT = r'''
 ObjC.import('AppKit');
 function run() {
+  let phase = 'identity';
+  try {
   const pid = __PID__;
   const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(pid);
   if (!app || app.isNil()) return JSON.stringify({absent: true});
@@ -31,6 +44,9 @@ function run() {
   if (expected === null) return JSON.stringify(identity);
   if (started !== expected) throw Error('IDENTITY_CHANGED');
   return JSON.stringify({accepted: Boolean(app.terminate)});
+  } catch (_) {
+    return JSON.stringify({nativeFailure: {phase: phase, code: null}});
+  }
 }
 '''
 
@@ -48,6 +64,7 @@ def _request(pid, started=None, document=None):
               .replace('__EXPECTED__', 'null' if started is None else str(started)))
     if document is not None:
         script = script.replace('return JSON.stringify({accepted: Boolean(app.terminate)});', r'''
+  phase = 'build';
   const target = $.NSAppleEventDescriptor.descriptorWithProcessIdentifier(pid);
   const event = $.NSAppleEventDescriptor.appleEventWithEventClassEventIDTargetDescriptorReturnIDTransactionID(
     0x61657674, 0x6f646f63, target, -1, 0);
@@ -56,18 +73,28 @@ def _request(pid, started=None, document=None):
     $.NSURL.fileURLWithPath(__DOCUMENT__)), 1);
   event.setParamDescriptorForKeyword(documents, 0x2d2d2d2d);
   const error = Ref();
+  phase = 'send';
   const reply = event.sendEventWithOptionsTimeoutError(
     $.NSAppleEventSendWaitForReply | $.NSAppleEventSendNeverInteract, 1, error);
-  if (!reply || reply.isNil()) throw Error('OPEN_UNCONFIRMED');
+  if (!reply || reply.isNil()) {
+    const value = error[0];
+    const number = value && !value.isNil() ? Number(value.code) : null;
+    const safe = Number.isInteger(number) && number >= -2147483648 && number <= 2147483647;
+    return JSON.stringify({nativeFailure: {phase: phase, code: safe ? number : null}});
+  }
+  phase = 'reply';
   const code = reply.paramDescriptorForKeyword(0x6572726e);
-  if (code && !code.isNil() && Number(code.int32Value) !== 0) throw Error('OPEN_UNCONFIRMED');
+  if (code && !code.isNil() && Number(code.int32Value) !== 0)
+    return JSON.stringify({nativeFailure: {phase: phase, code: Number(code.int32Value)}});
   return JSON.stringify({accepted: true});
 '''.replace('__DOCUMENT__', json.dumps(document)))
     try:
         result = subprocess.run(['/usr/bin/osascript', '-l', 'JavaScript', '-e', script],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL, timeout=3, check=False)
-        if result.returncode != 0 or len(result.stdout) > 4096:
+        if result.returncode != 0:
+            raise NativeRequestError('exit')
+        if len(result.stdout) > 4096:
             raise ValueError('unconfirmed native response')
         def unique(pairs):
             obj = {}
@@ -76,9 +103,21 @@ def _request(pid, started=None, document=None):
                     raise ValueError('duplicate response field')
                 obj[key] = value
             return obj
-        return json.loads(result.stdout, object_pairs_hook=unique)
-    except (OSError, ValueError, subprocess.SubprocessError):
-        raise RuntimeError('NATIVE_APP_RESPONSE_UNCONFIRMED') from None
+        value = json.loads(result.stdout, object_pairs_hook=unique)
+        if type(value) is dict and 'nativeFailure' in value:
+            failure = value['nativeFailure']
+            if (set(value) != {'nativeFailure'} or type(failure) is not dict
+                    or set(failure) != {'phase', 'code'}
+                    or failure['phase'] not in ('identity', 'build', 'send', 'reply')):
+                raise ValueError('invalid native failure envelope')
+            raise NativeRequestError(failure['phase'], failure['code'])
+        return value
+    except subprocess.TimeoutExpired:
+        raise NativeRequestError('timeout') from None
+    except OSError:
+        raise NativeRequestError('spawn') from None
+    except (ValueError, subprocess.SubprocessError):
+        raise NativeRequestError('protocol') from None
 
 
 def read_identity(pid):

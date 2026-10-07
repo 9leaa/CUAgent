@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：原生重开有限诊断
+
+- b179796先提交方案。原失败只留RuntimeError、stderr被丢弃；核对本机SDK及Apple官方sendEventWithOptions:timeout:error:，接口允许返回NSError与回复，但不能凭约1.1秒耗时断言超时或权限问题。未重发原UNKNOWN操作。
+- 新增NativeRequestError固定消息和白名单phase/code；JXA在原identity/build/send/reply阶段返回严格失败信封，Python另区分spawn/timeout/exit/protocol。错误码只收有界整数或null，拒绝布尔、字符串、额外正文及未知阶段；不输出stderr、外部异常消息、路径或凭据。
+- 原handoff UNKNOWN仅对此确切可信异常附加经再次校验的诊断，非法/被改写字段省略且仍记UNKNOWN。原单次发送、1秒等待/3秒进程期限、PID及出生身份、固定文件、30raw、停止与新窗口验收规则不变。
+- native17项、handoff组合65项通过；完整tools/mac_vm/tests共318/318通过（包含前述测试，不累加）。新增5项测试覆盖有限信封、数值边界/恶意文本、超时无重试、UNKNOWN/停止不变和诊断篡改不泄漏。测试为模拟原生接口/Driver，不是实机重开通过；git diff --check通过。
+- 未部署、未调用模型、未重跑失败或推进冻结002另外两例。原TextEdit55473尚待安全收尾，原实机失败具体系统错误仍未知；下一步在明确独立诊断范围内取得原生阶段/错误码并针对证据修复。P7与后续目标保持未完成。
+
 ## 2026-10-07：第二批首例关窗成功、原生重开未确认
 
 - 按dcec92e冻结方案，源码摘要不变；实际就绪检查确认原P5空闲、配置恢复、无隔离、下一期10月8日12:10。屏幕共享开始显示旧画面，聚焦后呈现真实锁屏；使用原专用账号正常解锁，SSH独立确认unlocked=true，不改睡眠或安全设置。
