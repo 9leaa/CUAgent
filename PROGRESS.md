@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第二批独立候选准备
+
+- dcec92e先冻结新版回归方案：host f7ecdf6与guest 6cf376c为同一固定候选，三例间不改代码，任一失败停止当前批次推进；旧三例UNVERIFIED不重跑/替换，报告需同时保留两批全部尝试。
+- 核对两个提交间tools/mac_vm零差异；通过原SSH重新读回已安装guest的22个文件和部署清单SHA，全部匹配。未重复部署、未修改VM/锁屏设置。host当前checkout仅比f7ecdf6多方案文档，执行源码SHA单独冻结。
+- 私有p7-handoff-002独立初始化数据库与18121 API（PID92131），实际通过/handoff-tasks提交normal92c0c77f-9ed7-4422-b094-5724f40f9195、conflict3f1c614e-6c0f-4b68-82de-4b43937dece4、dependencies51826967-bb01-45ca-b3f5-53aaf594c5b4；输入和独立rubric SHA与原冻结组一致。cohort/submit-intent/response保留，三例只排队、0模型请求，不能算验收通过。
+- 本次实时Codex普通可用、剩余95%、原积分62494.0260570000未变、重置卡未使用；此读数只描述准备时状态，未生成未来许可，执行前重新查询。准备时VM锁屏，原P5 Worker91582持续在、配置与冻结源码一致。
+- 原18120 API只服务首批3个UNVERIFIED任务，已按原PID86754/完整命令核对后正常停止，数据库及全部证据保留；未结束其他服务。新18121 API承担候选队列，未启动模型Worker。下一步正常解锁VM、核对新鲜门禁后执行新版normal，不复用首批任务/会话/预算。
+
 ## 2026-10-07：运行态观察与终态证据分离
 
 - 原会话seq44 vm_reopen后seq45为interrupted-tool-result/TOOL_OUTCOME_UNKNOWN，seq47 interrupted。核对固定官方参考源码repair.ts：此类合成结果及turn/end复用最后真实事件时间；不能从三条相同时间戳推断中断发生时刻或确定是关窗失败。原首次Worker异常未留存，根因仍未知。
