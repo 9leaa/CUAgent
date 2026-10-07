@@ -15,7 +15,8 @@ from backend.handoff_session import strict_json
 def locate_quote(submission, *, source_id, quote):
     """Exact codepoint matches only; never choose among ambiguous occurrences."""
     source = HandoffSubmission.model_validate(submission)
-    if type(source_id) is not str or type(quote) is not str:
+    if (type(source_id) is not str or not 0 < len(source_id) <= 80
+            or type(quote) is not str):
         raise ValueError('exact source identifier and quote required')
     text(quote, 2048, multiline=True)
     sources = {f'notes/{n.id}': n.content for n in source.notes}

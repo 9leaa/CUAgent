@@ -210,6 +210,32 @@ class HandoffDesktopTask(DesktopTask):
             raise StopRun('UNVERIFIED', 'Unchanged reopened document required before result')
         return super().write_result(args)
 
+    def locate_quote(self, args):
+        """Not exposed by HTTP yet: future protocol must verify this exchange."""
+        from handoff_quote import locate
+        with self.lock:
+            self.snapshot = None
+            with self.dispatch_lock:
+                call_id = self.admit('locate_quote')
+            try:
+                if self.reopen_phase is not None:
+                    raise StopRun('BLOCKED', 'Quote lookup after reopen denied')
+                value = locate(self._read_frozen_input(), args)
+                # locate validates and bounds args before writing them to audit.
+                response = dict(value, inputSha256=self.input_sha256, used=self.used)
+                self.record(dict(event='helper_arguments', tool='locate_quote',
+                                 call_id=call_id, args=dict(args)))
+                self.record(dict(event='result', tool='locate_quote',
+                                 call_id=call_id, value=response))
+                return response
+            except Exception as error:
+                self.record(dict(event='error', tool='locate_quote', call_id=call_id,
+                                 error=type(error).__name__))
+                raise
+            finally:
+                with self.dispatch_lock:
+                    self.inflight.discard(call_id)
+
     def read_materials(self):
         with self.lock:
             self.snapshot = None

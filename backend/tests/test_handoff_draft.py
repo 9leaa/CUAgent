@@ -1,5 +1,7 @@
 import copy
 import json
+import importlib.util
+from pathlib import Path
 import pytest
 from backend.handoff_draft import check_draft, locate_quote
 from backend.tests.test_handoff_result import fixture, RUN, SESSION
@@ -71,3 +73,15 @@ def test_invalid_quote_rejected(quote):
     source, _ = fixture()
     with pytest.raises((ValueError, UnicodeError)):
         locate_quote(source, source_id='notes/meeting', quote=quote)
+
+
+@pytest.mark.parametrize('source_id,quote', [('notes/meeting','🙂e\u0301'),
+    ('notes/meeting','🙂é'),('previousReport','aa'),('tasksCsv','接口'),('../../secret','x')])
+def test_host_guest_quote_projection_parity(source_id,quote):
+    path = Path(__file__).resolve().parents[2] / 'tools/mac_vm/handoff_quote.py'
+    spec = importlib.util.spec_from_file_location('quote_parity',path)
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    source, _ = fixture()
+    source = source.model_copy(update={'previousReport':'a'*20})
+    assert module.locate(source.model_dump(mode='json'),dict(sourceId=source_id,quote=quote)) == locate_quote(
+        source,source_id=source_id,quote=quote)
