@@ -3,6 +3,7 @@ import json
 import sys
 from pathlib import Path
 import pytest
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools/mac_vm'))
 from desktop_control import LeaseController
 from handoff_task import HandoffDesktopTask
@@ -95,3 +96,38 @@ def test_restart_does_not_reset_budget_or_recover_draft_cache(task):
     with pytest.raises(StopRun):
         restarted.check_draft({'raw': '{}'})
     assert restarted.used == 1
+
+
+def test_input_requires_exact_validated_body_and_cannot_repeat(task):
+    t, _, report = task
+    with patch('real_app_bridge.RealAppTask.type_text', return_value={'ok': True}) as send:
+        with pytest.raises(StopRun): t.type_text({'text': 'not checked'})
+        send.assert_not_called()
+        checked = t.check_draft({'raw': json.dumps(report)})
+        with pytest.raises(StopRun): t.type_text({'text': checked['document'] + '\n'})
+        send.assert_not_called()
+        assert t.type_text({'text': checked['document']}) == {'ok': True}
+        with pytest.raises(StopRun): t.type_text({'text': checked['document']})
+        assert send.call_count == 1 and t.input_once
+        with pytest.raises(StopRun): t.check_draft({'raw': json.dumps(report)})
+        assert t.used == 2 and t.validated_draft is None
+
+
+@pytest.mark.parametrize('mode', ['no_input', 'no_snapshot', 'changed', 'exact', 'ax_omits_lf'])
+def test_save_requires_original_observed_body(task, mode):
+    t, _, report = task
+    checked = t.check_draft({'raw': json.dumps(report)})
+    t.input_once = mode != 'no_input'
+    t.snapshot = None if mode == 'no_snapshot' else {'snapshot_id': 'new'}
+    body = checked['document']
+    if mode == 'changed': body += 'different'
+    if mode == 'ax_omits_lf': body = body[:-1]
+    with patch('handoff_task.body_from_state', return_value=body), patch(
+            'real_app_bridge.RealAppTask.save', return_value={'ok': True}) as save:
+        if mode in ('exact', 'ax_omits_lf'):
+            assert t.save({'snapshot_id': 'new'}) == {'ok': True}
+            assert t.saved_once and save.call_count == 1
+        else:
+            with pytest.raises(StopRun): t.save({'snapshot_id': 'new'})
+            save.assert_not_called()
+            assert not t.saved_once

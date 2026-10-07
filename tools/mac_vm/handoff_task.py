@@ -9,6 +9,7 @@ import time
 
 from desktop_lease import DesktopTask, LeaseGate
 from driver_smoke import StopRun
+from real_app_bridge import body_from_state
 
 
 def unique_object(pairs):
@@ -75,20 +76,35 @@ class HandoffDesktopTask(DesktopTask):
         self.reopen_phase = None
         self.reopened = False
         self.saved_once = False
+        self.input_once = False
         self.close_args = None
         super().__init__(*args, **kwargs)
 
     def type_text(self, args):
-        if self.reopen_phase is not None:
-            raise StopRun('BLOCKED', 'Editing after reopen intent denied')
-        return super().type_text(args)
+        with self.lock:
+            if self.reopen_phase is not None:
+                raise StopRun('BLOCKED', 'Editing after reopen intent denied')
+            if self.draft_session_id is not None:
+                if (self.input_once or self.validated_draft is None or type(args) is not dict
+                        or args.get('text') != self.validated_draft['document']):
+                    raise StopRun('BLOCKED', 'Original validated draft body required')
+            result = super().type_text(args)
+            self.input_once = True
+            return result
 
     def save(self, args):
-        if self.reopen_phase is not None:
-            raise StopRun('BLOCKED', 'Saving after reopen intent denied')
-        value = super().save(args)
-        self.saved_once = True
-        return value
+        with self.lock:
+            if self.reopen_phase is not None:
+                raise StopRun('BLOCKED', 'Saving after reopen intent denied')
+            if self.draft_session_id is not None:
+                if not self.input_once or self.validated_draft is None or not self.snapshot:
+                    raise StopRun('BLOCKED', 'Observed original draft required before save')
+                body = body_from_state(self.snapshot)
+                if self.validated_draft['document'] not in (body, body + '\n'):
+                    raise StopRun('BLOCKED', 'Observed body differs from validated draft')
+            value = super().save(args)
+            self.saved_once = True
+            return value
 
     def validate_raw(self, tool, args):
         if tool == 'click':
@@ -250,7 +266,7 @@ class HandoffDesktopTask(DesktopTask):
                 call_id = self.admit('check_draft')
             self.validated_draft = None
             try:
-                if self.draft_session_id is None or self.reopen_phase is not None or self.saved_once:
+                if self.draft_session_id is None or self.reopen_phase is not None or self.saved_once or self.input_once:
                     raise StopRun('BLOCKED', 'Bound pre-save draft required')
                 if (type(args) is not dict or set(args) != {'raw'} or type(args['raw']) is not str
                         or not 0 < len(args['raw'].encode()) <= 65536):
