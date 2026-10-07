@@ -10,6 +10,7 @@ import math
 import re
 
 from real_app_bridge import body_from_state
+from handoff_task import close_target
 
 
 def require(condition):
@@ -30,7 +31,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     input_digest = hashlib.sha256(materials).hexdigest()
     expected_text = expected.decode('utf8')
     require(type(rows) is list and 0 < len(rows) <= 512)
-    tools = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey',
+    tools = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey', 'click',
              'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result'}
     events = {'approval', 'setup_empty_document', 'dispatch', 'result', 'observation_evidence', 'attempted_input',
               'attempted_save', 'handoff_reopen_intent', 'handoff_window_closed',
@@ -129,6 +130,11 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     pid, old = before['pid'], before['window_id']
     require(intent.get('pid') == pid and intent.get('window_id') == old and intent.get('sha256') == digest)
     body(before)
+    try:
+        button = close_target(before)
+    except Exception as error:
+        raise ValueError('HANDOFF_TRACE_UNVERIFIED') from error
+    require(all(intent.get(key) == item for key, item in button.items()))
     require(sum(i < intent_at for i in calls.values()) <= 19)
     require(closed.get('pid') == pid and closed.get('window_id') == old)
     require(opened.get('pid') == pid and opened.get('old_window_id') == old and opened.get('sha256') == digest)
@@ -150,7 +156,8 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     closing = between(intent_at, closed_at)
     opening = between(closed_at, opened_at)
     require(2 <= len(closing) <= 4 and 2 <= len(opening) <= 4)
-    require([rows[i]['tool'] for i in closing] == ['hotkey'] + ['list_windows'] * (len(closing) - 1))
+    require([rows[i]['tool'] for i in closing] == ['click'] + ['list_windows'] * (len(closing) - 1))
+    require(tool_calls('click') == [closing[0]])
     require([rows[i]['tool'] for i in opening] == ['reopen_document'] + ['list_windows'] * (len(opening) - 1))
     require(tool_calls('reopen_document') == [opening[0]])
     title = 'handoff-' + run_id + '.txt'
@@ -186,7 +193,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
         if index != input_at:
             body(state)
             save_calls.append(call)
-    require(tool_calls('hotkey') == save_calls + [closing[0]])
+    require(tool_calls('hotkey') == save_calls)
     material_calls = tool_calls('read_materials')
     require(bool(material_calls) and min(material_calls) < inputs[0])
     for call in material_calls:

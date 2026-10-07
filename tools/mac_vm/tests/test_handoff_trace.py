@@ -67,12 +67,15 @@ class HandoffTraceTests(unittest.TestCase):
             Path(args['screenshot_out_file']).write_bytes(b'\x89PNG\r\n\x1a\nSIMULATED')
             return dict(pid=10, window_id=self.window, snapshot_id=str(self.serial), app_name='TextEdit',
                 window_title=self.task.case.title, screenshot_frame_valid=True,
+                window_bounds=dict(x=70, y=48),
                 elements=[dict(element_index=1, role='AXWindow', label=self.task.case.title),
-                          dict(element_index=2, parent_index=1, role='AXTextArea', element_token='body', value=self.body)])
+                          dict(element_index=2, parent_index=1, role='AXTextArea', element_token='body', value=self.body),
+                          dict(element_index=6, parent_index=1, role='AXButton', element_token=str(self.serial)+':6',
+                               enabled=True, actions=['AXPress'], frame=dict(x=76, y=54, w=16, h=16))])
         if tool == 'type_text': self.body = args['text']
         elif tool == 'hotkey':
             if args['keys'] == ['cmd', 's']: self.task.document.write_text(self.body)
-            else: self.window = None; self.was_closed = True
+        elif tool == 'click': self.window = None; self.was_closed = True
         return dict(ok=True)
 
     def verify(self):
@@ -167,12 +170,27 @@ class HandoffTraceTests(unittest.TestCase):
             elif fault == 'digest': self.event('handoff_reopen_intent')['sha256'] = '0' * 64
             elif fault == 'count': self.event('handoff_window_reopened')['used'] = 1
             elif fault == 'close-refused':
-                [r for r in self.rows if r['event'] == 'result' and r.get('tool') == 'hotkey'][-1]['value'] = {'status': 'refused'}
+                [r for r in self.rows if r['event'] == 'result' and r.get('tool') == 'click'][-1]['value'] = {'status': 'refused'}
             else:
                 inventories = [r['value']['windows'] for r in self.rows if r['event'] == 'result' and r.get('tool') == 'list_windows']
                 if fault == 'still-open': inventories[1].extend(copy.deepcopy(inventories[0]))
                 elif fault == 'ambiguous': inventories[-1].append(copy.deepcopy(inventories[-1][0]))
                 else: inventories[-1].clear()
+            with self.subTest(fault=fault), self.assertRaises(ValueError): self.verify()
+
+    def test_close_target_binding_tampering_is_rejected(self):
+        original = copy.deepcopy(self.rows)
+        for fault in ('index', 'token', 'geometry', 'old-hotkey'):
+            self.rows = copy.deepcopy(original)
+            if fault == 'index': self.event('handoff_reopen_intent')['element_index'] = 7
+            elif fault == 'token': self.event('handoff_reopen_intent')['element_token'] = 'old:6'
+            elif fault == 'geometry':
+                state = next(r['value'] for r in self.rows if r.get('tool') == 'get_window_state'
+                             and r['event'] == 'result' and r['value']['snapshot_id'] == '3')
+                state['elements'][2]['frame']['x'] = 96
+            else:
+                for row in self.rows:
+                    if row.get('tool') == 'click': row['tool'] = 'hotkey'
             with self.subTest(fault=fault), self.assertRaises(ValueError): self.verify()
 
     def test_stale_consumed_and_missing_observations(self):

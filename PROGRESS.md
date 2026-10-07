@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-07：新鲜观察绑定的关窗修复
+
+- 90e44fc先提交技术方案。HandoffDesktopTask用保存后原观察的唯一左上角AXButton/index/token生成受限click，排除原最小化与缩放控件；截图无效、sheet/dialog、过期、禁用、歧义、非有限几何和错token拒绝。模型工具不增加，click仅在内部closing阶段且参数完全等于绑定目标时准入；finally清除目标，不留通用点击能力。
+- 独占重开意图增加按钮index/token；handoff_trace要求原观察一致且唯一click、原窗口消失再固定文件重开，handoff_evidence严格核对更新后的意图字段。旧Command-W轨迹不自动升级通过；内部原30raw/预留11次不变，未增加重试或丢弃对话框处理。
+- 首轮312项回归出现4失败/5错误：文件核验仍用旧意图字段、模拟AX列表插入按钮影响原正文位置、dialog反例漏索引。修正生产意图合同和模拟数据后312通过；补充意图index/token、几何和旧hotkey篡改后，最终执行层313/313通过。后端test_handoff_bundle、test_handoff_adapter、test_desktop_deploy合计34/34通过，git diff --check通过。
+- 经原SSH只读取得真实conflict的state-08.json，离线新规则准确选中s0000008f:6（原窗口左上角），不执行点击、不修改原文件。该核对只证明旧观察可定位，不能证明实际关窗有效或Driver失败根因已解决。未部署、未派发模型、未改两原失败/第三例队列；下一步冻结新部署并按原门禁验证。
+
 ## 2026-10-07：P7修复版第二例与关闭失败核对
 
 - 固定deebd8d的新guest目录独立读回22项文件摘要与部署清单一致，原部署保留。剩余原任务身份绑定在私有cohort-remaining-v2.json/execution-v2.json；首例旧版失败不变，不拼成同版三例通过。

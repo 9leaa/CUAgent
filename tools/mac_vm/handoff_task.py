@@ -1,6 +1,7 @@
 """Opt-in P7 material reader. Not registered in the production P6 protocol."""
 import hashlib
 import json
+import math
 import os
 import re
 import stat
@@ -23,6 +24,40 @@ def reject_constant(_):
     raise ValueError('nonfinite material number')
 
 
+def close_target(state):
+    """Bound native title-bar control; never infer a pixel click or menu action."""
+    elements = state.get('elements', [])
+    bounds = state.get('window_bounds', {})
+    def finite(value):
+        return type(value) in (int, float) and math.isfinite(value)
+    roots = [e for e in elements if e.get('role') == 'AXWindow'
+             and e.get('label') == state.get('window_title')]
+    if (state.get('screenshot_frame_valid') is not True or len(roots) != 1
+            or any(e.get('role') in ('AXSheet', 'AXDialog') for e in elements)
+            or not all(finite(bounds.get(k)) for k in ('x', 'y'))):
+        raise StopRun('UNVERIFIED', 'Fresh unique close control required')
+    candidates = []
+    for e in elements:
+        frame = e.get('frame', {})
+        if (e.get('role') == 'AXButton' and not e.get('label') and e.get('enabled') is True
+                and e.get('parent_index') == roots[0].get('element_index')
+                and 'AXPress' in e.get('actions', [])
+                and all(finite(frame.get(k)) for k in ('x', 'y', 'w', 'h'))
+                and 0 < frame['w'] <= 22 and 0 < frame['h'] <= 22
+                and 0 <= frame['x'] - bounds['x'] <= 12
+                and 0 <= frame['y'] - bounds['y'] <= 12):
+            candidates.append(e)
+    if len(candidates) != 1:
+        raise StopRun('UNVERIFIED', 'Ambiguous or missing close control')
+    button = candidates[0]
+    index, token = button.get('element_index'), button.get('element_token')
+    if (type(index) is not int or index < 0 or type(token) is not str
+            or token != f"{state.get('snapshot_id')}:{index}"
+            or sum(e.get('element_index') == index or e.get('element_token') == token for e in elements) != 1):
+        raise StopRun('UNVERIFIED', 'Invalid close control identity')
+    return dict(element_index=index, element_token=token)
+
+
 class HandoffDesktopTask(DesktopTask):
     def __init__(self, *args, input_sha256, document_opener=None, **kwargs):
         # Trusted constructor binding, never accepted from model tool arguments.
@@ -35,6 +70,7 @@ class HandoffDesktopTask(DesktopTask):
         self.reopen_phase = None
         self.reopened = False
         self.saved_once = False
+        self.close_args = None
         super().__init__(*args, **kwargs)
 
     def type_text(self, args):
@@ -50,10 +86,9 @@ class HandoffDesktopTask(DesktopTask):
         return value
 
     def validate_raw(self, tool, args):
-        if tool == 'hotkey' and self.reopen_phase == 'closing':
+        if tool == 'click':
             self.environment()
-            if args != {'pid': self.pid, 'window_id': self.window, 'session': self.run_id,
-                        'keys': ['cmd', 'w'], 'delivery_mode': 'foreground'} or self.pid is None:
+            if self.reopen_phase != 'closing' or self.close_args is None or args != self.close_args or self.pid is None:
                 raise StopRun('BLOCKED', 'Only original task window close permitted')
             self.identity(self.pid)
             return
@@ -113,7 +148,8 @@ class HandoffDesktopTask(DesktopTask):
                 raise StopRun('UNVERIFIED', 'Saved body changed')
             self.reopen_digest = hashlib.sha256(original).hexdigest()
             old = self.window
-            intent = dict(snapshot_id=args['snapshot_id'], pid=self.pid, window_id=old, sha256=self.reopen_digest)
+            button = close_target(state)
+            intent = dict(snapshot_id=args['snapshot_id'], pid=self.pid, window_id=old, sha256=self.reopen_digest, **button)
             fd = os.open(self.directory / 'handoff-reopen-intent.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(fd, 'w') as stream:
                 json.dump(intent, stream); stream.flush(); os.fsync(stream.fileno())
@@ -124,8 +160,11 @@ class HandoffDesktopTask(DesktopTask):
             self.snapshot = None
             try:
                 self.record({'event': 'handoff_reopen_intent', **intent})
-                self.raw('hotkey', {'pid': self.pid, 'window_id': old, 'session': self.run_id,
-                                   'keys': ['cmd', 'w'], 'delivery_mode': 'foreground'})
+                self.close_args = dict(pid=self.pid, window_id=old, session=self.run_id, **button)
+                try:
+                    self.raw('click', self.close_args)
+                finally:
+                    self.close_args = None
                 self._windows_after(old, False)
                 self.record({'event': 'handoff_window_closed', 'pid': self.pid, 'window_id': old})
                 self.reopen_phase = 'opening'

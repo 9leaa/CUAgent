@@ -107,7 +107,7 @@ def inspect_handoff_evidence(directory, *, binding, materials, expected):
         trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected)
         intent = strict_json(read('handoff-reopen-intent.json', 4096, private=True))
         marker = next(row for row in rows if row['event'] == 'handoff_reopen_intent')
-        require(type(intent) is dict and set(intent) == {'snapshot_id', 'pid', 'window_id', 'sha256'})
+        require(type(intent) is dict and set(intent) == {'snapshot_id', 'pid', 'window_id', 'sha256', 'element_index', 'element_token'})
         require(type(intent['pid']) is int and type(intent['window_id']) is int
                 and intent == {key: marker[key] for key in intent})
         calls = {row['used']: row['call_id'] for row in rows if row['event'] == 'dispatch'}

@@ -35,7 +35,11 @@ class HandoffReopenTests(unittest.TestCase):
 
     def snapshot(self, body='正文\n'):
         self.task.snapshot = dict(snapshot_id='fresh', pid=10, window_id=self.task.window,
-            window_title=self.task.case.title, app_name='TextEdit', tree_markdown='- AXWindow\n  - AXTextArea = ' + json.dumps(body))
+            window_title=self.task.case.title, app_name='TextEdit', tree_markdown='- AXWindow\n  - AXTextArea = ' + json.dumps(body),
+            screenshot_frame_valid=True, window_bounds=dict(x=70, y=48),
+            elements=[dict(role='AXWindow', label=self.task.case.title, element_index=0),
+                      dict(role='AXButton', element_index=6, element_token='fresh:6', parent_index=0,
+                           enabled=True, actions=['AXPress'], frame=dict(x=76, y=54, w=16, h=16))])
         self.task.observed_at = time.monotonic()
 
     def transport(self, tool, args):
@@ -49,7 +53,7 @@ class HandoffReopenTests(unittest.TestCase):
         before = self.task.document.read_bytes()
         result = self.task.reopen({'snapshot_id': 'fresh'})
         self.assertEqual(result, {'requires_new_observation': True, 'used': 5})
-        self.assertEqual(self.calls[1][1]['keys'], ['cmd', 'w'])
+        self.assertEqual(self.calls[1], ('click', dict(pid=10, window_id=20, session='task', element_index=6, element_token='fresh:6')))
         self.opener.assert_called_once_with(10, self.task.document)
         self.assertEqual(self.task.window, 21)
         self.assertIsNone(self.task.snapshot)
@@ -86,7 +90,31 @@ class HandoffReopenTests(unittest.TestCase):
         self.assertTrue(self.task.stopped.is_set())
         self.assertEqual(self.task.used, 5)
         self.opener.assert_not_called()
-        self.assertEqual(len([c for c in self.calls if c[0] == 'hotkey' and c[1]['keys'] == ['cmd', 'w']]), 1)
+        self.assertEqual(len([c for c in self.calls if c[0] == 'click']), 1)
+
+    def test_invalid_close_targets_never_dispatch(self):
+        for fault in ('missing', 'duplicate', 'disabled', 'token', 'minimize', 'nan', 'bool', 'dialog', 'stale_frame'):
+            with self.subTest(fault=fault):
+                self.snapshot()
+                state = self.task.snapshot
+                button = state['elements'][1]
+                if fault == 'missing': state['elements'].pop()
+                elif fault == 'duplicate': state['elements'].append(dict(button))
+                elif fault == 'disabled': button['enabled'] = False
+                elif fault == 'token': button['element_token'] = 'old:6'
+                elif fault == 'minimize': button['frame']['x'] = 96
+                elif fault == 'nan': button['frame']['x'] = float('nan')
+                elif fault == 'bool': button['frame']['w'] = True
+                elif fault == 'dialog': state['elements'].append(dict(role='AXSheet', element_index=9))
+                else: state['screenshot_frame_valid'] = False
+                with self.assertRaises(StopRun): self.task.reopen({'snapshot_id': 'fresh'})
+                self.assertEqual(len(self.calls), 1)
+                self.assertFalse((self.task.directory / 'handoff-reopen-intent.json').exists())
+
+    def test_generic_click_and_close_shortcut_denied(self):
+        with self.assertRaises(StopRun): self.task.raw('click', dict(pid=10, window_id=20))
+        with self.assertRaises(StopRun): self.task.raw('hotkey', dict(pid=10, window_id=20, session='task', keys=['cmd', 'w'], delivery_mode='foreground'))
+        self.assertEqual(len(self.calls), 1)
 
     def test_open_ack_without_new_window_is_not_success(self):
         self.inventory = [[], [], [], []]
