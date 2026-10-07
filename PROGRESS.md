@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-07：无新增依赖的guest草稿核心
+
+- a3e8292先补充技术设计。新增tools/mac_vm/handoff_draft.py纯函数，标准库严格解析JSON、重复键/非有限数/深度/长度防护；独立检查完整schema字段、原run/session/input、CSV事实与任务集、状态/逾期、精确Unicode引用、缺负责人/逾期必报、冲突至少两处来源及重复问题。
+- 只把模型原草稿规范序列化并投影既有中文正文，末尾LF/4096字节上限保留，超长拒绝不截断；不推断或补齐分析。返回DRAFT_STRUCTURE_VALID仍明确semanticVerified/guiVerified=false。源材料与身份参数只接受受信任调用者的绑定，当前无HTTP入口，不从模型参数取可信身份。
+- 新增39项与host原Pydantic独立门槛交叉测试，覆盖有效规范JSON/正文完全一致、Unicode/组合字符/引号/换行、任务重排、错字段/引用/统计/身份、缺失/重复问题、畸形JSON与超长正文；相关125项全部通过。原第四批官方final离线输入新核心，仍在第1002列报JSON_SYNTAX，不修补失败证据。
+- 尚未加入部署包或实际模型工具，未安装依赖/启动模型/操作VM。下一步可信会话绑定、原Task准入审计、独立双日志与最终报告一致性仍需实现，完整P7未通过。
+
 ## 2026-10-07：引用工具源码入口与全链白名单
 
 - 继独立轨迹/双日志核验后，仅对明确P7连接开放vm_locate_quote；HTTP交由原HandoffDesktopTask计数，Harness走原会话owner、AbortSignal和停止通道。参数原样传给guest，拒绝计原预算；P6访问同操作仍409，不新增控制接口或任意路径能力。
