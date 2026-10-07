@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：原第三例监听与应用残留收尾
+
+- 96e1c3c先补监听/隧道收尾方案。既有control/lifecycle客户端24项测试通过；本次不修改模型工具或执行预算。
+- 持原共享锁，重验恢复profile SHA、原失败状态、官方会话terminal、原guest绑定/停止/零在途/9raw后，独占记录listener-cleanup-intent，单次既有shutdown确认closed=true，独立SSH核对原guest退出、52385/8766无监听。原SSH88856按完整命令、原转发端口和启动时间核对后正常TERM退出，无强杀。
+- 首轮末尾19099重新bind报EADDRINUSE，保留原意图和shutdown响应，没有重发shutdown/TERM。随后只读lsof/ps/netstat未见原监听/进程，再次本地bind确认端口已释放；没有当时TCP状态证明，不能确定归因为TIME_WAIT。新的listener-cleanup-reconciled.json记录此介入与结果。
+- 屏幕共享最初呈现旧桌面，唤醒后实际是锁屏；使用原专用账号正常解锁，不改睡眠/安全设置。原TextEdit54663归属owned-application原run/owner/epoch；持锁通过Dock Quit正常退出，无丢弃提示。独立SSH确认TextEdit无进程、文档2642字节与SHA6410950dd01514b1dab06b6f6a2c3e0927d5275b71fd82a33a2ee85f62f34ed3前后一致，私有dependencies-manual-cleanup-001.json保留。此为人工操作，不能计自动清理或关窗重开业务通过。
+- 未新建/重跑模型任务，原9raw/UNVERIFIED不变，quarantine保留，旧Worker未启动；下一步对账解除隔离和原Worker恢复条件，P7仍未验收。
+
 ## 2026-10-07：原第三例配置恢复
 
 - 4489fba先提交独立恢复方案；新增restore_interrupted_profile，持原共享锁核对quarantine/收尾意图及全部输入SHA、原任务和唯一已结束Attempt、资源空闲、原会话terminal、guest停止/零在途/预算不变。独占恢复意图后复用既有App/profile三步命令，未知结果不重发，失败仅留脱敏阶段。

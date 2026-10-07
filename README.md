@@ -1,5 +1,7 @@
 # CUAgent
 
+P7第三例残留已实际清理：原guest、SSH隧道和TextEdit均退出，原控制/模型/宿主转发端口无监听且宿主端口重新绑定成功；文档2642字节及SHA前后一致。TextEdit通过原VM的Dock Quit人工退出，不冒充自动清理通过；原任务仍UNVERIFIED/9raw，隔离保留、旧Worker尚未启动。下一步核对隔离解除及原Worker恢复，P7业务验收仍未通过。
+
 P7中断后的原Harness配置已实际恢复（2026-10-07）：原会话终止、guest停止/零在途、原失败身份核对后，复用官方App停止→原profile恢复→原预置启动，并独立读回原SHA。原第三例仍UNVERIFIED/9raw；隔离保留，guest监听、残留TextEdit与旧Worker收尾尚未完成。相关后端53项、App/profile19项测试通过（另2项编译器测试跳过），未新增模型请求。下列段落为历史快照，以本段和PROGRESS最新记录为准。
 
 P7第三例已安全收尾为UNVERIFIED（9/30raw）：重新确认原官方会话终止、guest停止且零在途后，结束原Attempt并释放过期数据库资源，实际83594 token、费用未知，无成功产物。隔离文件仍保留，App/profile尚未恢复，P5 Worker未启动；不能将失败收尾当作关窗/重开通过。新增可信本地收尾函数与12项隔离数据库反例测试，后续继续配置恢复。
