@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第五批清理完成与最终输出协议调查
+
+- 第二次持锁人工清理经屏幕共享Window菜单选择原Virtualization连接，再使用VM内TextEdit正常退出菜单；未强杀、未重开文档。独立SSH核对原PID58082已退出，原文件1637字节/SHA未变；manual-cleanup-normal-002回执为MANUAL_CLEANUP_CONFIRMED，Worker99106恢复且复查仍存在。首次失败及误输入介入原样保留，不算自动清理通过。
+- 只读检查官方安装版0.2.0-rc.2的asar内实际LLM/DeepSeek/扩展包：请求发往Messages端点，原生构造器未提供response_format/json_schema/json_object；thinking=disabled对应off，output_config目前仅用于非off的effort。通用扩展能合并字段，但没有据此认定服务端支持最终JSON约束，且序列化失败可回落无扩展请求，不能直接用作强制安全门槛。
+- 新增协议调查及后续实现门槛；未修改适配器、解析器、模型或P5，未新增真实推理，未派发005剩余任务。旧UNVERIFIED不改判，P7业务及后续阶段仍未完成。
+
 ## 2026-10-07：第五批实测与清理异常
 
 - 屏幕共享窗口恢复后，使用原测试账号正常解锁；坐标点击报windowNotFoundAtPosition，改用已绑定滚动区聚焦及输入。独立readiness确认解锁、无TextEdit、P5原配置/源码/空闲状态不变。实时Codex剩余89%，普通可用、原余额62494.0260570000、重置卡仍未用；新的私有quota记录只绑定005 normal。
