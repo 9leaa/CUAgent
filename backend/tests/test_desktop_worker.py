@@ -1,5 +1,6 @@
 """Synthetic adapter validates orchestration, not real GUI or model behavior."""
 import hashlib
+import json
 import time
 from unittest.mock import Mock
 import pytest
@@ -65,6 +66,21 @@ def test_synthetic_lifecycle_delivers_after_stop_and_verify(service):
     assert adapter.calls == ['prepare', 'start', 'poll', 'verify', 'restore']
     assert service.view(result['taskId'])['status'] == 'SUCCEEDED'
     assert instance.run_once() is None
+
+
+def test_failure_diagnostics_preserve_phase_without_sensitive_exception(service):
+    instance, adapter = worker(service)
+    adapter.poll = Mock(side_effect=ValueError('Authorization: Bearer SECRET_SENTINEL'))
+    result = instance.run_once()
+    assert result['executionFailure'] == dict(phase='poll-session-and-guest', category='VALIDATION_ERROR',
+        started=True, terminalObserved=False, authorityLost=False)
+    assert result['quarantined'] and not result['restoreConfirmed']
+    assert 'SECRET_SENTINEL' not in json.dumps(result)
+    for path in service.settings.root.glob('desktop-outcome-*.json'):
+        assert 'SECRET_SENTINEL' not in path.read_text()
+        assert path.stat().st_mode & 0o077 == 0
+    assert service.view(result['taskId'])['status'] == 'RUNNING'
+    with pytest.raises(RuntimeError, match='QUARANTINED'): instance.run_once()
 
 
 def test_heartbeat_during_prepare_and_verify_never_regrants_revoked_guest(service, monkeypatch):

@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第三例隔离与只读对账
+
+诊断改动验证：test_desktop_worker与test_handoff_adapter最终29/29通过，git diff --check通过；仅隔离数据库和模拟adapter测试，不部署、不恢复原失败、不发送新模型请求。下一步实现并验证原隔离任务的证据绑定安全收尾，先结束原状态再恢复配置，不通过删除quarantine或修改数据库伪造完成。
+
+- 正常解锁原VM并经TextEdit Quit菜单清理conflict残留54127，原文档SHA前后均3eba7996664b53bb6ed29de6c7a08a311d1253bff6e95b7ac5977de2a1a1f3f9；独立确认进程退出，无丢弃提示。此为人工清理，不计自动通过。6cf376c部署到新目录，22文件和清单独立读回一致，回执p7-deployment-20261007-003；只冻结剩余原dependencies身份为v3。
+- 新鲜实际额度97%、普通可用、原余额未变、重置卡未用，通过原门禁启动task58ff6b1a-fb90-482a-83e7-1f4b60c78bc3/session-24f8909d-58e3-48ca-95b6-1ce8a1f50c75。第9raw为新click，原trace中1791366483.901847派发，6484.480065开始stop时点击仍在途，6485.912222返回accessibility/unverifiable；随后零在途，无list_windows或重开。不能将中断解释为新按钮没有关闭，也不能算关窗验证通过。
+- operator88845终止，outcome BLOCKED/quarantined/restoreConfirmed=false，取消只有意图无确认回执，usage原为未知。原P5 Worker88141未重启，隔离文件保留；数据库最后状态RUNNING/9raw。后续只读inspect实际确认原会话running=false/terminal=true/interrupted/原用户消息1条，并按既有采集逻辑保存原session.jsonl；原guest/status为active=true、stopped=true、9raw、pendingCalls=0，active仅指监听线程仍在，不表示仍有业务派发。私有dependencies-review-001.json记录对账。
+- 原Worker吞掉首次异常细节，暂不能在读取会话、控制通信、心跳失权等原因中作确定判断。aafe95d先写方案后新增outcome异常阶段与固定大类、started/terminalObserved/authorityLost和独立心跳诊断；不记录异常字符串/外部类名/堆栈，不改变隔离、取消、重试和恢复逻辑。原失败不补造原因。合成凭据异常测试确认私有输出不泄漏；首次新增测试因插入位置误带成功断言失败，修正测试归属后重验。
+
 ## 2026-10-07：新鲜观察绑定的关窗修复
 
 - 90e44fc先提交技术方案。HandoffDesktopTask用保存后原观察的唯一左上角AXButton/index/token生成受限click，排除原最小化与缩放控件；截图无效、sheet/dialog、过期、禁用、歧义、非有限几何和错token拒绝。模型工具不增加，click仅在内部closing阶段且参数完全等于绑定目标时准入；finally清除目标，不留通用点击能力。

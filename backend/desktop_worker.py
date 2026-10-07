@@ -16,6 +16,14 @@ from backend.desktop_execution_control import DesktopExecutionControl
 from backend.desktop_preparation import PreparationClosed
 
 
+def error_category(error):
+    # Never serialize exception text, arguments, class names or traceback.
+    if isinstance(error, OSError): return 'OS_ERROR'
+    if isinstance(error, (ValueError, TypeError, AssertionError)): return 'VALIDATION_ERROR'
+    if isinstance(error, RuntimeError): return 'EXECUTION_ERROR'
+    return 'OTHER_ERROR'
+
+
 @dataclass(frozen=True)
 class PreparedDesktop:
     run: Path
@@ -66,6 +74,7 @@ class DesktopWorker:
         preparation_closed = False
         preparation_guest_not_started = False
         usage = {'available': False}
+        phase = 'prepare'
         outcome = {'taskId': task.id, 'status': 'BLOCKED', 'quarantined': False,
                    'restoreConfirmed': False}
         def pulse():
@@ -76,7 +85,8 @@ class DesktopWorker:
                             control.refresh()
                         elif self.service.heartbeat(task.id, self.owner, task.epoch, dispatch_stopped=not renew_guest):
                             raise RuntimeError('DESKTOP_STOP_REQUESTED')
-                except Exception:
+                except Exception as error:
+                    outcome['heartbeatFailure'] = {'category': error_category(error)}
                     lost.set()
                     return
         try:
@@ -88,6 +98,7 @@ class DesktopWorker:
                     or not prepared.run.resolve().is_relative_to(self.service.settings.root)):
                 raise ValueError('INVALID_PREPARED_DESKTOP')
             self.service.record_prepared(task.id, self.owner, task.epoch, prepared.run, prepared.session_id)
+            phase = 'initial-authority'
             control = DesktopExecutionControl(self.service, prepared.control_client,
                 task_id=task.id, owner=self.owner, epoch=task.epoch)
             if lost.is_set():
@@ -99,9 +110,11 @@ class DesktopWorker:
                            'owner': self.owner, 'epoch': task.epoch}, file)
                 file.flush(); os.fsync(file.fileno())
             started = True  # Persisted adapter intent must precede its real RPC.
+            phase = 'start-session'
             self.adapter.start(prepared)
             deadline = time.monotonic() + 300
             while True:
+                phase = 'poll-session-and-guest'
                 if lost.is_set() or time.monotonic() >= deadline:
                     raise RuntimeError('DESKTOP_EXECUTION_UNCONFIRMED')
                 state = self.adapter.poll(prepared)
@@ -109,6 +122,7 @@ class DesktopWorker:
                         or not 0 <= state['rawCalls'] <= 30 or type(state.get('pendingCalls')) is not int
                         or state['pendingCalls'] < 0):
                     raise ValueError('INVALID_DESKTOP_OBSERVATION')
+                phase = 'record-progress'
                 self.service.progress(task.id, self.owner, task.epoch, state['rawCalls'])
                 if state['terminal']:
                     terminal = state['pendingCalls'] == 0
@@ -118,6 +132,7 @@ class DesktopWorker:
                 done.wait(.2)
             if lost.is_set():
                 raise RuntimeError('DESKTOP_AUTHORITY_LOST')
+            phase = 'revoke-terminal'
             with phase_lock:
                 self.service.desktop_authority(task.id, self.owner, task.epoch)
                 renew_guest = False
@@ -125,23 +140,31 @@ class DesktopWorker:
             if not closed['localRevoked'] or not closed['guestRevoked']:
                 raise RuntimeError('DESKTOP_REVOCATION_UNCONFIRMED')
             if callable(getattr(self.adapter, 'usage', None)):
+                phase = 'collect-usage'
                 usage = self.adapter.usage(prepared)
             try:
+                phase = 'verify'
                 result = self.adapter.verify(prepared)
-            except Exception:
+            except Exception as error:
+                outcome['verificationFailure'] = {'category': error_category(error)}
+                phase = 'finish-unverified'
                 with phase_lock:
                     done.set()
                     self.service.finish(task.id, self.owner, task.epoch, 'UNVERIFIED',
                         result={'usage': usage}, error_code='DESKTOP_VERIFICATION_FAILED')
                 outcome['status'] = 'UNVERIFIED'
             else:
+                phase = 'finish-success'
                 with phase_lock:
                     if lost.is_set():
                         raise RuntimeError('DESKTOP_AUTHORITY_LOST_DURING_VERIFICATION')
                     done.set()
                     self.service.finish(task.id, self.owner, task.epoch, 'SUCCEEDED', result={**result, 'usage': usage})
                 outcome['status'] = 'SUCCEEDED'
-        except Exception:
+        except Exception as error:
+            outcome['executionFailure'] = dict(phase=phase, category=error_category(error),
+                                               started=started, terminalObserved=terminal,
+                                               authorityLost=lost.is_set())
             outcome['errorCode'] = 'DESKTOP_EXECUTION_REQUIRES_REVIEW'
             done.set()
             if control:
