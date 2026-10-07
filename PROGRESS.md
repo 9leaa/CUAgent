@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：无模型独立保存/重开链真实通过
+
+- 001缺enabled修正后，完整执行层326项本地测试通过（含8项诊断测试，不累加）。002使用同一固定dd8b456部署和c825813修正序列、新run p2-8421b39a-e28c-4ceb-83d8-f10737393fd0、owner8423da15-d11f-4477-bf82-649f84427dca，未恢复001或原业务任务，未调用模型。
+- 原轨迹15/30raw：输入固定中文诊断正文并保存；原窗口973关闭，第11raw单次reopen_document获原生应答，第12raw确认新窗口981，第13raw新观察，第14/15raw写result和读回。原生发送约0.7秒返回，无UNKNOWN或重发。原权限已获用户授权，但不能由本次成功倒推旧业务失败的唯一根因。
+- 原67字节文档SHA a66c5666ce5344bf8d8549133f47476f3ace852a06518ea7bba3571a143c3634，result含结尾换行为68字节。guest撤销/关闭、零在途后，通过原handoff_export独立SSH取回原始tar，本地decode_handoff_bundle核对16份证据；查看state-13.png确有中文两行和原文件标题，与AX、固定期望和读回一致。私有p7-native-diagnostic-live-002保留意图、结果、original-evidence.tar、collected及independent-collection.json。
+- 首次人工收尾因屏幕共享noWindowsAvailable主动中止并恢复Worker94447，未宣称退出成功；重新绑定原屏幕共享窗口后，再核对原PID56354/出生1791371223653564及原文档，持锁正常Quit，独立确认进程退出和文件不变。manual-cleanup-001失败和002成功分别保留，Worker94516恢复。readiness-76886851c7ca4738b93fd545bfff1a40确认无TextEdit、无隔离、VM解锁、原profile/P5冻结源码一致且资源空闲。
+- 本次仅技术链诊断通过，sessionVerified/semanticVerified仍false、业务状态UNVERIFIED；不冒充自动应用清理或P7总验收。下一步冻结新候选后跑完整三组交接业务及独立语义审核、发布/下载验证；原失败和冻结排队任务不重跑、不替换、不混算通过数。
+
 ## 2026-10-07：无模型诊断001真实失败与选择器修正
 
 - 固定dd8b456 guest及2d3764b辅助序列、新run p2-0403d6ab-a7c7-4d5c-ad5e-6eab5d0d402e、owner47c79471-f578-4281-9b7c-dd9362d0b257。持原宿主锁及guest共享锁、原30raw准入；材料读取/启动/窗口清单/观察共4raw后ValueError，无输入、保存、原生重开或模型请求。guest closed/stopped且零在途，Worker94196恢复，完整私有意图/原轨迹留存。
