@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-07：用户确认后完成VM TextEdit自动化授权
+
+- 用户先批准进入流程。原SSH/mvpagent环境仅调用权限查询askUserIfNeeded=true，绑定TextEdit55473及原出生时间；没有发送odoc或重新执行原任务。独占native-consent-request-intent-001保存请求，原后台进程等待系统回应。
+- 通过屏幕共享实际核对弹窗请求者为sshd-keygen-wrapper，目标TextEdit。明确告知用户授权可访问该应用文档/数据并执行操作，不限单个测试文件；收到第二次明确确认后才点击Allow。不是凭自动目标续接或泛化历史授权授予权限。
+- 弹窗消失，原进程正常退出，permissionStatus=0/askedUser=true/dispatchCount=0。另一个新的只读进程复用原身份查询askUserIfNeeded=false，再次返回0且零发送；私有native-consent-request-result-001及native-consent-independent-confirmation-001保存实际回执。
+- 未改TCC数据库、未提权/全盘访问/关闭安全保护，未改变旧任务UNVERIFIED或原UNKNOWN、预算和模型会话；不以权限获准声称重开实机通过。当前解除的是权限阻碍，后续仍须独立受控验证重开和完整P7业务，原失败与冻结批次保留。
+
 ## 2026-10-07：原生事件只读预检发现待授权
 
 - 读取VM失败时段03:34:30–03:34:36的tccd/osascript/TextEdit系统日志，log show返回77/Operation not permitted；原返回私有留存，未sudo、未改日志权限。
