@@ -1,5 +1,15 @@
 # CUAgent 实际进度
 
+## 2026-10-07：P7修复版第二例与关闭失败核对
+
+- 固定deebd8d的新guest目录独立读回22项文件摘要与部署清单一致，原部署保留。剩余原任务身份绑定在私有cohort-remaining-v2.json/execution-v2.json；首例旧版失败不变，不拼成同版三例通过。
+- 首例残留TextEdit53742经人工GUI清理：远程退出快捷键实际误输入q，随后通过Edit→Undo Typing撤销、TextEdit→Quit正常退出，无丢弃提示；独立SSH确认进程消失、原文件当前0字节。私有normal-manual-cleanup.json保留介入，原4raw/UNVERIFIED不变，不算自动清理通过。
+- 为原conflict任务9c4d50e1-50f2-469a-be90-572d4aab8677重新核对真实普通额度98%、原余额不变、重置卡未用，经原门禁/共享锁执行。官方session-a565880d-b1dc-441f-9366-efaa399c8ff0、Flash/off；输入8533、输出9603、cacheRead116480、total134616，货币费用未知。
+- 原轨迹显示材料读取、首次观察、输入及保存后的观察已经完成。重开意图绑定原文档SHA；第9raw为Command-W，第10–12raw均返回同PID54127、同窗口884、原标题且is_on_screen=true。没有handoff_window_closed或reopen_document派发；随后stop，四次后续工具拒绝，没有新增raw。官方轮次completed不代表业务通过，数据库UNVERIFIED/DESKTOP_VERIFICATION_FAILED、无产物。
+- 只读核对安装版Driver的describe hotkey，cmd/w及foreground参数合法；其说明明确effect=unverifiable，需另行核实实际效果。因此不能断言参数拼错，亦未证明是焦点恢复、延迟或窗口拦截。新屏幕截图仍见原报告窗口，没有以手动关窗补造任务成功。
+- 原许可已撤销、guest关闭、无quarantine、profile恢复；Worker从87084恢复为88141。应用自动清理因NO_INDEPENDENT_VERIFICATION跳过，TextEdit54127仍在。新的私有readiness-64da95f3fa844b12845e0af107d45b6d回执确认VM解锁、P5无活动任务/共享锁空闲、六个冻结源码摘要未变，P5下一期10月8日12:10。仅dependencies原任务58ff6b1a-fb90-482a-83e7-1f4b60c78bc3仍QUEUED/0raw。
+- 本次追加检查未派发模型或GUI动作，未修改执行代码、原失败、预算或验收条件。先定位关闭动作，再设计受限修复及反例测试；不能仅加重试、延长等待或手动关窗后继续原失败任务。P7仍未验收。
+
 P7缺值观察修复（2026-10-07）：61e9ad2方案先行。JS handoffObservation与Python project_handoff_observation仅在value字段不存在时省略value、明确bodyValueStatus=unavailable；现有字符串/空串原样，null/数字/布尔/数组/对象（JS还含显式undefined）继续拒绝。原唯一正文/token/祖先/截图/弹窗/大小检查不变，未读取文件猜正文、未改变预算/执行权限/保存/重开/成功核验。新增缺失与真实空串区分、原state不变、错误类型拒绝，并确认无原生正文证据时body_from_state仍拒绝。
 
 实际验证：Python执行层unittest discover 310/310；官方安装版Electron Node执行esbuild编译的c0-vm-tools.test.ts，11/11；追加验收拒绝断言后投影专项4/4。通过原SSH只读取得首例state-04.json，在新私有目录保存，JS与独立Python投影完全一致且未生成value；二次远端读取字节相同，回执.runtime/p7-missing-body-check-4a9a21ad8b184ab183a31294099a0dae/receipt.json。没有新模型请求、没有修改VM部署/原失败/队列，不能将离线兼容证明算作实机业务通过。接下来核对首例残留应用与部署新固定版本，原两排队样本继续保留身份；全阶段仍未验收。
