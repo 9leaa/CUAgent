@@ -1,5 +1,9 @@
 # 单人本地任务服务（P2）
 
+## 隔离原任务失败收尾
+
+`backend.desktop_reconcile.finalize_interrupted`仅供受信任本地维护代码，不是HTTP或模型入口。它持有原共享锁，读取原私有回执并实时确认原官方会话终止、guest持久停止且零在途，再核对原Task/唯一Attempt/已过期Resource、停止控制、预算与无产物，独占写意图后事务登记UNVERIFIED、usage、未读通知并释放旧资源。没有恢复执行权、成功产物或自动重放；隔离文件、App/profile和旧Worker保持原状。意图存在或提交结果不明只查询原记录，不重复调用。下一步的配置恢复必须独立完成，不能将此收尾当作解除隔离或产品验收。
+
 ## P7 独立审阅记录（开发中）
 
 原adapter完整执行核验后会保存私有`handoff-review-context.json`与`handoff-execution-verification.json`。本地受信任操作者实际检查原材料、报告各条结论和截图后，才能准备审阅JSON；`handoff_review.review_subject`提供绑定和必审字段，不能自动填PASS或用受测模型自评代替。输入JSON需0600、当前用户所有、普通单链接文件；只支持已冻结三组验收case，不是通用语义评测服务。

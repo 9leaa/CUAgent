@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-07：原第三例安全失败收尾
+
+最终相关回归：desktop_reconcile、desktop_worker、handoff_adapter共41/41通过；不把模拟数据库测试计作实机业务成功。
+
+- 61c7d02先提交方案。新增desktop_reconcile.finalize_interrupted，只读原会话/guest状态，持原共享flock，重验私有控制和回执、原Task/owner/epoch/run/session/唯一未结束Attempt、过期Resource、单调预算、无产物。独占意图后仅事务登记UNVERIFIED与实际usage、未读通知、Attempt结束和旧Resource释放；不续期、不创建新任务/Attempt、不运行模型、不恢复配置、不移除quarantine。未知提交不重放。
+- 隔离数据库12项测试通过：成功仅失败收尾，隔离原字节不变、epoch/Attempt不变；运行会话、在途工具、未停止、预算超限/倒退、错owner/epoch、有效租约、未停止本地控制、既有意图、成功产物均拒绝。原Worker与adapter组合回归另行执行，git diff --check通过。
+- 通过新入口实际重新查询原session-24f8909d-58e3-48ca-95b6-1ce8a1f50c75与原guest，原task58ff6b1a-fb90-482a-83e7-1f4b60c78bc3于09:57:33 UTC结束为UNVERIFIED/DESKTOP_INTERRUPTED_RECONCILED，预算9/30、零产物。真实usage input10516/output8310/cacheRead64768/total83594、Flash/off、货币未知；原会话SHA48ba8cda01217b1505a5e9671c7b47f1e51a86d50455a8446df75f1eeb280f6f。
+- 私有desktop-reconcile-intent.json与dependencies-reconciled-001.json保存原证据绑定和结果，不覆盖原BLOCKED/outcome/中断会话。配置未恢复、quarantine保留、原P5 Worker未恢复；三例均未达到业务成功，不能当P7通过。下一步按原空闲会话、已停止执行端和冻结profile核对配置恢复与监听收尾，再单独处理隔离保留记录。
+
 ## 2026-10-07：第三例隔离与只读对账
 
 诊断改动验证：test_desktop_worker与test_handoff_adapter最终29/29通过，git diff --check通过；仅隔离数据库和模拟adapter测试，不部署、不恢复原失败、不发送新模型请求。下一步实现并验证原隔离任务的证据绑定安全收尾，先结束原状态再恢复配置，不通过删除quarantine或修改数据库伪造完成。
