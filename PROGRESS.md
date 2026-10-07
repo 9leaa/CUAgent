@@ -1,5 +1,10 @@
 # CUAgent 实际进度
 
+## 2026-10-07：确认官方结构化机制并提出契约变更
+
+- 核查官方公开扩展协议及固定源码639ed015，进一步只读确认安装版subagent-in-process-driver 0.2.0-rc.2具备structured_output、权威结果后提交、concludeTurn和终态工具门禁；这是结构化工具提交机制，不是账户Messages服务端JSON格式保证。没有启动子Agent、请求模型或增加账户参数。
+- 新增p7-structured-submit-proposal.md，明确完整原模型工具提交、原身份/预算/停止、双日志及独立语义GUI/发布验收；交付契约由最终文本JSON改为原工具提交，待用户确认才实施。现有代码、严格解析、失败及未派发任务保持不变。
+
 ## 2026-10-07：第五批清理完成与最终输出协议调查
 
 - 第二次持锁人工清理经屏幕共享Window菜单选择原Virtualization连接，再使用VM内TextEdit正常退出菜单；未强杀、未重开文档。独立SSH核对原PID58082已退出，原文件1637字节/SHA未变；manual-cleanup-normal-002回执为MANUAL_CLEANUP_CONFIRMED，Worker99106恢复且复查仍存在。首次失败及误输入介入原样保留，不算自动清理通过。
