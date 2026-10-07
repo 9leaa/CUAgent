@@ -37,6 +37,7 @@ class HandoffTraceTests(unittest.TestCase):
         path = self.task.directory / 'handoff-input.json'; path.write_bytes(self.materials); path.chmod(0o600)
         for _ in range(getattr(self, 'extra_reads', 0)): self.task.read_materials()
         self.task.read_materials()
+        for args in getattr(self, 'quote_args', []): self.task.locate_quote(args)
         state = self.task.observe()['state']
         self.task.type_text(dict(snapshot_id=state['snapshot_id'], element_index=2, element_token='body', text=self.expected.decode()))
         state = self.task.observe()['state']; self.task.save(dict(snapshot_id=state['snapshot_id']))

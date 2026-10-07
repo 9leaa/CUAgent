@@ -26,6 +26,7 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
     states, logical = {}, []
     current = None
     intent = next(r for r in trace if r['event'] == 'handoff_reopen_intent')
+    helper_args = {r['call_id']: r['args'] for r in trace if r['event'] == 'helper_arguments'}
     for row in trace:
         event = row['event']
         if event == 'dispatch': current = row
@@ -55,6 +56,8 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected):
                                 dict(created='result.txt', value=row['value'], used=used)))
             elif row['tool'] == 'read_result':
                 logical.append(('vm_read_result', {}, dict(content=row['value'], used=used)))
+            elif row['tool'] == 'locate_quote':
+                logical.append(('vm_locate_quote', helper_args[row['call_id']], row['value']))
     require(type(official) is list and bool(official))
     events = [r for r in official if r.get('type') in ('tool/call', 'tool/result')]
     require(len(events) == 2 * len(logical))

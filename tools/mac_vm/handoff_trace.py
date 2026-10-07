@@ -32,10 +32,10 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     expected_text = expected.decode('utf8')
     require(type(rows) is list and 0 < len(rows) <= 512)
     tools = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey', 'click',
-             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result'}
+             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result', 'locate_quote'}
     events = {'approval', 'setup_empty_document', 'dispatch', 'result', 'observation_evidence', 'attempted_input',
               'attempted_save', 'handoff_reopen_intent', 'handoff_window_closed',
-              'handoff_window_reopened', 'stop', 'window_readiness_wait', 'observation_recovery'}
+              'handoff_window_reopened', 'stop', 'window_readiness_wait', 'observation_recovery', 'helper_arguments'}
     calls, returned, by_event = {}, {}, {}
     stopped, last = False, -math.inf
     for index, row in enumerate(rows):
@@ -122,6 +122,41 @@ def verify_handoff_trace(rows, *, run_id, materials, expected):
     intent_at, closed_at, opened_at = (one(e) for e in (
         'handoff_reopen_intent', 'handoff_window_closed', 'handoff_window_reopened'))
     require(intent_at < closed_at < opened_at)
+    # Independently recompute exact Unicode offsets; do not trust the helper's
+    # claimed status/hash/ranges or call its implementation as our oracle.
+    quote_calls = tool_calls('locate_quote')
+    arguments = by_event.get('helper_arguments', [])
+    require(len(arguments) == len(quote_calls))
+    sources = {f"notes/{n['id']}": n['content'] for n in source['notes']}
+    sources.update(tasksCsv=source['tasksCsv'], previousReport=source['previousReport'])
+    matched_arguments = set()
+    for call in quote_calls:
+        key = rows[call]['call_id']; end = returned[key]
+        matches = [i for i in arguments if rows[i].get('call_id') == key]
+        require(len(matches) == 1 and call < matches[0] < end < intent_at)
+        i = matches[0]; matched_arguments.add(i)
+        require(rows[i].get('tool') == 'locate_quote')
+        args = rows[i].get('args')
+        require(type(args) is dict and set(args) == {'sourceId','quote'})
+        sid, quote = args['sourceId'], args['quote']
+        require(type(sid) is str and 0 < len(sid) <= 80 and type(quote) is str
+                and bool(quote.strip()) and len(quote.encode()) <= 2048)
+        import unicodedata
+        require(all(c in '\n\r\t' or unicodedata.category(c) not in {'Cc','Cf','Cs','Zl','Zp'} for c in quote))
+        if sid not in sources:
+            response = dict(status='SOURCE_NOT_FOUND', matches=[], truncated=False)
+        else:
+            original = sources[sid]
+            offsets = [at for at in range(len(original)) if original.startswith(quote, at)]
+            spans = [dict(start=at,end=at+len(quote)) for at in offsets[:8]]
+            if len(offsets) > 8:
+                response = dict(status='AMBIGUOUS', matches=spans, truncated=True)
+            else:
+                response = dict(status='UNIQUE' if len(offsets)==1 else 'AMBIGUOUS' if offsets else 'NOT_FOUND',
+                    sourceId=sid,sourceSha256=hashlib.sha256(original.encode()).hexdigest(),matches=spans,truncated=False)
+        response.update(inputSha256=input_digest,used=rows[call]['used'])
+        require(json.dumps(value(call),sort_keys=True,allow_nan=False) == json.dumps(response,sort_keys=True,allow_nan=False))
+    require(matched_arguments == set(arguments))
     intent, closed, opened = (rows[i] for i in (intent_at, closed_at, opened_at))
     for row, fields in ((intent, ('pid', 'window_id')), (closed, ('pid', 'window_id')),
                         (opened, ('pid', 'window_id', 'old_window_id'))):

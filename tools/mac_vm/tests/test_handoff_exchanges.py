@@ -34,16 +34,20 @@ class HandoffExchangeTests(unittest.TestCase):
                 dict(type='tool/result', seq=seq+1, data=dict(message=dict(toolCallId=key, isError=False, content=content)))])
         call('vm_read_materials', {}, dict(materials=source, sourceHashes=hashes,
              inputSha256=hashlib.sha256(f.materials).hexdigest(), used=1))
-        call('vm_observe', {}, projected(states[0], 4), True)
+        quotes = getattr(f, 'quote_args', [])
+        completed = [r['value'] for r in f.rows if r['event']=='result' and r.get('tool')=='locate_quote']
+        for args, response in zip(quotes,completed): call('vm_locate_quote',args,response)
+        shift = len(quotes)
+        call('vm_observe', {}, projected(states[0], 4+shift), True)
         call('vm_type', dict(snapshot_id='1', element_index=2, element_token='body', text=f.expected.decode()), dict(ok=True))
-        call('vm_observe', {}, projected(states[1], 6), True)
+        call('vm_observe', {}, projected(states[1], 6+shift), True)
         call('vm_save', dict(snapshot_id='2'), dict(ok=True))
-        call('vm_observe', {}, projected(states[2], 8), True)
-        call('vm_reopen', dict(snapshot_id='3'), dict(requires_new_observation=True, used=12))
-        call('vm_observe', {}, projected(states[3], 13), True)
+        call('vm_observe', {}, projected(states[2], 8+shift), True)
+        call('vm_reopen', dict(snapshot_id='3'), dict(requires_new_observation=True, used=12+shift))
+        call('vm_observe', {}, projected(states[3], 13+shift), True)
         call('vm_write_result', dict(snapshot_id='4', value=f.expected.decode()),
-             dict(created='result.txt', value=f.expected.decode(), used=14))
-        call('vm_read_result', {}, dict(content=f.expected.decode()+'\n', used=15))
+             dict(created='result.txt', value=f.expected.decode(), used=14+shift))
+        call('vm_read_result', {}, dict(content=f.expected.decode()+'\n', used=15+shift))
 
     def match(self):
         f = self.fixture
