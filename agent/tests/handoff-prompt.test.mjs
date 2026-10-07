@@ -19,7 +19,9 @@ test('handoff prompt separates temporal progression from contradictory facts', (
     assert.ok(prompt.includes(rule), rule);
   }
   assert.ok(prompt.includes('runId=run，sessionId=session，inputSha256=' + 'a'.repeat(64)));
-  assert.equal(HANDOFF_TOOLS.length, 7);
+  assert.equal(HANDOFF_TOOLS.length, 8);
+  assert.ok(prompt.includes('vm_locate_quote'));
+  assert.ok(prompt.includes('多义时不能默认选择首个'));
   assert.ok(!prompt.includes('rubric'));
   assert.ok(!prompt.includes('测试项目：订单审计交接'));
 });

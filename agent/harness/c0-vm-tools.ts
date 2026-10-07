@@ -30,7 +30,7 @@ export function apply(ctx: Context): void {
   const realApp = connection.caseId === 'real_textedit' || handoff
   const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
     ...(realApp ? ['vm_type', 'vm_save'] : []),
-    ...(handoff ? ['vm_read_materials', 'vm_reopen'] : []),
+    ...(handoff ? ['vm_read_materials', 'vm_reopen', 'vm_locate_quote'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
     ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
     ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -187,6 +187,15 @@ export function apply(ctx: Context): void {
       // Preserve supplied arguments so guest rejection retains the original raw charge.
       return { result: verifyHandoffMaterials(await request('read_materials', args, exec.signal), connection.inputSha256) }
     },
+  }))
+  if (handoff) ctx.tools.register(defineTool({
+    name: 'vm_locate_quote',
+    description: 'Locate one exact quote in one frozen task source. Returns Unicode codepoint ranges and source hash, never chooses among duplicates or verifies claim meaning. Counts one of the original 30 raw requests, including failures; invalidates old GUI observations. Use before reopen, then observe again before GUI actions. No paths, normalization or other data access.',
+    parameters: { sourceId: { type: 'string', required: true }, quote: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
+      render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('locate_quote', args, exec.signal)) } },
   }))
   if (handoff) ctx.tools.register(defineTool({
     name: 'vm_reopen',

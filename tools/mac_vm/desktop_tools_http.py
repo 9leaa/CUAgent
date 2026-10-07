@@ -30,7 +30,7 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
     address, peer = ('127.0.0.1', '127.0.0.1') if loopback_test else ('192.168.64.3', '192.168.64.1')
     operations = {'observe', 'type_text', 'save', 'write_result', 'read_result'}
     if isinstance(task, HandoffDesktopTask):
-        operations.update({'read_materials', 'reopen'})
+        operations.update({'read_materials', 'reopen', 'locate_quote'})
     no_args = {'observe', 'read_result', 'read_materials'}
 
     class Handler(BaseHTTPRequestHandler):
