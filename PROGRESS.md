@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第二批首例关窗成功、原生重开未确认
+
+- 按dcec92e冻结方案，源码摘要不变；实际就绪检查确认原P5空闲、配置恢复、无隔离、下一期10月8日12:10。屏幕共享开始显示旧画面，聚焦后呈现真实锁屏；使用原专用账号正常解锁，SSH独立确认unlocked=true，不改睡眠或安全设置。
+- 新鲜Codex查询普通可用、剩余95%、原积分不变、重置卡未使用；独占私有quota绑定normal原ID。仅经desktop_operator启动92c0c77f-9ed7-4422-b094-5724f40f9195，官方session-8bfdf1da-c2ca-445e-88dd-3d98e0b5848b、Flash/off。未重跑首批任务或给其余两例许可。
+- 原VM轨迹：第11raw为新观察绑定的关闭按钮click，第12raw窗口清单已无原窗口946，随后记录handoff_window_closed；第13raw为reopen_document，约1.1秒后UNKNOWN/RuntimeError并停止，未出现重开结果或result读回。说明关窗这一步本次真实生效，但重开副作用未确认，不能盲重发或声称完整闭环通过。原文档2023字节，SHA64542a1361d168aed19897162a6e7479bb1a62f7529995b6234647363bfa1bb5。
+- 原会话重开及后续共六次工具返回拒绝，停止后无新增raw；最终输出还含JSON外说明，并把历史推进描述当冲突，不能作为通过报告。当前无需越过执行失败去发布或登记独立语义通过。任务UNVERIFIED/DESKTOP_VERIFICATION_FAILED、零成功产物；input11017/output9332/cacheRead163968/total184317，货币未知。
+- 原操作员正常退出，restoreConfirmed=true/quarantined=false、guestRevoked=true/closed=true；原Worker恢复为92689。独立readiness再次核对原profile/P5源码一致、资源空闲、VM解锁，但原TextEdit55473仍在，自动应用清理因缺独立验证跳过，不能称环境全部清理完成。私有window-normal、normal-guest-diagnosis-001.json及readiness回执保存原结果。
+- 依冻结规则停止本批推进：conflict和dependencies仍原QUEUED/0raw；不补成功样本、不改原UNKNOWN。下一步先核对原生打开实现及实际错误证据，再设计修复和原应用安全收尾。P7、费用对账、GUI验收和P8仍未完成。
+
 ## 2026-10-07：第二批独立候选准备
 
 - dcec92e先冻结新版回归方案：host f7ecdf6与guest 6cf376c为同一固定候选，三例间不改代码，任一失败停止当前批次推进；旧三例UNVERIFIED不重跑/替换，报告需同时保留两批全部尝试。
