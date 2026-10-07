@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-07：隔离记录留档与原Worker恢复
+
+- 55ff246先提交对账/恢复方案。原scheduler入口revoke实际返回REVOKED；未授予未来许可、未补跑P5漏期。第一次设计提交命令误在冻结P5目录执行，因目标文件不存在未产生提交/改动；随后在P7工作树正确提交，P5源码摘要仍一致。
+- 持原宿主共享锁，实际复查原Task为UNVERIFIED/9raw/原owner/epoch、两服务资源和队列空、原P5源码与profile摘要一致、全部官方会话idle且预置等于原恢复回执。独立SSH确认guest共享锁可取得、无guest隔离、TextEdit与原guest无进程、52385/8766无监听、文档原SHA一致；宿主原SSH已退出、19099可重新bind。
+- 私有quarantine-resolution-intent绑定收尾/恢复/监听回执摘要。原活动quarantine以无覆盖硬链接留在原run/resolved-quarantine.json，核对inode/字节后移除活动路径，保留quarantine-resolution-receipt；不是删除失败历史或宣称中断根因已修复。
+- 独占Worker恢复意图，按原仓库、原环境启动单个backend.worker，PID91582；实际确认进程持续存活并占原共享锁、队列仍空，私有window-dependencies/worker-recovery-confirmed.json保存。未新增任务或模型请求，原三例失败不变。P5 API/调度器未启动；下一步继续P7中断原因及新版完整业务验证，非P7通过。
+
 ## 2026-10-07：原第三例监听与应用残留收尾
 
 - 96e1c3c先补监听/隧道收尾方案。既有control/lifecycle客户端24项测试通过；本次不修改模型工具或执行预算。
