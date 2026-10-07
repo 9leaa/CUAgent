@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+P7正式首例失败（2026-10-07）：先沿冻结P5原scheduler.prepare将10月6/7两期记录MISSED，下一期10月8日12:10，未补跑/授予许可；finally revoke返回REVOKED。新的week_observer回执仍INCOMPLETE/ConnectError，原API不可用不掩盖。10月4日至7日共四期缺失，不能宣称一周通过。
+
+独立P7服务初始化前18107实际占用，预检在创建目录/库/任务前退出；保留旧监听，改18120并保存准备失败历史。新独立数据库/profile接收normal/conflict/dependencies三组冻结输入，rubric未发送模型；原任务分别d1725fc1-94b1-4263-a607-4042a66335a0、9c4d50e1-50f2-469a-be90-572d4aab8677、58ff6b1a-fb90-482a-83e7-1f4b60c78bc3，禁止换身份补成绩。私有总清单.runtime/p7-handoff-001/cohort.json，guest固定288aba5，host7b70df5仅文档差异。
+
+本次重新查询普通额度剩余99%、余额不变、重置卡未用，为normal保存私有五分钟任务绑定记录，原门禁/共享锁准入。确认P5空闲及未来30分钟无到期、官方App无运行会话后，正常停止原Worker30244。单任务操作员实际创建官方session-bfb29383-fff7-4833-be21-1e41070954d7，Flash/off；读取材料后第一次vm_observe失败：handoffObservation要求body.value为字符串，原VM state-04.json的唯一AXTextArea（First Text View）根本没有value字段。未把不可用值猜为空字符串，未绕过校验。官方轮次error，4raw，input3160/output6141/cacheRead2560/total11861，现金费用未知。任务UNVERIFIED/DESKTOP_VERIFICATION_FAILED，零成功产物；不是HANDOFF_SEMANTIC_REVIEW_REQUIRED。
+
+原执行撤销/关闭已确认、profile恢复且无quarantine，P5 Worker恢复为87084；未验应用按既有规则可能残留，下一例不得未经核对继续。conflict/dependencies保持QUEUED，不派发同类已知故障。下一步先写缺值观察表达的窄范围方案，再同步JS投影与Python独立核验并覆盖反例；不得将缺失、null或错误类型自动当空正文，更不能回填原失败为成功。当前P7未通过，原证据及两次私有准备/输入故障保留。
+
 P7实际VM部署（2026-10-07）：查到原私有real-app-unlock.py使用已有专用凭据；未重跑旧一次性脚本，改经原Screen Sharing连接登录。首次批量/快速键入未解锁，后逐键输入并核对界面、点击登录箭头成功；新桌面截图及独立SSH均确认mvpagent已解锁。不改密码、锁屏策略、共享权限或VM进程。此前直接要求用户接手的判断不充分，当前锁屏阻塞已解除。
 
 本次实际Codex检查剩余99%、普通额度可用、余额基准未变、重置卡未用。运行私有p7-deploy-20261007.py：先核对原P5及九个隔离队列为空、资源空闲、profile恢复、冻结源码不变、无quarantine，再从固定提交288aba5be82b50ddf73062cfb49862817ead4111构建包，通过既有受限SSH/安装器写入全新VM目录。另一次只读SSH对22个文件及清单逐一重算SHA，与host包完全一致，DEPLOYMENT_VERIFIED；回执在.runtime/p7-deployment-20261007-001/verified.json，凭据和原始证据不提交。
