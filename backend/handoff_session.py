@@ -7,7 +7,7 @@ from backend.desktop_session import MODEL
 from backend.handoff_document import expected_document
 from backend.handoff_result import HandoffResult, verify_result
 
-TOOLS = {'vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result'}
+TOOLS = {'vm_check_draft', 'vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result'}
 
 
 def require(condition):

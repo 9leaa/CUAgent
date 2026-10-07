@@ -30,7 +30,7 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
     address, peer = ('127.0.0.1', '127.0.0.1') if loopback_test else ('192.168.64.3', '192.168.64.1')
     operations = {'observe', 'type_text', 'save', 'write_result', 'read_result'}
     if isinstance(task, HandoffDesktopTask):
-        operations.update({'read_materials', 'reopen', 'locate_quote'})
+        operations.update({'read_materials', 'reopen', 'locate_quote', 'check_draft'})
     no_args = {'observe', 'read_result', 'read_materials'}
 
     class Handler(BaseHTTPRequestHandler):
@@ -70,7 +70,7 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
                 if self.headers.get_all('Transfer-Encoding') or len(sizes) != 1 or not sizes[0].isdigit():
                     raise ValueError('framing denied')
                 size = int(sizes[0])
-                if not 0 < size <= 32768:
+                if not 0 < size <= (512 * 1024 if isinstance(task, HandoffDesktopTask) else 32768):
                     raise ValueError('size denied')
                 raw = self.rfile.read(size)
                 if len(raw) != size:
@@ -79,6 +79,8 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
                 if not isinstance(body, dict) or set(body) != {'op', 'args'}:
                     raise ValueError('envelope denied')
                 op, args = body['op'], body['args']
+                if size > 32768 and op != 'check_draft':
+                    raise ValueError('size denied')
                 if not isinstance(op, str) or not isinstance(args, dict):
                     raise ValueError('types denied')
                 if op == 'stop' and args == {}:

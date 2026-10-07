@@ -17,10 +17,14 @@ import test_handoff_exchanges
 
 @pytest.fixture
 def evidence(tmp_path, request):
-    source, report = request.param if hasattr(request, 'param') else fixture()
+    with_draft = getattr(request, 'param', None) == 'with_draft'
+    source, report = request.param if hasattr(request, 'param') and not with_draft else fixture()
     executor = test_handoff_trace.HandoffTraceTests()
     executor.run_id, executor.material_bytes = RUN, canonical(source.model_dump())
     executor.document_bytes = expected_document(source, report, run_id=RUN, session_id=SESSION)
+    if with_draft:
+        executor.draft_session_id = SESSION
+        executor.draft_args = [{'raw': '{broken'}, {'raw': json.dumps(report, ensure_ascii=False)}]
     executor.setUp()
     try:
         exchange = test_handoff_exchanges.HandoffExchangeTests()
@@ -31,6 +35,9 @@ def evidence(tmp_path, request):
         def save(path, value):
             path.write_bytes(value if type(value) is bytes else json.dumps(value, ensure_ascii=False).encode())
             path.chmod(0o600)
+        if with_draft:
+            save(executor.task.directory / 'handoff-session-binding.json',
+                 dict(runId=RUN, sessionId=SESSION, inputSha256=input_digest(source)))
         for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]:
             save(executor.task.directory / name, dict(status=status, binding=binding,
                 inputSha256=input_digest(source), bytes=len(executor.material_bytes)))
@@ -90,6 +97,16 @@ def test_combined_actual_readonly_subprocess_and_all_gates(evidence):
     assert result['guest']['rawCalls'] == 15
     assert result['audit']['requests'] == 11
     assert all(path.read_bytes() == raw for path, raw in files.items())
+
+
+@pytest.mark.parametrize('evidence', ['with_draft'], indirect=True)
+def test_complete_composition_with_rejected_then_valid_draft(evidence):
+    args, _, _ = evidence
+    result = verify_handoff_execution(**args)
+    assert result['status'] == 'EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING'
+    assert result['draft']['status'] == 'DRAFT_EVIDENCE_MATCHED'
+    assert result['draft']['calls'] == 2 and result['guest']['rawCalls'] == 17
+    assert result['audit']['requests'] == 13 and result['semanticVerified'] is False
 
 
 @pytest.mark.parametrize('fault', ['session', 'binding', 'prompt', 'audit', 'image-record', 'guest-document', 'attachment'])

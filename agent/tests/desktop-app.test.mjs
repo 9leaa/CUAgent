@@ -23,7 +23,7 @@ function fixture(t, handoff = false) {
     ...(handoff ? { stage: 'p7', inputSha256: 'a'.repeat(64) } : {}), url: 'http://192.168.64.3:8766', token: 'x'.repeat(43) });
   save(join(root, 'vm-tools-ready.json'), { runId,
     ...(handoff ? { kind: 'project-handoff', inputSha256: 'a'.repeat(64) } : {}),
-    toolNames: handoff ? ['vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result']
+    toolNames: handoff ? ['vm_check_draft', 'vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result']
       : ['vm_observe', 'vm_read_result', 'vm_save', 'vm_type', 'vm_write_result'] });
   const tasks = join(root, 'base-tasks.json'); save(tasks, {});
   const state = { running: true, busy: false, presets: ['p1-daily-report'], commands: [], now: 0 };

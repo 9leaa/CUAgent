@@ -30,7 +30,7 @@ export function apply(ctx: Context): void {
   const realApp = connection.caseId === 'real_textedit' || handoff
   const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
     ...(realApp ? ['vm_type', 'vm_save'] : []),
-    ...(handoff ? ['vm_read_materials', 'vm_reopen', 'vm_locate_quote'] : []),
+    ...(handoff ? ['vm_read_materials', 'vm_reopen', 'vm_locate_quote', 'vm_check_draft'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
     ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
     ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -187,6 +187,15 @@ export function apply(ctx: Context): void {
       // Preserve supplied arguments so guest rejection retains the original raw charge.
       return { result: verifyHandoffMaterials(await request('read_materials', args, exec.signal), connection.inputSha256) }
     },
+  }))
+  if (handoff) ctx.tools.register(defineTool({
+    name: 'vm_check_draft',
+    description: 'Before GUI input, validate your complete report JSON against frozen task sources and trusted session identity. Pass raw JSON text only. Returns DRAFT_REJECTED or DRAFT_STRUCTURE_VALID with canonicalJson and document. Does not repair or verify meaning. Use exactly returned document for GUI input and result; final message must be the same report JSON. Counts one original raw request including rejection and invalidates old observations. No calls after input; no budget reset.',
+    parameters: { raw: { type: 'string', required: true } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
+      render: (_args, value) => [{ type: 'text', text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) { return { result: JSON.stringify(await request('check_draft', args, exec.signal)) } },
   }))
   if (handoff) ctx.tools.register(defineTool({
     name: 'vm_locate_quote',

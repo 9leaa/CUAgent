@@ -321,7 +321,7 @@ test('C2 controlled model error requires a tool image, stops, and persists once 
   assert.throws(()=>context(),/Unreviewed model fault/)
 })
 
-test('P7 bound materials, quote and reopen use eight tools and retain original cancellation', async t => {
+test('P7 bound materials, draft, quote and reopen use nine tools and retain original cancellation', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-p7-tools-'))
   const prior = { connection: process.env.CUAGENT_C0_CONNECTION, audit: process.env.CUAGENT_C0_AUDIT_PATH, fetch: globalThis.fetch }
   t.after(() => {
@@ -351,6 +351,7 @@ test('P7 bound materials, quote and reopen use eight tools and retain original c
     if (body.op === 'stop') return { ok: true, json: async () => ({ stopped: true }) }
     if (body.op === 'reopen') return { ok: true, json: async () => ({ requires_new_observation: true, used: 8 }) }
     if (body.op === 'locate_quote') return { ok: true, json: async () => ({ status: 'NOT_FOUND', matches: [], used: 3 }) }
+    if (body.op === 'check_draft') return { ok: true, json: async () => ({ status: 'DRAFT_REJECTED', code: 'JSON_SYNTAX', used: 4 }) }
     assert.equal(body.op, 'read_materials')
     if (fail) throw new Error('transport uncertain')
     if (Object.keys(body.args).length) return { ok: false, json: async () => ({ error: 'arguments denied', used: 2 }) }
@@ -358,7 +359,7 @@ test('P7 bound materials, quote and reopen use eight tools and retain original c
   }) as any
   apply(ctx)
   const names = registered.map(x => x.name).sort()
-  assert.deepEqual(names, ['vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result'])
+  assert.deepEqual(names, ['vm_check_draft', 'vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result'])
   const ready = JSON.parse(readFileSync(join(dir, 'vm-tools-ready.json'), 'utf8'))
   assert.deepEqual(ready, { runId: config.runId, toolNames: names, kind: 'project-handoff', inputSha256: digest })
   const controller = new AbortController(), signal = controller.signal, agent: any = { session: { id: 'p7-owner' } }
@@ -383,6 +384,10 @@ test('P7 bound materials, quote and reopen use eight tools and retain original c
   assert.match(guard({ name: quote.name, agent: { session: { id: 'other' } }, signal }), /not authorized/)
   await quote.execute({ sourceId: 'notes/meeting', quote: '原文' }, { agent, signal })
   assert.deepEqual(calls[3], { op: 'locate_quote', args: { sourceId: 'notes/meeting', quote: '原文' } })
+  const draft = registered.find(x => x.name === 'vm_check_draft')
+  assert.match(guard({ name: draft.name, agent: { session: { id: 'other' } }, signal }), /not authorized/)
+  assert.equal(JSON.parse((await draft.execute({ raw: '{broken' }, { agent, signal })).result).status, 'DRAFT_REJECTED')
+  assert.deepEqual(calls[4], { op: 'check_draft', args: { raw: '{broken' } })
   const stream = handlers.get('llm/stream'), next = async function* () { yield 'ok' }
   for await (const _ of stream({ tools: names.map(name => ({ name })), messages: [] }, next)) {}
   const attachmentId = 'sha256:' + 'a'.repeat(64)
@@ -404,12 +409,13 @@ test('P7 bound materials, quote and reopen use eight tools and retain original c
   await assert.rejects(async () => { for await (const _ of stream({ tools: names.slice(1).map(name => ({ name })), messages: [] }, next)) {} }, /tools missing/)
   fail = true
   await assert.rejects(read.execute({}, { agent, signal }), /transport uncertain/)
-  assert.equal(calls.length, 5)
+  assert.equal(calls.length, 6)
   controller.abort(); await Promise.resolve()
   assert.equal(calls.at(-1).op, 'stop')
   await assert.rejects(read.execute({}, { agent, signal: new AbortController().signal }), /stopped/)
   await assert.rejects(quote.execute({ sourceId: 'notes/meeting', quote: '原文' }, { agent, signal: new AbortController().signal }), /stopped/)
-  assert.equal(calls.length, 6)
+  await assert.rejects(draft.execute({ raw: '{}' }, { agent, signal: new AbortController().signal }), /stopped/)
+  assert.equal(calls.length, 7)
 })
 
 test('P7 cannot be selected by incomplete or mixed connection config', t => {

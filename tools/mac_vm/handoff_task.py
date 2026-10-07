@@ -258,7 +258,7 @@ class HandoffDesktopTask(DesktopTask):
                     self.inflight.discard(call_id)
 
     def check_draft(self, args):
-        """Not exposed yet. Identity comes only from trusted activation."""
+        """Identity comes only from trusted activation, never model arguments."""
         from handoff_draft import check
         with self.lock:
             self.snapshot = None
