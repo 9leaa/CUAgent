@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第四批原报告失败，文件写读已推进
+
+- 021e7a7先提交方案；隔离p7-handoff-004/18123冻结host8a2cb14源码（checkout021e7a7仅文档差异）、guestdd8b456的22文件独立SHA，三组原输入/rubric未变。派发前实时普通可用/92%剩余、原余额、重置卡未用；原P5空闲、VM解锁无TextEdit、无隔离、配置恢复、官方空闲检查通过。
+- normal fa459897-8daf-4e00-8f94-78e7f79dbb50、session-e5574aaf-4742-4378-acd1-934545c452dc，Flash/off。15/30raw完成正文输入、保存、旧窗口1000关闭、单次原生重开新窗口1008、新观察、write_result/read_result。原trace写读严格相差工具追加的一个LF，正文2582字节且自身有末尾LF。本轮没有003的错误值反复提交。
+- 最终仍UNVERIFIED/VALIDATION_ERROR：原官方消息严格JSON解析在第1002列失败；独立对照原材料发现首个引用[0,42)多包含了N2文本，不等于模型所写quote。原消息还把历史进展列conflict，未做成功语义审核。未修补模型输出、未放宽校验、不恢复旧任务；conflict5119c614和dependencies60934982保留QUEUED/0raw，本批停止。
+- usage输入12167、输出3441、cacheRead75136、cacheWrite0、合计90744，费用未知。私有normal-guest-diagnosis-001和offline-failure-001保存原身份/轨迹与不修改证据的诊断；原session SHA927c4671405b8f63334990ba2d49d0a8ed2ac45dd333af2a28ba9cd4c64a4296。
+- 首次鼠标Quit没有退出，独立检查拒绝清理成功并恢复Worker96107；第二次持锁经Dock键盘Quit，独立确认PID57238退出、原2582字节/SHA69aa556b52151a7a0c660ae20b60fcb1c2eeb57af4d230aa26d4de4bb2ef9059不变。Worker96131恢复；readiness-a897ca52确认VM无TextEdit、无隔离、原配置/P5源码一致、资源空闲。两次人工介入分别保留，不冒充自动清理。
+- 下一步处理结构化报告生成和引用准确性；不能继续仅换候选重试来挑选通过样本。P7业务验收、费用对账、GUI验收和P8均未完成。
+
 ## 2026-10-07：第三批失败收尾与正文契约澄清
 
 - 固定host4f5c7e4/guestdd8b456、Flash/off，normal6723d020-cd36-4d52-b32a-562fb3bc92d6使用30/30raw后UNVERIFIED。旧窗口986消失、单次原生重开成功并出现994；第14raw起write_result被拒，第23raw读取尚不存在的result报错，后续无成功产物。剩余两例QUEUED/0raw，本批停止，不替换失败样本。
