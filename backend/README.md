@@ -214,3 +214,6 @@ P7路由选择：沿用已独立初始化的私有service profile，在`backend.
 后续可信本地调用 `publish_reviewed_task(service, task_id, review_sha256)`：只从数据库取得原run，锁定资源和原任务，在原UNVERIFIED/关闭Attempt/停止控制及身份预算匹配下重新核验。独占发布意图之后写三份产物，并在单个数据库事务登记Artifact、唯一发布事件及成功通知；不删除原失败、不动session/预算/usage。成功后原认证下载路由允许document.txt/result.txt/report.json；普通finish禁止P7成功。重复、文件失败或DB结果不明均不得覆盖原意图；查询原task及handoff_published事件判断结果，不重放模型。当前只提供本地函数，尚无生产CLI/HTTP发布路由；旧P5服务不启用这一路径。
 
 可信本地调用 `backend.handoff_publication.prepare_publication(root, review_sha256)`，仅接受原run与已记录审阅的原字节SHA，不接受任意回执路径。入口重跑执行与审阅核验、精确匹配原意图/回执并读回原VM文档，返回`PUBLICATION_EVIDENCE_PREPARED`、`files`字节与摘要；`published`和`databaseChanged`仍为false。不要将该内存结果直接当下载许可；后续必须在原任务身份/终态/撤销权限检查及持久发布事务下登记。此函数不生成PASS审阅、不执行模型、不写业务文件，也不提供HTTP路由。
+# 原中断任务的配置恢复
+
+可信本地`backend.desktop_reconcile.restore_interrupted_profile`只在原任务已由失败收尾入口登记UNVERIFIED后使用：传入同一service、原taskId/共享锁和现有DesktopTaskAdapter。它验证原证据及终止状态，复用App/profile既有生命周期命令，不触发模型或Worker。总意图独占保存，异常后先核对原记录，不自动重发；成功回执仅证明原配置恢复，quarantine、guest监听及可能残留的TextEdit仍保留。调用者负责批准的切换窗口和其他服务空闲检查。无HTTP或模型工具入口，不能用本函数跳过后续监听/隔离收尾。

@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：原第三例配置恢复
+
+- 4489fba先提交独立恢复方案；新增restore_interrupted_profile，持原共享锁核对quarantine/收尾意图及全部输入SHA、原任务和唯一已结束Attempt、资源空闲、原会话terminal、guest停止/零在途/预算不变。独占恢复意图后复用既有App/profile三步命令，未知结果不重发，失败仅留脱敏阶段。
+- 本地新增12项恢复测试，连同收尾/Worker/handoff adapter共53/53通过；Node App/profile19通过、2项可选编译器测试跳过。测试不代表真实业务成功。
+- 实际执行原58ff6b1a-fb90-482a-83e7-1f4b60c78bc3恢复：stop-restore、profile restore、start-restore全部确认，独立读回原profile SHA，guest仍停止/9raw/零在途，原隔离字节不变。私有desktop-recovery-intent/receipt及dependencies-profile-restored-001.json保留，不修改原失败/outcome。
+- 恢复前所有十个隔离队列及原P5队列空闲、原P5冻结源码未变、无旧Worker；VM已解锁，仍有TextEdit54663。未新建/重跑模型任务，不清隔离、不启动Worker、不强制关闭文档；guest监听/隧道和应用残留仍须后续收尾，不能称环境或P7全部完成。
+- 恢复后10:06:24 UTC独立就绪检查确认profileRestored=true、全部队列空、源码未变；VM已重新自动锁屏，TextEdit54663仍在。此检查不触发模型，不改锁屏设置。
+
 ## 2026-10-07：原第三例安全失败收尾
 
 最终相关回归：desktop_reconcile、desktop_worker、handoff_adapter共41/41通过；不把模拟数据库测试计作实机业务成功。
