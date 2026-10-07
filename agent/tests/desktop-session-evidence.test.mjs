@@ -36,6 +36,27 @@ test('real zstd decode preserves original terminal JSONL bytes without modifying
   assert.deepEqual(readFileSync(f.target), before);
 });
 
+test('running session tolerates an incomplete append only by deferring durable evidence', async t => {
+  const f = fixture(t), complete = readFileSync(f.target);
+  const next = execFileSync('/opt/homebrew/bin/zstd', ['-q', '-c'], { input: '{"type":"step/start"}\n' });
+  writeFileSync(f.target, Buffer.concat([complete, next.subarray(0, next.length - 2)]));
+  assert.throws(() => f.reader(f.id)); // A real incomplete zstd tail, not a mocked read error.
+  const live = async () => ({ items: [{ sessionId: f.id, cwd: join(f.root, 'workspace'), running: true }] });
+  const state = await inspectAndArchiveDesktopSession(f.root, live, () => {
+    assert.fail('running persistence must not be read');
+  });
+  assert.equal(state.running, true);
+  assert.equal(state.terminal, false);
+  assert.equal(state.evidencePending, true);
+  assert.equal(state.userMessages, null);
+  assert.equal(existsSync(join(f.root, 'session.jsonl')), false);
+  await assert.rejects(inspectAndArchiveDesktopSession(f.root, f.rpc, f.reader));
+  assert.equal(existsSync(join(f.root, 'session.jsonl')), false);
+  writeFileSync(f.target, complete);
+  assert.equal((await inspectAndArchiveDesktopSession(f.root, f.rpc, f.reader)).terminal, true);
+  assert.equal(readFileSync(join(f.root, 'session.jsonl'), 'utf8'), f.raw);
+});
+
 test('duplicate session, traversal and linked source are rejected', t => {
   const f = fixture(t);
   assert.throws(() => f.reader('../session'));
@@ -47,6 +68,18 @@ test('duplicate session, traversal and linked source are rejected', t => {
   rmSync(file); symlinkSync(f.target, file);
   assert.throws(() => f.reader(f.id));
 });
+
+for (const fault of ['duplicate', 'cwd', 'running-type']) {
+  test(`live inventory refuses ${fault} without reading persistence`, async t => {
+    const f = fixture(t);
+    const row = { sessionId: f.id, cwd: join(f.root, 'workspace'), running: true };
+    if (fault === 'cwd') row.cwd += '/other';
+    if (fault === 'running-type') row.running = 1;
+    const rpc = async () => ({ items: fault === 'duplicate' ? [row, row] : [row] });
+    await assert.rejects(inspectAndArchiveDesktopSession(f.root, rpc, () => assert.fail('no persistence read')));
+    assert.equal(existsSync(join(f.root, 'session.jsonl')), false);
+  });
+}
 
 test('nonterminal and unbound terminal evidence cannot become archived success', async t => {
   const f = fixture(t);

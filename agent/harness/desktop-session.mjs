@@ -108,9 +108,20 @@ export async function inspectDesktopSession(root, rpc, readSession) {
   privateRoot(root);
   const binding = load(join(root, 'desktop-session-binding.json'));
   const inventory = await rpc('session/list', { _request: {} });
-  const session = inventory.items.find(item => item.sessionId === binding.sessionId);
+  assert.ok(Array.isArray(inventory.items));
+  const matches = inventory.items.filter(item => item.sessionId === binding.sessionId);
+  assert.ok(matches.length <= 1, 'original session identity must be unique');
+  const session = matches[0];
   if (!session) return { sessionId: binding.sessionId, exists: false, terminal: false };
   assert.equal(session.cwd, binding.cwd);
+  assert.equal(typeof session.running, 'boolean');
+  if (session.running) {
+    // Official persistence is appendable. A live snapshot may contain a torn
+    // final compression frame; it is not terminal evidence or a task failure.
+    return { sessionId: binding.sessionId, exists: true, running: true, terminal: false,
+      evidencePending: true, events: null, calls: null, userMessages: null,
+      rawUserMessages: null, frameworkNotices: null, promptObserved: false };
+  }
   const rows = await readSession(binding.sessionId);
   const intent = join(root, 'prompt-request.json');
   const observed = observedSession(binding.sessionId, session.running, rows,

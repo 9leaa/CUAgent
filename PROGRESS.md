@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：运行态观察与终态证据分离
+
+- 原会话seq44 vm_reopen后seq45为interrupted-tool-result/TOOL_OUTCOME_UNKNOWN，seq47 interrupted。核对固定官方参考源码repair.ts：此类合成结果及turn/end复用最后真实事件时间；不能从三条相同时间戳推断中断发生时刻或确定是关窗失败。原首次Worker异常未留存，根因仍未知。
+- 2d8909f先提交方案。官方持久化使用追加拼接zstd帧，原inspect即使running=true仍读日志，可能因追加未完成/长度变化抛异常。用真实压缩数据拼部分尾帧验证严格reader拒绝，新增live测试在旧实现确实失败；未运行模型或改变原证据。
+- inspectDesktopSession严格核对清单数组、唯一session/cwd及布尔running；live时不读取持久化文件，返回evidencePending=true和null计数、terminal=false。Python只接受精确非终态形状；guest预算/在途和原心跳/期限不变。idle后依旧完整读取原日志、提示绑定、终态分类和字节一致归档，坏尾帧/伪造pending成功拒绝。
+- 测试覆盖真实zstd半帧、live不读文件、idle坏帧拒绝、修复完整文件后原字节归档、错cwd/重复身份/非布尔及pending假终态。首轮3项旧测试仍要求live promptObserved=true，按新“未读证据”契约改为pending断言，取消及原终态核验仍保留。最终Node27/27、后端session/handoff/worker/adapter/reconcile共84/84通过，git diff --check通过。
+- 新代码对原第三例实际只读inspect确认exists=true/running=false/terminal=true/userMessages=1/promptObserved=true/interrupted，未新增请求。不是原失败根因的确定证明，尚未新版实机验收，原三例失败完整保留；下一步冻结新版独立验证批次并保留全部历史结果。
+
 ## 2026-10-07：隔离记录留档与原Worker恢复
 
 - 55ff246先提交对账/恢复方案。原scheduler入口revoke实际返回REVOKED；未授予未来许可、未补跑P5漏期。第一次设计提交命令误在冻结P5目录执行，因目标文件不存在未产生提交/改动；随后在P7工作树正确提交，P5源码摘要仍一致。

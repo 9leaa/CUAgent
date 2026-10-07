@@ -79,3 +79,25 @@ def test_cancel_only_reports_request_and_cannot_replay(session):
         assert session.cancel() == {'sessionId': SESSION, 'cancelRequested': True}
         with pytest.raises(FileExistsError): session.cancel()
         run.assert_called_once()
+
+
+def live_observation():
+    return dict(sessionId=SESSION, exists=True, running=True, terminal=False,
+        evidencePending=True, events=None, calls=None, userMessages=None,
+        rawUserMessages=None, frameworkNotices=None, promptObserved=False)
+
+
+def test_live_pending_evidence_keeps_original_guest_budget(session):
+    guest = Mock(identity={'runId': RUN})
+    guest.status.return_value = dict(rawCalls=9, pendingCalls=1, stopped=False)
+    with patch('backend.desktop_session.run_bounded', return_value=json.dumps(live_observation()).encode()):
+        value=session.poll(guest)
+    assert value['terminal'] is False and value['rawCalls']==9 and value['pendingCalls']==1
+    assert value['session']['userMessages'] is None
+
+
+@pytest.mark.parametrize('change',[{'terminal':True},{'running':False},{'userMessages':0},
+    {'promptObserved':True},{'evidencePending':False},{'running':1},{'exists':1},{'reason':'completed'}])
+def test_pending_evidence_cannot_claim_known_or_terminal_result(session,change):
+    with patch('backend.desktop_session.run_bounded', return_value=json.dumps({**live_observation(),**change}).encode()):
+        with pytest.raises(ValueError):session.inspect()

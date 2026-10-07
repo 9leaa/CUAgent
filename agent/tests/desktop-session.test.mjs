@@ -56,7 +56,7 @@ test('fixed official model/off, intent before RPC, original inspection and cance
   assert.deepEqual(result.model, DAILY_MODEL);
   const request = JSON.parse(readFileSync(join(f.root, 'prompt-request.json'))).request;
   assert.ok(request.content[0].text.includes(JSON.stringify(f.binding.lines)));
-  assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).promptObserved, true);
+  assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).evidencePending, true);
   assert.equal((await cancelDesktopSession(f.root, f.rpc, f.readSession)).cancelRequested, true);
   assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).terminal, true);
   assert.equal((await cancelDesktopSession(f.root, f.rpc, f.readSession)).cancelRequested, false);
@@ -73,7 +73,7 @@ for (const fault of ['create', 'model', 'prompt', 'preset']) {
     await assert.rejects(startDesktopSession(f.root, f.binding, f.rpc));
     assert.equal(f.calls.length, count);
     assert.ok(f.calls.filter(c => c.method === 'session/prompt').length <= 1);
-    if (fault === 'prompt') assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).promptObserved, true);
+    if (fault === 'prompt') assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).evidencePending, true);
   });
 }
 
@@ -112,7 +112,7 @@ test('P7 uses source-bound analysis prompt, exact preset and original Flash/off 
   for (const value of [f.binding.runId, f.binding.sessionId, f.binding.inputSha256, 'vm_read_materials', 'vm_reopen', 'sourceHashes', 'JSON schema']) assert.ok(prompt.includes(value));
   assert.ok(!prompt.includes('文本数据：'));
   assert.deepEqual(f.calls.find(call => call.method === 'session/selectModel').args.request, { sessionId: f.binding.sessionId, ...DAILY_MODEL });
-  assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).promptObserved, true);
+  assert.equal((await inspectDesktopSession(f.root, f.rpc, f.readSession)).evidencePending, true);
   assert.equal((await cancelDesktopSession(f.root, f.rpc, f.readSession)).cancelRequested, true);
   await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
   assert.equal(f.calls.filter(call => call.method === 'session/prompt').length, 1);

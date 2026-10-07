@@ -56,6 +56,14 @@ class DesktopSessionClient:
 
     def inspect(self):
         result = self.command('inspect')
+        if 'evidencePending' in result:
+            expected = dict(sessionId=self.session_id, exists=True, running=True, terminal=False,
+                evidencePending=True, events=None, calls=None, userMessages=None,
+                rawUserMessages=None, frameworkNotices=None, promptObserved=False)
+            if (result != expected or any(type(result.get(k)) is not bool for k in
+                    ('exists', 'running', 'terminal', 'evidencePending', 'promptObserved'))):
+                raise ValueError('live observation may not claim terminal evidence')
+            return result
         if (result.get('exists') is not True or type(result.get('running')) is not bool
                 or type(result.get('terminal')) is not bool or type(result.get('promptObserved')) is not bool
                 or type(result.get('userMessages')) is not int or not 0 <= result['userMessages'] <= 1):
