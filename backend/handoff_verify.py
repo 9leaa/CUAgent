@@ -13,6 +13,7 @@ from backend.handoff_result import canonical, input_digest
 from backend.handoff_session import extract_handoff_result, strict_json, require, MODEL, TOOLS
 from backend.handoff_attachments import read_handoff_attachments
 from backend.handoff_images import verify_handoff_images
+from backend.handoff_draft_evidence import verify_draft_evidence
 
 
 def verify_request_audit(raw, rows, *, run_id, session_id, input_sha256):
@@ -70,6 +71,15 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
     raw = read(root / 'session.jsonl', 64 * 1024 * 1024)
     extracted = extract_handoff_result(raw, submission=submission, run_id=root.name,
         session_id=session_id, cwd=saved['cwd'], prompt=prompt)
+    trace_raw = read(guest_directory / 'trace.jsonl', 8 * 1024 * 1024)
+    trace = [strict_json(line.decode()) for line in trace_raw.splitlines()]
+    official = [strict_json(line.decode()) for line in raw.splitlines()]
+    draft = None
+    if (any(r.get('tool') == 'check_draft' for r in trace)
+            or any(r.get('type') == 'tool/call' and r.get('data', {}).get('name') == 'vm_check_draft' for r in official)):
+        draft = verify_draft_evidence(trace, official, submission=submission, run_id=root.name,
+            session_id=session_id, binding=strict_json(read(guest_directory / 'handoff-session-binding.json', 4096).decode()),
+            report=extracted['report'], document=extracted['document'])
     payload = json.dumps(dict(binding=binding, materialsBase64=base64.b64encode(canonical(submission.model_dump())).decode(),
         expectedBase64=base64.b64encode(extracted['document']).decode())).encode()
     command = Path(__file__).resolve().parents[1] / 'tools/mac_vm/handoff_inspect.py'
@@ -77,6 +87,7 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
                          payload, limit=1024*1024, timeout=30, input_limit=512*1024)
     inspected = strict_json(output.decode())
     require(inspected['sessionSha256'] == extracted['sessionSha256']
+            and inspected['guest']['files']['trace.jsonl']['sha256'] == hashlib.sha256(trace_raw).hexdigest()
             and inspected['guest']['status'] == 'VM_EVIDENCE_VERIFIED'
             and inspected['exchanges']['status'] == 'EXCHANGES_MATCHED'
             and inspected['exchanges']['officialToolCalls'] == extracted['officialToolCalls'])
@@ -98,4 +109,5 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
     return dict(status='EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING', runId=root.name, sessionId=session_id,
         sessionVerified=True, guiEvidenceVerified=True, imageBytesVerified=True, semanticVerified=False,
         result=extracted['report'], structure=extracted['structure'], sessionSha256=extracted['sessionSha256'],
-        documentSha256=hashlib.sha256(extracted['document']).hexdigest(), guest=inspected['guest'], images=images, audit=audit)
+        documentSha256=hashlib.sha256(extracted['document']).hexdigest(), guest=inspected['guest'], images=images, audit=audit,
+        draft=draft)
