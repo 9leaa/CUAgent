@@ -33,6 +33,20 @@ class DiagnosticTests(unittest.TestCase):
         task.reopen.assert_called_once(); task.stop.assert_called_once()
         task.write_result.assert_not_called(); task.read_result.assert_not_called()
 
+    def test_missing_enabled_matches_existing_executor(self):
+        task = self.task()
+        del task.observe.return_value['state']['elements'][0]['enabled']
+        self.assertTrue(exercise(task, Mock())['sequenceCompleted'])
+        task.type_text.assert_called_once()
+
+    def test_explicit_disabled_or_invalid_enabled_is_refused(self):
+        for enabled in (False, None, 1, 'true'):
+            with self.subTest(enabled=enabled):
+                task = self.task()
+                task.observe.return_value['state']['elements'][0]['enabled'] = enabled
+                with self.assertRaises(ValueError): exercise(task, Mock())
+                task.type_text.assert_not_called()
+
     def test_old_task_refused_before_renewal(self):
         task = self.task(); task.used = 13; renew = Mock()
         with self.assertRaises(ValueError): exercise(task, renew)

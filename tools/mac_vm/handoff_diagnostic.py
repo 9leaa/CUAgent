@@ -26,7 +26,7 @@ def exercise(task, renew, *, clock=time.monotonic):
         call(task.read_materials)
         state = call(task.observe)['state']
         areas = [e for e in state['elements']
-                 if e.get('role') == 'AXTextArea' and e.get('enabled') is True]
+                 if e.get('role') == 'AXTextArea' and e.get('enabled', True) is True]
         if len(areas) != 1:
             raise ValueError('unique observed editor required')
         area = areas[0]
