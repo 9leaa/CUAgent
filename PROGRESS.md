@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：授权后旧窗口人工收尾与诊断准备
+
+- 2deae06先提交独立诊断方案，明确新诊断身份/自有文件、不调用模型、不恢复原UNKNOWN或冻结002剩余两例；原30raw与执行层边界不变。
+- 首个清理窗口等待VERIFY超时，finally恢复Worker93628；GUI鼠标Quit后独立查询确认原TextEdit55473仍在，原文件2023字节/SHA未变，因此未记成功。原超时和post-timeout-observation.json保留，未覆盖回执。
+- 重新核对空闲队列、调度窗口、原任务终态、PID/出生身份和文档后，第二个人工清理窗口精确停止原Worker并持共享桌面锁。通过VM Dock菜单选中Quit后按Return正常退出，独立查询确认原PID消失且原文档SHA64542a1361d168aed19897162a6e7479bb1a62f7529995b6234647363bfa1bb5不变；未出现保存/丢弃确认，未删除原文件。
+- 私有manual-cleanup-normal-002保存前后观察和MANUAL_CLEANUP_CONFIRMED，释放锁并恢复Worker93704；新的readiness-f4d99e73094547489738828c4fd7c5cf确认TextEdit进程为空、VM解锁、原配置和P5源码一致、无隔离、P5任务/资源空闲。下一原计划仍为10月8日12:10北京时间；未启动P5 API/调度器。
+- 这是人工介入收尾，不是自动退出/重开通过。原normal仍UNVERIFIED/13raw，另两例QUEUED/0raw，未新增模型请求；原生诊断代码尚未部署，新的独立保存—关闭—重开—读回测试及P7业务验收均待执行。
+
 ## 2026-10-07：用户确认后完成VM TextEdit自动化授权
 
 - 用户先批准进入流程。原SSH/mvpagent环境仅调用权限查询askUserIfNeeded=true，绑定TextEdit55473及原出生时间；没有发送odoc或重新执行原任务。独占native-consent-request-intent-001保存请求，原后台进程等待系统回应。
