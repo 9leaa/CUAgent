@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：第五批实测与清理异常
+
+- 屏幕共享窗口恢复后，使用原测试账号正常解锁；坐标点击报windowNotFoundAtPosition，改用已绑定滚动区聚焦及输入。独立readiness确认解锁、无TextEdit、P5原配置/源码/空闲状态不变。实时Codex剩余89%，普通可用、原余额62494.0260570000、重置卡仍未用；新的私有quota记录只绑定005 normal。
+- 固定07badd8 host/guest，原normal b754ec2d-e4b4-44e4-a028-2886e04fc342、session-47d2e3ef-8d1e-41ee-bb46-57179728f052，Flash/off。25raw：材料1、引用定位2–8、有效草稿9、观察10–12、输入13、新观察14、保存15、观察16、再次保存17、观察18、关窗19–20、一次原生重开21、新窗口确认22、观察23、write/read24–25。旧窗口1028变为1037，原文档1637字节SHA578be8b206e5330bfcd682103ac82d56da59d3147dd17fc2f766cead321765c6。
+- 最终消息在JSON前添加英文总结/引导句，严格JSON第1行第1列失败；不剥离文字、不修补原会话，状态UNVERIFIED/VALIDATION_ERROR。本批停止，conflict0580f3bd和dependenciesdc752fc3仍QUEUED/0raw，不替换失败样本。usage输入17734、输出6746、cacheRead188160、cacheWrite0、总212640，费用未知；session SHA9280b3f310823b5b2fd556c406bfd34061b584a129782eb75ff3acfdf1c2ff02。
+- 原执行已撤销/关闭、配置恢复、无quarantine，Worker98900恢复。随后持锁人工清理：Dock坐标点击失败，聚焦TextEdit后super+q未退出而输入q；首次独立核对原PID58082仍存在，清理失败，finally恢复Worker98987。随后Escape/BackSpace撤回误输入字符，未保存；再次独立检查原文件1637字节/SHA未变、PID仍在。该人工介入留档，不算自动清理成功；原窗口仍待正常退出，不继续派发任务。
+- 私有normal-guest-diagnosis-001.json、offline-failure-001.json及manual-cleanup-normal-001保存原轨迹、严格失败与清理前后检查；未改历史模型证据。后续先完成窗口清理，再研究正式最终输出协议，不能只反复换样本直到碰巧成功。P7完整业务及后续阶段未完成。
+
 ## 2026-10-07：第五批固定候选部署与准备
 
 - 6e80682先提交candidate-005方案。host/guest固定07badd89219a79cf5a18543077ec37a8b0bcf563，新的commit命名VM目录安装24个包文件，独立SSH读回每个SHA及manifest摘要完全一致；只解析源码，没有启动guest服务、GUI或模型。原部署保留，私有回执p7-draft-deployment-005/verified.json。
