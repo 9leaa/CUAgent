@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-07：原生事件只读预检发现待授权
+
+- 读取VM失败时段03:34:30–03:34:36的tccd/osascript/TextEdit系统日志，log show返回77/Operation not permitted；原返回私有留存，未sudo、未改日志权限。
+- 在原SSH/mvpagent环境做不发送事件的原生构造探针：目标描述符、odoc事件、原文件URL描述符和列表/参数均构造成功，options=19、发送方法存在，dispatchCount=0。没有NSRunningApplication控制、没有调用send或open；只能证明当前桥接构造可行，不能证明发送会成功。
+- 随后只读核对原TextEdit55473/出生1791369249450752后，查询AEDeterminePermissionToAutomateTarget，事件aevt/odoc、askUserIfNeeded=false。首次CoreServices自动桥接不能调用，保留phase=permission未确认；按实际C签名显式绑定后返回permissionStatus=-1744，未请求同意、零发送。
+- 本机SDK AppleEvents.h明确-1744为errAEEventWouldRequireUserConsent；Apple官方WWDC19/接口文档说明此查询用于预检且只有askUserIfNeeded=true才请求提示。当前原目标需要授权，不能把本次预检倒填成原13raw请求的实际错误码，更不能推断完整根因已证实。
+- 私有normal-native-system-log-001、normal-native-build-probe-001、normal-native-permission-probe-001/002分别保存脚本/真实返回；原任务、文档、预算、剩余队列及VM权限未改，没有调用模型。下一步需用户确认新增自动化授权范围，再通过真实系统界面核对实际请求者；不直接编辑TCC数据库、重置权限或放开安全保护。
+
 ## 2026-10-07：原生重开有限诊断
 
 - b179796先提交方案。原失败只留RuntimeError、stderr被丢弃；核对本机SDK及Apple官方sendEventWithOptions:timeout:error:，接口允许返回NSError与回复，但不能凭约1.1秒耗时断言超时或权限问题。未重发原UNKNOWN操作。
