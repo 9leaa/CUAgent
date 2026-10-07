@@ -42,6 +42,27 @@ class HandoffObservationTests(unittest.TestCase):
             else: e[1]['parent_index'] = True
             with self.subTest(fault=fault), self.assertRaises(ValueError): project_handoff_observation(self.state, 4)
 
+    def test_missing_is_unknown_not_empty_and_invalid_values_rejected(self):
+        body = self.state['elements'][2]
+        del body['value']
+        before = copy.deepcopy(self.state)
+        projected = project_handoff_observation(self.state, 4)['elements'][-1]
+        self.assertNotIn('value', projected)
+        self.assertEqual(projected['bodyValueStatus'], 'unavailable')
+        self.assertEqual(self.state, before)
+        from real_app_bridge import body_from_state
+        from c0_bridge import StopRun
+        with self.assertRaises(StopRun):
+            body_from_state(self.state)
+        body['value'] = ''
+        projected = project_handoff_observation(self.state, 4)['elements'][-1]
+        self.assertEqual(projected['value'], '')
+        self.assertNotIn('bodyValueStatus', projected)
+        for invalid in (None, False, 0, [], {}):
+            body['value'] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                project_handoff_observation(self.state, 4)
+
     def test_no_truncation_to_fit_escaped_body_or_bad_budget(self):
         for used in (0, 31, True, 2.5):
             with self.assertRaises(ValueError): project_handoff_observation(self.state, used)

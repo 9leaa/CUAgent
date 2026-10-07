@@ -23,6 +23,21 @@ test('P7 bounded AX projection preserves complete original body and identities, 
   assert.deepEqual(projected.elements, [state.elements[0], state.elements[1], { ...state.elements[2], enabled: true }])
   assert.ok(Buffer.byteLength(JSON.stringify(projected)) < 1024)
   assert.equal(JSON.stringify(state), original)
+  const absent = JSON.parse(original)
+  delete absent.elements[2].value
+  const beforeAbsent = JSON.stringify(absent)
+  const unknown: any = handoffObservation(absent, 4)
+  assert.equal(unknown.elements.at(-1).bodyValueStatus, 'unavailable')
+  assert.equal(Object.hasOwn(unknown.elements.at(-1), 'value'), false)
+  assert.equal(JSON.stringify(absent), beforeAbsent)
+  absent.elements[2].value = ''
+  const empty: any = handoffObservation(absent, 4)
+  assert.equal(empty.elements.at(-1).value, '')
+  assert.equal(Object.hasOwn(empty.elements.at(-1), 'bodyValueStatus'), false)
+  for (const bad of [null, false, 0, [], {}, undefined]) {
+    absent.elements[2].value = bad
+    assert.throws(() => handoffObservation(absent, 4))
+  }
   for (const fault of ['duplicate', 'dialog', 'ambiguous', 'cycle', 'disabled', 'large', 'bad-title', 'bad-frame', 'bad-token']) {
     const changed = JSON.parse(original)
     if (fault === 'duplicate') changed.elements.push(changed.elements[0])

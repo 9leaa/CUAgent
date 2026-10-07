@@ -31,7 +31,8 @@ export function handoffObservation(state: any, used: number): object {
   }
   assert.equal(candidates.length, 1, 'unique task body required')
   const chain = candidates[0], body = chain.at(-1)
-  assert.ok(typeof body.value === 'string' && Buffer.byteLength(body.value, 'utf8') <= 4096 && !body.value.includes('\0'))
+  const hasValue = Object.hasOwn(body, 'value')
+  assert.ok(!hasValue || (typeof body.value === 'string' && Buffer.byteLength(body.value, 'utf8') <= 4096 && !body.value.includes('\0')))
   assert.ok(typeof body.element_token === 'string' && body.element_token.length > 0 && body.element_token.length <= 256)
   assert.ok(body.enabled === undefined || body.enabled === true)
   const elements = chain.map((element, index) => {
@@ -39,7 +40,8 @@ export function handoffObservation(state: any, used: number): object {
     if (index > 0) assert.ok(Number.isInteger(element.parent_index) && element.parent_index === chain[index - 1].element_index)
     return { element_index: element.element_index, role: element.role,
       ...(index > 0 ? { parent_index: element.parent_index } : { label: element.label }),
-      ...(index === chain.length - 1 ? { element_token: body.element_token, enabled: true, value: body.value } : {}) }
+      ...(index === chain.length - 1 ? { element_token: body.element_token, enabled: true,
+        ...(hasValue ? { value: body.value } : { bodyValueStatus: 'unavailable' }) } : {}) }
   })
   const value = { projection: 'handoff-body-v1', snapshot_id: state.snapshot_id, pid: state.pid,
     window_id: state.window_id, app_name: state.app_name, window_title: state.window_title,

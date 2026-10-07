@@ -35,7 +35,8 @@ def project_handoff_observation(state, used):
             current = indexed.get(parent) if type(parent) is int else None
     require(len(candidates) == 1)
     chain = candidates[0]; body = chain[-1]
-    require(type(body.get('value')) is str and len(body['value'].encode()) <= 4096 and '\0' not in body['value'])
+    has_value = 'value' in body
+    require(not has_value or (type(body['value']) is str and len(body['value'].encode()) <= 4096 and '\0' not in body['value']))
     require(type(body.get('element_token')) is str and 0 < len(body['element_token'].encode('utf-16-le')) // 2 <= 256
             and body.get('enabled', True) is True)
     projected = []
@@ -46,7 +47,9 @@ def project_handoff_observation(state, used):
             require(type(element.get('parent_index')) is int and element['parent_index'] == chain[index-1]['element_index'])
             row['parent_index'] = element['parent_index']
         else: row['label'] = element['label']
-        if index == len(chain)-1: row.update(element_token=body['element_token'], enabled=True, value=body['value'])
+        if index == len(chain)-1:
+            row.update(element_token=body['element_token'], enabled=True)
+            row.update({'value': body['value']} if has_value else {'bodyValueStatus': 'unavailable'})
         projected.append(row)
     value = dict(projection='handoff-body-v1', snapshot_id=state['snapshot_id'], pid=state['pid'],
         window_id=state['window_id'], app_name=state['app_name'], window_title=state['window_title'],

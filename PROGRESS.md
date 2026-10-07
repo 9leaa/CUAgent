@@ -1,5 +1,9 @@
 # CUAgent 实际进度
 
+P7缺值观察修复（2026-10-07）：61e9ad2方案先行。JS handoffObservation与Python project_handoff_observation仅在value字段不存在时省略value、明确bodyValueStatus=unavailable；现有字符串/空串原样，null/数字/布尔/数组/对象（JS还含显式undefined）继续拒绝。原唯一正文/token/祖先/截图/弹窗/大小检查不变，未读取文件猜正文、未改变预算/执行权限/保存/重开/成功核验。新增缺失与真实空串区分、原state不变、错误类型拒绝，并确认无原生正文证据时body_from_state仍拒绝。
+
+实际验证：Python执行层unittest discover 310/310；官方安装版Electron Node执行esbuild编译的c0-vm-tools.test.ts，11/11；追加验收拒绝断言后投影专项4/4。通过原SSH只读取得首例state-04.json，在新私有目录保存，JS与独立Python投影完全一致且未生成value；二次远端读取字节相同，回执.runtime/p7-missing-body-check-4a9a21ad8b184ab183a31294099a0dae/receipt.json。没有新模型请求、没有修改VM部署/原失败/队列，不能将离线兼容证明算作实机业务通过。接下来核对首例残留应用与部署新固定版本，原两排队样本继续保留身份；全阶段仍未验收。
+
 P7正式首例失败（2026-10-07）：先沿冻结P5原scheduler.prepare将10月6/7两期记录MISSED，下一期10月8日12:10，未补跑/授予许可；finally revoke返回REVOKED。新的week_observer回执仍INCOMPLETE/ConnectError，原API不可用不掩盖。10月4日至7日共四期缺失，不能宣称一周通过。
 
 独立P7服务初始化前18107实际占用，预检在创建目录/库/任务前退出；保留旧监听，改18120并保存准备失败历史。新独立数据库/profile接收normal/conflict/dependencies三组冻结输入，rubric未发送模型；原任务分别d1725fc1-94b1-4263-a607-4042a66335a0、9c4d50e1-50f2-469a-be90-572d4aab8677、58ff6b1a-fb90-482a-83e7-1f4b60c78bc3，禁止换身份补成绩。私有总清单.runtime/p7-handoff-001/cohort.json，guest固定288aba5，host7b70df5仅文档差异。
