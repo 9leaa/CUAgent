@@ -34,6 +34,10 @@ def protocol(request):
         e = test_handoff_exchanges.HandoffExchangeTests(); e.execution_fixture = f; e.setUp()
         binding = dict(version=1, runId=RUN, owner=f.owner, epoch=1)
         session = dict(runId=RUN, sessionId=SESSION, inputSha256=input_digest(source))
+        if hasattr(f, 'submit_report'):
+            path = f.task.directory / 'handoff-submission-protocol.json'
+            path.write_bytes(canonical(dict(session, version=1, protocol='p7-tool-submit-v1')))
+            path.chmod(0o600)
         for name, value in [('handoff-session-binding.json', session)] + [
             (name, dict(status=status, binding=binding, inputSha256=input_digest(source), bytes=len(f.materials)))
             for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]]:
@@ -76,6 +80,45 @@ def test_export_requires_private_original_binding(protocol, fault):
     if fault.startswith('wrong'): path.write_bytes(canonical(session))
     with pytest.raises((ValueError, OSError)):
         build_bundle(f.task.directory, c, f.materials, f.expected)
+
+
+@pytest.mark.parametrize('protocol', ['submit'], indirect=True)
+@pytest.mark.parametrize('fault', ['missing', 'public', 'bool_version', 'wrong_protocol', 'wrong_input'])
+def test_export_requires_original_private_submission_protocol(protocol, fault):
+    f, _, c, *_ = protocol
+    path = f.task.directory / 'handoff-submission-protocol.json'
+    value = json.loads(path.read_bytes())
+    if fault == 'missing': path.unlink()
+    elif fault == 'public': path.chmod(0o644)
+    else:
+        if fault == 'bool_version': value['version'] = True
+        if fault == 'wrong_protocol': value['protocol'] = 'legacy-final-json'
+        if fault == 'wrong_input': value['inputSha256'] = '0' * 64
+        path.write_bytes(canonical(value))
+    with pytest.raises((ValueError, OSError)):
+        build_bundle(f.task.directory, c, f.materials, f.expected)
+
+
+@pytest.mark.parametrize('protocol', ['submit'], indirect=True)
+@pytest.mark.parametrize('fault', ['missing', 'bool_version', 'wrong_protocol'])
+def test_host_bundle_rejects_modified_protocol_even_with_updated_manifest(protocol, fault):
+    import hashlib
+    f, _, c, _, _, binding, _ = protocol
+    contents = build_bundle(f.task.directory, c, f.materials, f.expected)
+    name = 'handoff-submission-protocol.json'
+    manifest = json.loads(contents['guest-manifest.json'])
+    if fault == 'missing':
+        del contents[name]; del manifest['guest']['files'][name]
+    else:
+        value = json.loads(contents[name])
+        if fault == 'bool_version': value['version'] = True
+        else: value['protocol'] = 'legacy-final-json'
+        contents[name] = canonical(value)
+        manifest['guest']['files'][name].update(bytes=len(contents[name]), sha256=hashlib.sha256(contents[name]).hexdigest())
+    contents['guest-manifest.json'] = canonical(manifest)
+    stream = io.BytesIO(); write_bundle(contents, stream)
+    with pytest.raises(ValueError):
+        decode_handoff_bundle(stream.getvalue(), binding=binding, materials=f.materials, expected=f.expected)
 
 
 @pytest.mark.parametrize('fault', ['response', 'reject_code', 'args', 'missing', 'bool_used', 'official'])

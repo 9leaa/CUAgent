@@ -26,9 +26,9 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
             for member in archive:
                 name = member.name
                 require(raw[member.offset + 257:member.offset + 265] == b'ustar\x0000')
-                require(len(contents) < 70 and name not in contents and member.type == tarfile.REGTYPE
+                require(len(contents) < 71 and name not in contents and member.type == tarfile.REGTYPE
                         and not member.pax_headers and not member.linkname)
-                require(name in fixed | {'guest-manifest.json', 'handoff-session-binding.json'} or re.fullmatch(r'state-(?:0[1-9]|[12][0-9]|30)\.(?:json|png)', name))
+                require(name in fixed | {'guest-manifest.json', 'handoff-session-binding.json', 'handoff-submission-protocol.json'} or re.fullmatch(r'state-(?:0[1-9]|[12][0-9]|30)\.(?:json|png)', name))
                 require(0 < member.size <= (65536 if name == 'guest-manifest.json' else 8 * 1024 * 1024))
                 total += member.size
                 require(total <= 64 * 1024 * 1024)
@@ -60,6 +60,8 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
                 and contents['result.txt'] == expected + b'\n')
         trace = [strict_json(line.decode()) for line in contents['trace.jsonl'].splitlines()]
         has_draft = any(r.get('tool') == 'check_draft' for r in trace)
+        has_submit = any(r.get('tool') == 'submit_handoff' for r in trace)
+        require(has_submit == ('handoff-submission-protocol.json' in contents) and (not has_submit or has_draft))
         require(has_draft == ('handoff-session-binding.json' in contents))
         if has_draft:
             session = strict_json(contents['handoff-session-binding.json'].decode())
@@ -67,6 +69,9 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
                     and session['runId'] == binding['runId']
                     and session['inputSha256'] == hashlib.sha256(materials).hexdigest()
                     and type(session['sessionId']) is str and re.fullmatch('session-' + uuid, session['sessionId']))
+        if has_submit:
+            protocol = strict_json(contents['handoff-submission-protocol.json'].decode())
+            require(canonical(protocol) == canonical(dict(session, version=1, protocol='p7-tool-submit-v1')))
         screenshots = [name for name in contents if name.endswith('.png')]
         require(bool(screenshots))
         for name in screenshots:

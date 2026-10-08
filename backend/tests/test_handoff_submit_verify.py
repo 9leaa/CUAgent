@@ -41,3 +41,21 @@ def test_original_protocol_intent_cannot_be_missing_changed_or_inferred(evidence
         data = json.loads(path.read_bytes()); data['sessionId'] = 'wrong'; path.write_bytes(canonical(data))
     with pytest.raises((ValueError, FileNotFoundError)):
         verify_handoff_execution(**kwargs, protocol='legacy-final-json' if fault == 'legacy' else 'p7-tool-submit-v1')
+
+
+@pytest.mark.parametrize('evidence', ['with_submit'], indirect=True)
+@pytest.mark.parametrize('fault', ['missing', 'public', 'version_bool', 'session', 'protocol', 'extra'])
+def test_original_guest_activation_protocol_required(evidence, fault):
+    kwargs, _, _ = evidence
+    path = kwargs['guest_directory'] / 'handoff-submission-protocol.json'
+    data = json.loads(path.read_bytes())
+    if fault == 'missing': path.unlink()
+    elif fault == 'public': path.chmod(0o644)
+    else:
+        if fault == 'version_bool': data['version'] = True
+        if fault == 'session': data['sessionId'] = 'other'
+        if fault == 'protocol': data['protocol'] = 'legacy-final-json'
+        if fault == 'extra': data['extra'] = 1
+        path.write_bytes(canonical(data))
+    with pytest.raises((ValueError, FileNotFoundError)):
+        verify_handoff_execution(**kwargs, protocol='p7-tool-submit-v1')

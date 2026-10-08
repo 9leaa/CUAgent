@@ -110,6 +110,10 @@ def inspect_handoff_evidence(directory, *, binding, materials, expected):
             require(type(session) is dict and set(session) == {'runId', 'sessionId', 'inputSha256'}
                     and session['runId'] == run and session['inputSha256'] == input_sha)
             session_id = session['sessionId']
+        if any(r.get('tool') == 'submit_handoff' for r in rows):
+            protocol = strict_json(read('handoff-submission-protocol.json', 4096, private=True))
+            require(same_json(protocol, dict(version=1, protocol='p7-tool-submit-v1',
+                runId=run, sessionId=session_id, inputSha256=input_sha)))
         trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected, session_id=session_id)
         intent = strict_json(read('handoff-reopen-intent.json', 4096, private=True))
         marker = next(row for row in rows if row['event'] == 'handoff_reopen_intent')

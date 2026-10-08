@@ -164,16 +164,23 @@ class DesktopGuestRuntime:
         return request_open_document(self.application, document)
 
     def activate_handoff(self, body):
-        if (type(body) is not dict or set(body) not in ({'inputSha256'}, {'inputSha256','sessionId'})
+        if (type(body) is not dict or set(body) not in ({'inputSha256'}, {'inputSha256','sessionId'}, {'inputSha256','sessionId','protocol'})
                 or not isinstance(body['inputSha256'], str) or not re.fullmatch(r'[0-9a-f]{64}', body['inputSha256'])):
             raise ValueError('handoff activation binding required')
         session_id = body.get('sessionId')
         if 'sessionId' in body and (type(session_id) is not str or not re.fullmatch(
                 r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', session_id)):
             raise ValueError('trusted session binding required')
-        return self.activate(handoff_digest=body['inputSha256'], draft_session_id=session_id)
+        protocol = body.get('protocol', 'legacy-final-json')
+        if 'protocol' in body and protocol != 'p7-tool-submit-v1':
+            raise ValueError('explicit supported submission protocol required')
+        return self.activate(handoff_digest=body['inputSha256'], draft_session_id=session_id,
+                             submission_protocol=protocol)
 
-    def activate(self, *, handoff_digest=None, draft_session_id=None):
+    def activate(self, *, handoff_digest=None, draft_session_id=None, submission_protocol='legacy-final-json'):
+        if (submission_protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
+                or submission_protocol == 'p7-tool-submit-v1' and (handoff_digest is None or draft_session_id is None)):
+            raise ValueError('bound handoff protocol required')
         with self.lock:
             if self.closed or self.task is not None:
                 raise ValueError('activation already attempted or closed')
@@ -201,6 +208,13 @@ class DesktopGuestRuntime:
                         with os.fdopen(fd, 'w') as stream:
                             json.dump(record, stream); stream.flush(); os.fsync(stream.fileno())
                         task_kwargs['draft_session_id'] = draft_session_id
+                        if submission_protocol == 'p7-tool-submit-v1':
+                            protocol_record = dict(record, version=1, protocol=submission_protocol)
+                            fd = os.open(self.directory / 'handoff-submission-protocol.json',
+                                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                            with os.fdopen(fd, 'w') as stream:
+                                json.dump(protocol_record, stream); stream.flush(); os.fsync(stream.fileno())
+                            task_kwargs['submission_protocol'] = submission_protocol
                     if not self.loopback_test:
                         task_kwargs['document_opener'] = self.open_handoff_document
                     self.task = self.handoff_task_factory(self.directory, input_sha256=handoff_digest, **task_kwargs)

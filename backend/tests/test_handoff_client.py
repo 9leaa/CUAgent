@@ -82,6 +82,56 @@ def test_control_activation_binds_private_session_once(transfer):
     assert path.stat().st_mode & 0o777==0o600
     with pytest.raises(ControlUnconfirmed):client.request('POST','/activate-handoff',client.activation_request()[1])
     assert runtime.task.used==0
+    assert runtime.task.submission_protocol == 'legacy-final-json'
+    assert not (runtime.directory / 'handoff-submission-protocol.json').exists()
+
+
+def test_control_activation_fixes_new_protocol_once(transfer):
+    client, runtime, source, model = transfer
+    session = 'session-22222222-2222-2222-2222-222222222222'
+    client.bind_draft_session(session, protocol='p7-tool-submit-v1')
+    client.provision_handoff(source, lambda:65.)
+    body = client.activation_request()[1]
+    assert body == dict(inputSha256=input_digest(source), sessionId=session, protocol='p7-tool-submit-v1')
+    control = client.token; client.token = model
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff', body)
+    assert runtime.task is None
+    client.token = control
+    client.activate(lambda:65.)
+    assert runtime.task.submission_protocol == 'p7-tool-submit-v1'
+    path = runtime.directory / 'handoff-submission-protocol.json'
+    original = path.read_bytes()
+    assert json.loads(original) == dict(version=1, runId='task', **body)
+    assert path.stat().st_mode & 0o777 == 0o600
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff', body)
+    with pytest.raises(ControlUnconfirmed): client.bind_draft_session(session)
+    assert path.read_bytes() == original and runtime.task.used == 0
+
+
+@pytest.mark.parametrize('protocol', [None, True, 'unknown', 'legacy-final-json'])
+def test_explicit_invalid_activation_protocol_never_creates_task(transfer, protocol):
+    client, runtime, source, _ = transfer
+    client.provision_handoff(source, lambda:65.)
+    body = dict(inputSha256=input_digest(source),
+        sessionId='session-22222222-2222-2222-2222-222222222222', protocol=protocol)
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff', body)
+    assert runtime.task is None
+    assert not (runtime.directory / 'guest-activation-intent.json').exists()
+
+
+def test_new_protocol_requires_session_and_preserves_existing_protocol_file(transfer):
+    client, runtime, source, _ = transfer
+    client.provision_handoff(source, lambda:65.)
+    with pytest.raises(ControlUnconfirmed): client.request('POST', '/activate-handoff',
+        dict(inputSha256=input_digest(source), protocol='p7-tool-submit-v1'))
+    session = 'session-22222222-2222-2222-2222-222222222222'
+    with pytest.raises(ControlUnconfirmed): client.bind_draft_session(session, protocol='unknown')
+    client.bind_draft_session(session, protocol='p7-tool-submit-v1')
+    path = runtime.directory / 'handoff-submission-protocol.json'; path.write_bytes(b'original')
+    with pytest.raises(ControlUnconfirmed): client.activate(lambda:65.)
+    assert path.read_bytes() == b'original' and runtime.task is None
+    assert runtime.controller.existing()['stopped'] is True
+    with pytest.raises(ControlUnconfirmed): client.activate(lambda:65.)
 
 
 @pytest.mark.parametrize('session',[None,True,'session-invalid','../other'])

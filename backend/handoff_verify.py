@@ -91,6 +91,8 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
             session_id=session_id, binding=strict_json(read(guest_directory / 'handoff-session-binding.json', 4096).decode()),
             report=extracted['report'], document=extracted['document'])
     if protocol == 'p7-tool-submit-v1':
+        require(canonical(strict_json(read(guest_directory / 'handoff-submission-protocol.json', 4096).decode())) ==
+                canonical(dict(version=1, protocol=protocol, runId=root.name, sessionId=session_id, inputSha256=digest)))
         submitted = verify_submission_evidence(trace, official, submission=submission, run_id=root.name,
             session_id=session_id, binding=strict_json(read(guest_directory / 'handoff-session-binding.json', 4096).decode()),
             document=extracted['document'])

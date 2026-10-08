@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：控制端首次激活协议与原始证据贯通
+
+- 0fcb2ff先写方案。bind_draft_session在首次激活前一次绑定session/protocol，默认旧协议；只有显式新协议才发送protocol字段。VM独占激活意图之后、Task创建之前，独占写入0600 handoff-submission-protocol.json，绑定version/protocol/run/session/input，原记录冲突不覆盖、失败撤权且禁止重放。
+- guest导出、host bundle和联合核验都要求新提交原协议记录；严格规范JSON比较拒绝布尔版本、降级、错session/input、多字段或缺失，原文件权限和收尾重读复用已有检查。旧激活不新建协议文件，生产adapter仍默认旧协议。
+- 真实loopback控制请求覆盖模型凭据拒绝、首次成功、重复激活/再绑定拒绝、缺session/错协议及既有文件保护；模拟完整链覆盖导出和联合验证，篡改后即使同步manifest摘要也拒绝。七组相关pytest共122项通过；tools/mac_vm/tests unittest 340项通过，均无真实GUI/模型推理。新增反例测试首次3项因误用manifest顶层files失败，改成实际guest.files后全部重跑通过；未修改原运行证据。
+- Harness注册/结束本轮门禁及生产会话版本贯通仍待实现，未部署或请求模型，不能称P7业务完成。README同步，冻结P5及旧失败保留。
+
 ## 2026-10-08：显式Task协议与HTTP提交入口
 
 - 990e2d9先写设计。Task可信构造参数submission_protocol默认legacy-final-json，新协议必须绑定session；submit_handoff自身及HTTP允许操作集都检查显式新协议，旧P7不因代码升级扩权，P6原白名单不变。模型参数不能切换协议。

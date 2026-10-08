@@ -45,6 +45,10 @@ def evidence(tmp_path, request):
         if with_draft:
             save(executor.task.directory / 'handoff-session-binding.json',
                  dict(runId=RUN, sessionId=SESSION, inputSha256=input_digest(source)))
+        if with_submit:
+            save(executor.task.directory / 'handoff-submission-protocol.json',
+                 dict(version=1, protocol='p7-tool-submit-v1', runId=RUN,
+                      sessionId=SESSION, inputSha256=input_digest(source)))
         for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]:
             save(executor.task.directory / name, dict(status=status, binding=binding,
                 inputSha256=input_digest(source), bytes=len(executor.material_bytes)))
