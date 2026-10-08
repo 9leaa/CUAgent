@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：显式已预检正文输入的执行端（尚未开放）
+
+- dd7ed43先提交技术方案。Task增加可信draft_input_mode，默认literal-text不变；checked-draft-v1必须同时绑定原session和p7-tool-submit-v1。新type_checked_draft仅接受snapshot/element身份及documentSha256，重新算原有效正文摘要，不接受模型正文、路径或身份覆盖；调用原RealApp GUI type_text，不写文档文件。
+- 原预检有效性、唯一输入、停止/租约/未知/原预算、目标和观察检查保留；显式模式不能通过旧type_text方法绕过。先记选择意图再GUI，审计失败不发动作；原一次raw计数不变，失败/拒绝仍由后续HTTP原规则处理。方法未进入HTTP或模型白名单、构造模式尚无运行时接线。
+- 新增21项测试，含原raw路径只派发一次并逐字输入、文件未直接改变、摘要/参数/观察/权限/预算反例、UNKNOWN不重发和构造绑定；新方法与草稿/预算/提交Task/HTTP五组共72项通过，既有执行层340项通过，git diff --check通过。全部模拟GUI、无真实推理或部署；旧失败和队列未改。
+- 下一步按可信mode接独立选择记录/原raw/官方参数核验，再贯通创建、激活、ready、审核及Harness入口。未完成前不开新实机候选，不能把执行端方法测试当产品闭环。README同步，P7及后续目标保持未完成。
+
 ## 2026-10-08：预算候选007部署、实机输入不一致及收尾
 
 - host/guest均固定f068af24221c8aed089565207554ceaf78409220，独占新VM部署目录；25文件与manifest由VM独立重算摘要一致。私有候选清单冻结356源码哈希和原normal/conflict/dependencies输入/rubric，未修改006或旧失败。原VM经已有授权凭据正常解锁并见Finder；未更改认证、共享、睡眠或SSH配置。

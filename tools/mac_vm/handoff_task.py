@@ -61,7 +61,7 @@ def close_target(state):
 
 class HandoffDesktopTask(DesktopTask):
     def __init__(self, *args, input_sha256, document_opener=None, draft_session_id=None,
-                 submission_protocol='legacy-final-json', **kwargs):
+                 submission_protocol='legacy-final-json', draft_input_mode='literal-text', **kwargs):
         # Trusted constructor binding, never accepted from model tool arguments.
         if not isinstance(input_sha256, str) or not re.fullmatch(r'[0-9a-f]{64}', input_sha256):
             raise ValueError('frozen input digest required')
@@ -74,6 +74,11 @@ class HandoffDesktopTask(DesktopTask):
                 or submission_protocol == 'p7-tool-submit-v1' and draft_session_id is None):
             raise ValueError('trusted submission protocol and session required')
         self.submission_protocol = submission_protocol
+        if (draft_input_mode not in ('literal-text', 'checked-draft-v1')
+                or draft_input_mode == 'checked-draft-v1' and (
+                    submission_protocol != 'p7-tool-submit-v1' or draft_session_id is None)):
+            raise ValueError('trusted checked draft input binding required')
+        self.draft_input_mode = draft_input_mode
         self.validated_draft = None
         self.submission_terminal = False
         self.result_written = False
@@ -96,6 +101,36 @@ class HandoffDesktopTask(DesktopTask):
         return super()._admit(tool)
 
     def type_text(self, args):
+        if self.draft_input_mode != 'literal-text':
+            raise StopRun('BLOCKED', 'Explicit checked draft selection required')
+        return self._type_exact_draft(args)
+
+    def type_checked_draft(self, args):
+        """Not exposed: select bound draft bytes, then use the original GUI path."""
+        with self.lock:
+            if (self.draft_input_mode != 'checked-draft-v1'
+                    or self.submission_protocol != 'p7-tool-submit-v1'
+                    or self.draft_session_id is None or self.validated_draft is None
+                    or self.input_once or self.reopen_phase is not None):
+                raise StopRun('BLOCKED', 'Original pre-input checked draft required')
+            if (type(args) is not dict or set(args) != {
+                    'snapshot_id', 'element_index', 'element_token', 'documentSha256'}
+                    or type(args['documentSha256']) is not str):
+                raise StopRun('BLOCKED', 'Only bound draft selector fields permitted')
+            body = self.validated_draft['document']
+            digest = hashlib.sha256(body.encode('utf8')).hexdigest()
+            if args['documentSha256'] != digest or self.validated_draft['documentSha256'] != digest:
+                raise StopRun('BLOCKED', 'Original draft digest required')
+            self.lease.check()
+            if self.stopped.is_set() or self.uncertain or self.inflight or self.used >= 30:
+                raise StopRun('BLOCKED', 'Idle authorized input budget required')
+            # Intent alone never proves an input; raw/attempted_input must follow.
+            self.record(dict(event='checked_draft_input_intent', mode=self.draft_input_mode,
+                             args=dict(args), used=self.used))
+            target = {k: args[k] for k in ('snapshot_id', 'element_index', 'element_token')}
+            return self._type_exact_draft(dict(target, text=body))
+
+    def _type_exact_draft(self, args):
         with self.lock:
             if self.reopen_phase is not None:
                 raise StopRun('BLOCKED', 'Editing after reopen intent denied')
