@@ -45,6 +45,26 @@ def test_original_producer_independently_verified_without_full_acceptance(eviden
     assert (trace, official) == before
 
 
+@pytest.mark.parametrize('fault', ['none', 'arguments', 'response', 'after', 'stop', 'missing_session'])
+def test_trace_and_exchanges_new_protocol(evidence, fault):
+    from handoff_trace import verify_handoff_trace
+    from handoff_exchanges import match_handoff_exchanges
+    trace, official, kwargs = evidence
+    submits = [r for r in trace if r.get('tool') == 'submit_handoff']
+    if fault == 'arguments': submits[1]['args']['report']['tasks'][0]['progress']['text'] = 'changed'
+    if fault == 'response': submits[2]['value']['used'] = True
+    if fault == 'after': trace.append(dict(submits[0], call_id='later', tool='read_result', used=18))
+    if fault == 'stop': trace.insert(trace.index(submits[2]), dict(trace[-1]))
+    options = dict(run_id=RUN, materials=canonical(kwargs['submission'].model_dump(mode='json')),
+                   expected=kwargs['document'], session_id=None if fault == 'missing_session' else SESSION)
+    if fault == 'none':
+        assert verify_handoff_trace(trace, **options)['rawCalls'] == 17
+        assert match_handoff_exchanges(official, trace, **options)['officialToolCalls'] == 12
+    else:
+        with pytest.raises(ValueError): verify_handoff_trace(trace, **options)
+        with pytest.raises(ValueError): match_handoff_exchanges(official, trace, **options)
+
+
 @pytest.mark.parametrize('fault', ['missing', 'duplicate', 'after', 'stop', 'budget', 'bool_budget',
     'identity', 'report', 'response', 'readback', 'read_tool', 'call_id', 'binding',
     'official_args', 'official_result', 'official_error', 'official_duplicate', 'official_after', 'official_id'])

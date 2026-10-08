@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：提交轨迹、双日志与导出链
+
+- 85c3fd8先写设计。handoff_trace识别唯一末次submit_handoff，要求原有效草稿/可信session、原参数canonicalJson及重新计算响应一致，成功read_result紧邻提交，提交结果前stop和结果后新派发均拒绝；handoff_exchanges补原vm_submit_handoff参数/响应逐项匹配。旧无提交轨迹读取不变，不把旧业务失败改判。
+- 原Task配模拟Driver，保留一次坏草稿、一次有效草稿、GUI保存重开及result写读，再真实调用新提交方法：18raw/13逻辑调用，完整trace/exchange、host独立草稿/提交核验及原导出包读回通过。原17raw无提交链仍通过；两者都不是模型/GUI现场或完整会话验收。
+- 部署构建器/VM安装白名单加入handoff_submit.py，为24个Python模块加license共25文件；构建另读installer共26次git show。首次相关测试47通过/1失败为旧25次读取断言，更新为26后48项全通过；执行层340项通过。没有实际部署、服务变更或模型请求。
+- 新协议尚未进入官方会话提取、HTTP/Harness与正式联合入口；不得依据局部通过开放工具或宣布P7业务完成。
+
 ## 2026-10-08：宿主独立结构化提交证据门槛
 
 - de6c0e5先写设计，新增handoff_submit_evidence.verify_submission_evidence：独立使用host Pydantic/草稿核验，不调用guest提交校验作为真值。唯一提交必须为末次raw且计连续预算，原run/session/input一致、紧邻成功read_result，原helper_arguments/result与官方唯一vm_submit_handoff的完整参数/成功响应逐项一致；停止先于提交完成、重复提交及后续工具调用均拒绝。

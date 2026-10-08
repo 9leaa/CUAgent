@@ -56,7 +56,7 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected, ses
                                 dict(created='result.txt', value=row['value'], used=used)))
             elif row['tool'] == 'read_result':
                 logical.append(('vm_read_result', {}, dict(content=row['value'], used=used)))
-            elif row['tool'] in ('locate_quote', 'check_draft'):
+            elif row['tool'] in ('locate_quote', 'check_draft', 'submit_handoff'):
                 logical.append(('vm_' + row['tool'], helper_args[row['call_id']], row['value']))
     require(type(official) is list and bool(official))
     events = [r for r in official if r.get('type') in ('tool/call', 'tool/result')]

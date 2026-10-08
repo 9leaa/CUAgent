@@ -32,7 +32,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     expected_text = expected.decode('utf8')
     require(type(rows) is list and 0 < len(rows) <= 512)
     tools = {'launch_app', 'list_windows', 'get_window_state', 'type_text', 'hotkey', 'click',
-             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result', 'locate_quote', 'check_draft'}
+             'bring_to_front', 'read_materials', 'reopen_document', 'write_result', 'read_result', 'locate_quote', 'check_draft', 'submit_handoff'}
     events = {'approval', 'setup_empty_document', 'dispatch', 'result', 'observation_evidence', 'attempted_input',
               'attempted_save', 'handoff_reopen_intent', 'handoff_window_closed',
               'handoff_window_reopened', 'stop', 'window_readiness_wait', 'observation_recovery', 'helper_arguments'}
@@ -56,6 +56,9 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
             key = row.get('call_id')
             require(type(key) is str and key in calls and key not in returned)
             require(rows[calls[key]]['tool'] == row.get('tool'))
+            if row.get('tool') == 'submit_handoff':
+                require(not stopped)
+                stopped = True  # A committed submission is terminal, like stop.
             returned[key] = index
     require(bool(calls) and calls.keys() == returned.keys())
 
@@ -126,8 +129,9 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     # claimed status/hash/ranges or call its implementation as our oracle.
     quote_calls = tool_calls('locate_quote')
     draft_calls = tool_calls('check_draft')
+    submit_calls = tool_calls('submit_handoff')
     arguments = by_event.get('helper_arguments', [])
-    require(len(arguments) == len(quote_calls) + len(draft_calls))
+    require(len(arguments) == len(quote_calls) + len(draft_calls) + len(submit_calls))
     sources = {f"notes/{n['id']}": n['content'] for n in source['notes']}
     sources.update(tasksCsv=source['tasksCsv'], previousReport=source['previousReport'])
     matched_arguments = set()
@@ -179,6 +183,28 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
             last_draft = recomputed
         require(last_draft['status'] == 'DRAFT_STRUCTURE_VALID'
                 and last_draft['document'].encode() == expected)
+    if submit_calls:
+        require(len(submit_calls) == 1 and bool(draft_calls))
+        call = submit_calls[0]; key = rows[call]['call_id']; end = returned[key]
+        matches = [i for i in arguments if rows[i].get('call_id') == key]
+        require(len(matches) == 1 and call < matches[0] < end)
+        i = matches[0]; matched_arguments.add(i)
+        require(rows[i].get('tool') == 'submit_handoff')
+        args = rows[i].get('args')
+        require(type(args) is dict and set(args) == {'report'} and type(args['report']) is dict)
+        canonical_report = json.dumps(args['report'], ensure_ascii=False, sort_keys=True,
+                                      separators=(',', ':'), allow_nan=False)
+        require(canonical_report == last_draft['canonicalJson'])
+        response = dict(status='HANDOFF_SUBMITTED', protocol='p7-tool-submit-v1',
+                        reportSha256=hashlib.sha256(canonical_report.encode()).hexdigest(),
+                        documentSha256=digest, semanticVerified=False, guiVerified=False,
+                        inputSha256=input_digest, runId=run_id, sessionId=session_id, used=rows[call]['used'])
+        require(json.dumps(value(call), sort_keys=True, allow_nan=False) ==
+                json.dumps(response, sort_keys=True, allow_nan=False))
+        ordered = list(calls.values())
+        require(ordered[-1] == call and len(ordered) >= 2
+                and rows[ordered[-2]]['tool'] == 'read_result'
+                and returned[rows[ordered[-2]]['call_id']] < call)
     require(matched_arguments == set(arguments))
     intent, closed, opened = (rows[i] for i in (intent_at, closed_at, opened_at))
     for row, fields in ((intent, ('pid', 'window_id')), (closed, ('pid', 'window_id')),
@@ -274,7 +300,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     body(fresh(latest, writes[0]))
     require(value(writes[0]) == expected_text)
     require(all(value(i) == expected_text + '\n' for i in reads))
-    require(all(rows[i]['tool'] in {'get_window_state', 'write_result', 'read_result', 'read_materials'}
+    require(all(rows[i]['tool'] in {'get_window_state', 'write_result', 'read_result', 'read_materials', 'submit_handoff'}
                 for i in calls.values() if i > opened_at))
     return {'status': 'TRACE_VERIFIED', 'runId': run_id, 'rawCalls': len(calls),
             'inputSha256': input_digest, 'documentSha256': digest, 'finalSnapshotId': latest,

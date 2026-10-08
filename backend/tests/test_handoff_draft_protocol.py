@@ -19,7 +19,7 @@ from handoff_export import build_bundle
 
 
 @pytest.fixture
-def protocol():
+def protocol(request):
     source, report = fixture()
     f = test_handoff_trace.HandoffTraceTests()
     f.run_id = RUN; f.owner = '33333333-3333-3333-3333-333333333333'
@@ -27,6 +27,8 @@ def protocol():
     f.document_bytes = expected_document(source, report, run_id=RUN, session_id=SESSION)
     f.draft_session_id = SESSION
     f.draft_args = [{'raw': '{broken'}, {'raw': json.dumps(report, ensure_ascii=False)}]
+    if getattr(request, 'param', None) == 'submit':
+        f.submit_report = report
     f.setUp()
     try:
         e = test_handoff_exchanges.HandoffExchangeTests(); e.execution_fixture = f; e.setUp()
@@ -43,13 +45,19 @@ def protocol():
         f.doCleanups()
 
 
+@pytest.mark.parametrize('protocol', ['legacy', 'submit'], indirect=True)
 def test_full_original_producer_trace_both_logs_export_and_independent_host(protocol):
     f, e, c, source, report, binding, session = protocol
-    assert f.verify()['rawCalls'] == 17
-    assert e.match()['officialToolCalls'] == 12
+    extra = int(hasattr(f, 'submit_report'))
+    assert f.verify()['rawCalls'] == 17 + extra
+    assert e.match()['officialToolCalls'] == 12 + extra
     verified = verify_draft_evidence(f.rows, e.rows, submission=source, run_id=RUN,
         session_id=SESSION, binding=session, report=report, document=f.expected)
     assert verified['status'] == 'DRAFT_EVIDENCE_MATCHED'
+    if extra:
+        from backend.handoff_submit_evidence import verify_submission_evidence
+        assert verify_submission_evidence(f.rows, e.rows, submission=source, run_id=RUN,
+            session_id=SESSION, binding=session, document=f.expected)['status'] == 'SUBMISSION_EVIDENCE_MATCHED'
     contents = build_bundle(f.task.directory, c, f.materials, f.expected)
     assert json.loads(contents['handoff-session-binding.json']) == session
     stream = io.BytesIO(); write_bundle(contents, stream)
