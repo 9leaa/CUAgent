@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+Harness终态细化（2026-10-08，代码前）：仅可信连接显式protocol=p7-tool-submit-v1且固定sessionId才注册完整report工具；旧连接不变。使用安装版ToolRuntime真实register/guard/concludeTurn/tools/result接口，不启用子Agent或PTC。提交HTTP派发前进入单调pending门禁，拒绝并发/后续所有工具及新模型请求；HTTP未知/失败不解除门禁、不重发，发送原stop。核对成功响应固定身份/协议/摘要/预算后调用concludeTurn；只有原execution的不可变tools/result成功且原输出一致才标committed，管线后置错误或取消仍锁止并stop，不能将HTTP成功当最终成功。完整report参数直接传VM保留原计费，参数schema使用现有HandoffResult及其defs。用安装版官方registry测试成功终态、同响应后续、并发、篡改/错误/丢失/取消和外层结果失败；新生产会话和prompt切换仍需后续贯通后才派发。
+
 控制激活细化（2026-10-08，代码前）：bind_draft_session同时一次绑定可信protocol（默认旧），新协议才向独立控制端activate-handoff发送protocol；必须包含有效session，不接受模型端激活。VM激活在原独占意图后、新Task前独占写0600 handoff-submission-protocol.json，包含version/protocol/run/session/input，失败保持原激活不可重放。新提交轨迹导出必须带该原记录，guest核验、bundle读回和host联合入口都核对，缺失/替换拒绝。旧草稿session记录字段不变，旧协议不新建该文件。
 
 工具入口细化（2026-10-08，代码前）：Task构造增加可信submission_protocol，默认legacy-final-json；只有显式p7-tool-submit-v1且绑定session才允许submit_handoff方法及HTTP操作。旧P7/P6不扩权。原HTTP单次提交走task锁/计费/stop/lease，完整report信封可用既有P7预检的512KiB上限，但规范report仍限制64KiB。先验证真实loopback请求、无权限/错误协议/拒绝/重复提交，再接控制端激活与模型注册；不靠模型参数切换协议。
