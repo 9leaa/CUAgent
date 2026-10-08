@@ -17,7 +17,9 @@ import test_handoff_exchanges
 
 @pytest.fixture
 def evidence(tmp_path, request):
-    with_draft = getattr(request, 'param', None) == 'with_draft'
+    with_submit = getattr(request, 'param', None) == 'with_submit'
+    with_draft = with_submit or getattr(request, 'param', None) == 'with_draft'
+    tools = TOOLS | {'vm_submit_handoff'} if with_submit else TOOLS
     source, report = request.param if hasattr(request, 'param') and not with_draft else fixture()
     executor = test_handoff_trace.HandoffTraceTests()
     executor.run_id, executor.material_bytes = RUN, canonical(source.model_dump())
@@ -25,6 +27,8 @@ def evidence(tmp_path, request):
     if with_draft:
         executor.draft_session_id = SESSION
         executor.draft_args = [{'raw': '{broken'}, {'raw': json.dumps(report, ensure_ascii=False)}]
+    if with_submit:
+        executor.submit_report = report
     executor.setUp()
     try:
         exchange = test_handoff_exchanges.HandoffExchangeTests()
@@ -58,18 +62,22 @@ def evidence(tmp_path, request):
                 inputSha256=input_digest(source), snapshotId=state['snapshot_id'], used=state['used'],
                 source=dict(sha256=hashlib.sha256(png).hexdigest(), bytes=len(png)), attachment=metadata))
         prompt = dict(sessionId=SESSION, requestId='original', mode='queue', content=[dict(type='text', text='frozen original prompt')])
-        save(root / 'desktop-session-binding.json', dict(kind='project-handoff', runId=RUN, sessionId=SESSION,
-            cwd=str(root / 'workspace'), inputSha256=input_digest(source)))
+        saved_binding = dict(kind='project-handoff', runId=RUN, sessionId=SESSION,
+            cwd=str(root / 'workspace'), inputSha256=input_digest(source))
+        if with_submit:
+            saved_binding['protocol'] = 'p7-tool-submit-v1'
+            save(root / 'desktop-request.json', saved_binding)
+        save(root / 'desktop-session-binding.json', saved_binding)
         save(root / 'prompt-request.json', dict(request=prompt))
         rows = [dict(type='session', version=4, id=SESSION, cwd=str(root / 'workspace'), agentPreset='project-handoff', isSeeded=False, delegationDepth=0),
             dict(type='turn/start', data=dict(turn=1)),
             dict(type='user/message', data=dict(role='user', source=dict(kind='user', rpcId='original'), content=prompt['content'])),
-            dict(type='request/header', data=dict(header=dict(config=MODEL.copy(), tools=[dict(name=t) for t in sorted(TOOLS)])))]
+            dict(type='request/header', data=dict(header=dict(config=MODEL.copy(), tools=[dict(name=t) for t in sorted(tools)])))]
         audit, ids = [], []
         def assistant(content):
             audit.append(dict(at='2026-10-05T04:00:00+00:00', runId=RUN, sessionId=SESSION,
                 inputSha256=input_digest(source), provider=MODEL['provider'], model=MODEL['model'],
-                toolNames=sorted(TOOLS), imageBlocks=len(ids), imageAttachmentIds=list(ids)))
+                toolNames=sorted(tools), imageBlocks=len(ids), imageAttachmentIds=list(ids)))
             rows.append(dict(type='assistant/message', data=dict(turn=1, step=len(audit), message=dict(id=str(len(audit)),
                 role='assistant', source=dict(kind='model', provider=MODEL['provider'], model=MODEL['model']), content=content))))
         for index in range(0, len(exchange.rows), 2):
@@ -77,7 +85,8 @@ def evidence(tmp_path, request):
             assistant([dict(type='tool-call', id=data['callId'], name=data['name'], arguments=data['arguments'])])
             rows.extend([call, result])
             ids.extend(b['attachment']['attachmentId'] for b in result['data']['message']['content'] if b['type'] == 'image')
-        assistant([dict(type='text', text=json.dumps(report, ensure_ascii=False))])
+        if not with_submit:
+            assistant([dict(type='text', text=json.dumps(report, ensure_ascii=False))])
         rows.append(dict(type='turn/end', data=dict(turn=1, reason=dict(kind='completed'))))
         for seq, row in enumerate(rows[1:]): row['seq'] = seq
         save(root / 'session.jsonl', b'\n'.join(canonical(r) for r in rows))

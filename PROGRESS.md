@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：新协议原始意图绑定与离线联合验收
+
+- a179215先写方案。verify_handoff_execution增加显式protocol，默认旧协议；新协议要求原私有desktop-request.json及desktop-session-binding.json完整匹配可信run/session/cwd/input和p7-tool-submit-v1，不从模型内容推断版本。原记录加入结束前重读，沿原文件身份/权限/大小校验。
+- 提取和请求审计同版10工具，接host独立提交核验并与提取报告逐字canonical匹配，再联合原guest trace/exchanges/export、图片字节和原审计门槛。返回显式protocol/submissionEvidence，但仍仅EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING，不宣称语义通过。
+- 新增9项联合测试：原Task/模拟Driver/模拟官方会话的18raw链经真实只读子进程通过；原意图缺失、公开权限、摘要/版本变化、旧工具审计、guest session不符和默认旧协议误用均拒绝。相关32项及会话/证据/导出/人工审核旧链70项，共102项通过。
+- 生产创建、HTTP/Harness工具和人工审核新协议上下文仍待同步；没有模型调用、部署或旧任务升级。P7业务和后续计划未完成。
+
 ## 2026-10-08：显式版本化官方会话报告提取
 
 - 4f620cf先写方案，extract_handoff_result增加可信protocol参数，默认legacy-final-json保持原最终纯JSON路径；只有p7-tool-submit-v1允许第10个vm_submit_handoff工具。仍核对原未委托/未seed会话、cwd/prompt/RPC、单轮completed、Flash/off、完整声明/调用/结果配对。

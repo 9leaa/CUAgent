@@ -14,9 +14,12 @@ from backend.handoff_session import extract_handoff_result, strict_json, require
 from backend.handoff_attachments import read_handoff_attachments
 from backend.handoff_images import verify_handoff_images
 from backend.handoff_draft_evidence import verify_draft_evidence
+from backend.handoff_submit_evidence import verify_submission_evidence
 
 
-def verify_request_audit(raw, rows, *, run_id, session_id, input_sha256):
+def verify_request_audit(raw, rows, *, run_id, session_id, input_sha256, protocol='legacy-final-json'):
+    require(protocol in ('legacy-final-json', 'p7-tool-submit-v1'))
+    tools = TOOLS | {'vm_submit_handoff'} if protocol == 'p7-tool-submit-v1' else TOOLS
     require(type(raw) is bytes and 0 < len(raw) <= 8 * 1024 * 1024)
     audit = [strict_json(line.decode()) for line in raw.splitlines()]
     assistants = [r for r in rows if r['type'] == 'assistant/message']
@@ -29,7 +32,7 @@ def verify_request_audit(raw, rows, *, run_id, session_id, input_sha256):
             record = audit[index]; index += 1
             require(type(record) is dict and record.get('runId') == run_id and record.get('sessionId') == session_id
                     and record.get('inputSha256') == input_sha256 and record.get('provider') == MODEL['provider']
-                    and record.get('model') == MODEL['model'] and sorted(record['toolNames']) == sorted(TOOLS)
+                    and record.get('model') == MODEL['model'] and sorted(record['toolNames']) == sorted(tools)
                     and type(record.get('imageBlocks')) is int and record['imageBlocks'] == len(images)
                     and record.get('imageAttachmentIds') == images)
             at = datetime.fromisoformat(record['at'])
@@ -38,12 +41,14 @@ def verify_request_audit(raw, rows, *, run_id, session_id, input_sha256):
     return dict(requests=len(audit), sha256=hashlib.sha256(raw).hexdigest(), requestImagesVerified=True)
 
 
-def verify_handoff_execution(root, *, guest_directory, home, submission, session_id, binding):
+def verify_handoff_execution(root, *, guest_directory, home, submission, session_id, binding,
+                             protocol='legacy-final-json'):
     """Trusted collector must already have revoked execution and frozen files.
 
     A supplied folder or self-consistent bundle does not establish SSH provenance.
     This is an offline composition gate, not the production dispatch adapter.
     """
+    require(protocol in ('legacy-final-json', 'p7-tool-submit-v1'))
     root, guest_directory = private_path(root, directory=True), private_path(guest_directory, directory=True)
     submission = HandoffSubmission.model_validate(submission)
     require(root.name == binding['runId'] == guest_directory.name)
@@ -65,21 +70,31 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
         return raw
     digest = input_digest(submission)
     saved = strict_json(read(root / 'desktop-session-binding.json', 32768).decode())
-    require(saved == dict(kind='project-handoff', runId=root.name, sessionId=session_id,
-                          cwd=str(root / 'workspace'), inputSha256=digest))
+    expected_binding = dict(kind='project-handoff', runId=root.name, sessionId=session_id,
+                            cwd=str(root / 'workspace'), inputSha256=digest)
+    if protocol == 'p7-tool-submit-v1':
+        expected_binding['protocol'] = protocol
+        require(strict_json(read(root / 'desktop-request.json', 32768).decode()) == expected_binding)
+    require(saved == expected_binding)
     prompt = strict_json(read(root / 'prompt-request.json', 65536).decode())['request']
     raw = read(root / 'session.jsonl', 64 * 1024 * 1024)
     extracted = extract_handoff_result(raw, submission=submission, run_id=root.name,
-        session_id=session_id, cwd=saved['cwd'], prompt=prompt)
+        session_id=session_id, cwd=saved['cwd'], prompt=prompt, protocol=protocol)
     trace_raw = read(guest_directory / 'trace.jsonl', 8 * 1024 * 1024)
     trace = [strict_json(line.decode()) for line in trace_raw.splitlines()]
     official = [strict_json(line.decode()) for line in raw.splitlines()]
     draft = None
+    submitted = None
     if (any(r.get('tool') == 'check_draft' for r in trace)
             or any(r.get('type') == 'tool/call' and r.get('data', {}).get('name') == 'vm_check_draft' for r in official)):
         draft = verify_draft_evidence(trace, official, submission=submission, run_id=root.name,
             session_id=session_id, binding=strict_json(read(guest_directory / 'handoff-session-binding.json', 4096).decode()),
             report=extracted['report'], document=extracted['document'])
+    if protocol == 'p7-tool-submit-v1':
+        submitted = verify_submission_evidence(trace, official, submission=submission, run_id=root.name,
+            session_id=session_id, binding=strict_json(read(guest_directory / 'handoff-session-binding.json', 4096).decode()),
+            document=extracted['document'])
+        require(canonical(submitted['report']) == canonical(extracted['report']))
     payload = json.dumps(dict(binding=binding, materialsBase64=base64.b64encode(canonical(submission.model_dump())).decode(),
         expectedBase64=base64.b64encode(extracted['document']).decode())).encode()
     command = Path(__file__).resolve().parents[1] / 'tools/mac_vm/handoff_inspect.py'
@@ -104,10 +119,11 @@ def verify_handoff_execution(root, *, guest_directory, home, submission, session
     images = verify_handoff_images(records, observations, pngs, read_handoff_attachments(home, observations),
         run_id=root.name, session_id=session_id, input_sha256=digest)
     audit = verify_request_audit(read(root / 'request-audit.jsonl', 8*1024*1024),
-        [strict_json(line.decode()) for line in raw.splitlines()], run_id=root.name, session_id=session_id, input_sha256=digest)
+        [strict_json(line.decode()) for line in raw.splitlines()], run_id=root.name, session_id=session_id,
+        input_sha256=digest, protocol=protocol)
     for path, (_, _, limit, private) in originals.items(): read(path, limit, private)
     return dict(status='EXECUTION_EVIDENCE_VERIFIED_SEMANTICS_PENDING', runId=root.name, sessionId=session_id,
         sessionVerified=True, guiEvidenceVerified=True, imageBytesVerified=True, semanticVerified=False,
         result=extracted['report'], structure=extracted['structure'], sessionSha256=extracted['sessionSha256'],
         documentSha256=hashlib.sha256(extracted['document']).hexdigest(), guest=inspected['guest'], images=images, audit=audit,
-        draft=draft)
+        draft=draft, **({'protocol': protocol, 'submissionEvidence': submitted} if submitted else {}))
