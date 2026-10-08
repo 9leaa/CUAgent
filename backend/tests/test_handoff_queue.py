@@ -82,7 +82,8 @@ def test_invalid_worker_and_profile_kind_refused_before_io(kind):
     with pytest.raises(ValueError): load_profile('/unused', kind=kind)
 
 
-def test_operator_selects_handoff_adapter_and_original_target_only(operator_files, monkeypatch):
+@pytest.mark.parametrize('protocol', ['legacy-final-json', 'p7-tool-submit-v1'])
+def test_operator_selects_handoff_adapter_and_original_target_only(operator_files, monkeypatch, protocol):
     import hashlib
     import json
     from backend import desktop_operator as entry, handoff_adapter
@@ -99,17 +100,28 @@ def test_operator_selects_handoff_adapter_and_original_target_only(operator_file
     class PendingReview(Adapter):
         def verify(self, prepared):
             raise ValueError('HANDOFF_SEMANTIC_REVIEW_REQUIRED')
-    factory = Mock(side_effect=lambda svc, settings, execution_gate: PendingReview(svc))
+    factory = Mock(side_effect=lambda svc, settings, execution_gate, protocol: PendingReview(svc))
     monkeypatch.setattr(handoff_adapter, 'HandoffTaskAdapter', factory)
-    outcome = entry.worker_once(**args, kind='project-handoff')
+    outcome = entry.worker_once(**args, kind='project-handoff', handoff_protocol=protocol)
     assert outcome['outcome']['status'] == 'UNVERIFIED'
     assert outcome['outcome']['restoreConfirmed']
     assert service.view(first)['status'] == 'QUEUED'
     assert service.view(args['task_id'])['kind'] == 'project-handoff'
     p6.assert_not_called(); assert factory.call_count == 1
+    assert factory.call_args.kwargs['protocol'] == protocol
     intent = json.loads((args['profile_path'].parent / ('desktop-launch-' + args['task_id'] + '.json')).read_bytes())
     assert intent['kind'] == 'project-handoff'
+    assert intent.get('protocol', 'legacy-final-json') == protocol
     with pytest.raises(ValueError, match='UNATTEMPTED'): entry.worker_once(**args, kind='project-handoff')
+
+
+@pytest.mark.parametrize('kind,protocol', [('desktop-textedit', 'p7-tool-submit-v1'),
+    ('project-handoff', 'unknown'), ('project-handoff', None)])
+def test_operator_protocol_rejected_before_any_io(kind, protocol):
+    from backend.desktop_operator import worker_once
+    with pytest.raises(ValueError, match='UNSUPPORTED_HANDOFF_PROTOCOL'):
+        worker_once(profile_path='/missing', execution_path='/missing', quota_path='/missing',
+            task_id='invalid', kind=kind, handoff_protocol=protocol)
 
 
 def test_p7_operator_cannot_claim_p6_target(operator_files, monkeypatch):

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：生产单任务入口与新审核版本贯通
+
+- 71bc058先写方案。desktop_operator增加显式--handoff-protocol，默认legacy-final-json，仅project-handoff可选p7-tool-submit-v1，未知/错kind在IO前拒绝；原指定任务launch意图记录新协议，保留原额度、未尝试QUEUED、共享锁和实时门禁。新协议不是自动升级开关，既有005失败及剩余任务不使用它。
+- HandoffTaskAdapter构造选择协议，prepare_session钩子将其传给原会话prepare；新连接从0600创建请求获取可信session并核对run/cwd/input/版本，控制端bind使用同一协议，verify核对原意图后显式提取及联合验收。新结果写v2审核上下文，旧写v1；两者仍抛HANDOFF_SEMANTIC_REVIEW_REQUIRED，不直接发布。P6默认prepare路径不变。
+- 六组pytest共103项通过：新旧adapter原Task/模拟Driver完整证据、v1/v2审核和清理摘要、创建缺失/篡改/公开权限、原单目标数据库执行与协议选择、旧任务不被选中及P6回归。测试使用既有独立Postgres连接，每项新建随机测试数据库后清理；App/SSH/VM边缘仍模拟，无真实模型。首次运行1项fixture None参数错误及15项未加载测试DB环境导致setup失败；修正fixture并加载既有私有环境后完整重跑通过（保留原Starlette弃用警告）。CLI help和git diff --check通过。
+- 下一步核对整个新协议生产链、固定候选源码与部署清单，再按原授权/额度/VM限制执行新三组业务。尚无新实机结果，不把模拟链当P7完成；README和backend命令说明同步。
+
 ## 2026-10-08：显式新会话创建、App就绪与提交提示词
 
 - a2a523c先写方案。HandoffSessionClient.prepare支持显式protocol，默认仍旧；新版独占desktop-request包含新版本，不覆盖旧请求。startHandoffSession仅接受既有字段或额外的正确新协议，新版ready必须绑定同session/protocol/完整十工具，任何错配在RPC前拒绝。App启动门槛使用同一清单并核对session/protocol，未知协议在启动前拒绝。

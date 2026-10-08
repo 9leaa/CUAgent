@@ -150,7 +150,11 @@ class LiveGate:
         return True
 
 
-def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_approved=False, kind='desktop-textedit'):
+def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_approved=False, kind='desktop-textedit',
+                handoff_protocol='legacy-final-json'):
+    if (handoff_protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
+            or handoff_protocol != 'legacy-final-json' and kind != 'project-handoff'):
+        raise ValueError('UNSUPPORTED_HANDOFF_PROTOCOL')
     if kind not in ('desktop-textedit', 'project-handoff'):
         raise ValueError('UNSUPPORTED_DESKTOP_OPERATOR_KIND')
     if cutover_approved is not True or str(uuid.UUID(task_id)) != task_id:
@@ -170,7 +174,7 @@ def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_ap
     gate = LiveGate(profile, quota, wrapper)
     if kind == 'project-handoff':
         from backend.handoff_adapter import HandoffTaskAdapter
-        adapter = HandoffTaskAdapter(service, settings, execution_gate=gate)
+        adapter = HandoffTaskAdapter(service, settings, execution_gate=gate, protocol=handoff_protocol)
     else:
         adapter = DesktopTaskAdapter(service, settings, execution_gate=gate)
     # Derived from the protected baseline, never from task text or a selectable alternate lock.
@@ -186,6 +190,7 @@ def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_ap
         gate()
         save_exclusive(root / ('desktop-launch-' + task_id + '.json'), json.dumps({
             'taskId': task_id, 'kind': kind, 'profileSha256': quota.profile_sha, 'quotaSha256': quota.quota_sha,
+            **({'protocol': handoff_protocol} if handoff_protocol != 'legacy-final-json' else {}),
             'admission': str(admission), 'action': 'SINGLE_CLAIM_INTENT'}).encode())
         return True
     try:
@@ -211,10 +216,12 @@ def main():
     parser.add_argument('--task', type=uuid.UUID, required=True)
     parser.add_argument('--cutover-approved', action='store_true')
     parser.add_argument('--kind', choices=['desktop-textedit', 'project-handoff'], default='desktop-textedit')
+    parser.add_argument('--handoff-protocol', choices=['legacy-final-json', 'p7-tool-submit-v1'], default='legacy-final-json')
     args = parser.parse_args()
     try:
         result = worker_once(profile_path=args.profile, execution_path=args.execution, quota_path=args.quota,
-                             task_id=str(args.task), cutover_approved=args.cutover_approved, kind=args.kind)
+                             task_id=str(args.task), cutover_approved=args.cutover_approved, kind=args.kind,
+                             handoff_protocol=args.handoff_protocol)
         print(json.dumps(result))
     except Exception:
         print(json.dumps({'result': 'REFUSED_OR_UNCONFIRMED',

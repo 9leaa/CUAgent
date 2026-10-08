@@ -46,6 +46,9 @@ class DesktopTaskAdapter:
     def session_client(self, **kwargs):
         return DesktopSessionClient(**kwargs)
 
+    def prepare_session(self, session, submission):
+        session.prepare(submission)
+
     def control_client(self, **kwargs):
         return DesktopControlClient(**kwargs)
 
@@ -142,7 +145,7 @@ class DesktopTaskAdapter:
         session_id = 'session-' + str(uuid.uuid4())
         session = self.session_client(root=root, session_id=session_id, node=self.settings.node,
                                        official_home=self.settings.official_home, cookie=self.settings.cookie)
-        session.prepare(submission)
+        self.prepare_session(session, submission)
         stage[0] = 'profile-prepare'
         self.command(root, 'profile', self.profile_mode())
         resources['bootstrap_attempted'] = False
