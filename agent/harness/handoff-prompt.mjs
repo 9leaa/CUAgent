@@ -46,6 +46,9 @@ GUI保存后必须vm_reopen并新观察核对完整正文，再写result.txt并�
 JSON schema：${JSON.stringify(schema)}`;
   if (submit) {
     text = '可信任务完成协议：p7-tool-submit-v1。不得切换为legacy-final-json。\n' + text;
+    text = text.replace('先调用vm_read_materials。', `先调用vm_read_materials。
+调用规划：重开前必须剩余至少12次raw，即已用不超过18次；包含关闭/打开窗口查询各最多3次、关闭和重开各1次、新观察1次、write_result/read_result/submit_handoff各1次。正常首次GUI观察3次、输入1次、输入后观察1次、保存1次、保存后观察1次共7次。因此草稿预检成功时已用应不超过11次；材料读取1次、预检1次后，至多安排9次引用定位。失败、额外观察和重新预检都从同一30次扣除，不能当成额外额度；这些是规划上界，不是成功保证。
+先合并引用需求，再定位：同一来源和同一原文已核对的区间可复用；连续原文只有确实支持各条陈述时才可共同引用。不得为了省调用删任务、漏报冲突、伪造位置或扩大证据含义；不能把多个实际请求隐藏成一次计数。若完整任务无法在剩余预算内完成，明确失败，不继续消耗到保存后才发现无法重开。`);
     text = text.replace('最终助手消息才输出R的JSON。', '最后必须调用vm_submit_handoff，唯一参数report传完整同一对象R，不传JSON字符串、草稿引用或解释。')
       .replace('write_result和read_result预算', 'write_result、read_result和submit_handoff预算')
       .replace('最终回复只输出同一个HandoffResult JSON，不加围栏或解释；整个最终消息必须能直接解析为一个JSON对象，前后不得添加进度、总结、致歉或成功声明。',

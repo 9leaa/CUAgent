@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { handoffPrompt, HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 
+test('new protocol plans raw costs without removing evidence requirements', () => {
+  const binding = {runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)};
+  const prompt = handoffPrompt({...binding, protocol:'p7-tool-submit-v1'});
+  for (const rule of ['剩余至少12次raw', '已用不超过18次', '共7次', '已用应不超过11次',
+    '至多安排9次引用定位', '不能当成额外额度', '不是成功保证', '已核对的区间可复用',
+    '不得为了省调用删任务、漏报冲突、伪造位置或扩大证据含义', '不能把多个实际请求隐藏成一次计数']) {
+    assert.ok(prompt.includes(rule), rule);
+  }
+  assert.ok(!handoffPrompt(binding).includes('调用规划：'));
+});
+
 test('explicit new protocol uses full report submission, no final-text contract or retries', () => {
   const binding = {runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)};
   const prompt = handoffPrompt({...binding, protocol:'p7-tool-submit-v1'});

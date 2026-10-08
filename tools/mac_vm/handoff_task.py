@@ -169,13 +169,16 @@ class HandoffDesktopTask(DesktopTask):
     def reopen(self, args):
         with self.lock:
             state = self.snapshot
+            # Eight worst-case reopen requests, observation, write/read, and
+            # one additional terminal submission only for the explicit protocol.
+            reserve = 12 if self.submission_protocol == 'p7-tool-submit-v1' else 11
             if (type(args) is not dict or set(args) != {'snapshot_id'} or not state
                     or args['snapshot_id'] != state['snapshot_id'] or time.monotonic() - self.observed_at > 30
                     or state.get('pid') != self.pid or state.get('window_id') != self.window
                     or state.get('window_title') != self.case.title or state.get('app_name') != self.case.app_name
                     or self.reopen_phase is not None or not self.saved_once or self.document_opener is None
-                    or self.used > 19):
-                raise StopRun('BLOCKED', 'Saved fresh original window and eleven remaining calls required')
+                    or self.used > 30 - reserve):
+                raise StopRun('BLOCKED', f'Saved fresh original window and {reserve} remaining calls required')
             self.lease.check()
             if self.stopped.is_set() or self.uncertain or self.inflight:
                 raise StopRun('BLOCKED', 'Idle authorized task required')
