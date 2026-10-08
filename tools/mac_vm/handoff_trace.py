@@ -18,7 +18,10 @@ def require(condition):
         raise ValueError('HANDOFF_TRACE_UNVERIFIED')
 
 
-def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
+def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None,
+                         draft_input_mode='literal-text'):
+    require(draft_input_mode in ('literal-text', 'checked-draft-v1'))
+    checked_input = draft_input_mode == 'checked-draft-v1'
     require(isinstance(run_id, str) and re.fullmatch(
         r'p2-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', run_id))
     require(type(materials) is bytes and 0 < len(materials) <= 256 * 1024)
@@ -36,6 +39,8 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     events = {'approval', 'setup_empty_document', 'dispatch', 'result', 'observation_evidence', 'attempted_input',
               'attempted_save', 'handoff_reopen_intent', 'handoff_window_closed',
               'handoff_window_reopened', 'stop', 'window_readiness_wait', 'observation_recovery', 'helper_arguments'}
+    if checked_input:
+        events.add('checked_draft_input_intent')
     calls, returned, by_event = {}, {}, {}
     stopped, last = False, -math.inf
     for index, row in enumerate(rows):
@@ -219,7 +224,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     except Exception as error:
         raise ValueError('HANDOFF_TRACE_UNVERIFIED') from error
     require(all(intent.get(key) == item for key, item in button.items()))
-    require(sum(i < intent_at for i in calls.values()) <= 19)
+    require(sum(i < intent_at for i in calls.values()) <= (18 if checked_input else 19))
     require(closed.get('pid') == pid and closed.get('window_id') == old)
     require(opened.get('pid') == pid and opened.get('old_window_id') == old and opened.get('sha256') == digest)
     new = opened.get('window_id')
@@ -263,6 +268,41 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     require(all(returned[rows[i]['call_id']] < inputs[0] for i in draft_calls))
     require(rows[input_at].get('sha256') == digest and type(rows[input_at].get('bytes')) is int
             and rows[input_at]['bytes'] == len(expected))
+    if checked_input:
+        require(bool(draft_calls) and len(submit_calls) == 1)
+        selected_at = one('checked_draft_input_intent')
+        selected = rows[selected_at]
+        require(set(selected) == {'event', 'run_id', 'at', 'mode', 'args', 'used', 'resolvedText'})
+        require(selected.get('mode') == draft_input_mode and selected.get('resolvedText') == expected_text)
+        require(selected_at + 1 == inputs[0]
+                and returned[rows[draft_calls[-1]]['call_id']] < selected_at)
+        require(type(selected.get('used')) is int and selected['used'] == rows[inputs[0]]['used'] - 1)
+        args = selected.get('args')
+        require(type(args) is dict and set(args) == {
+            'snapshot_id', 'element_index', 'element_token', 'documentSha256'})
+        require(type(args.get('element_index')) is int and type(args.get('element_token')) is str
+                and type(rows[input_at].get('element_index')) is int
+                and args['snapshot_id'] == rows[input_at].get('snapshot_id')
+                and args['element_index'] == rows[input_at]['element_index']
+                and args['documentSha256'] == digest)
+        state = fresh(args['snapshot_id'], selected_at)
+        elements = state.get('elements', [])
+        matches = [e for e in elements if e.get('element_index') == args['element_index']
+                   and e.get('element_token') == args['element_token'] and e.get('role') == 'AXTextArea'
+                   and e.get('enabled', True) is True]
+        require(len(matches) == 1)
+        # Prove the selected body belongs to the original approved window.
+        element, seen = matches[0], set()
+        while element.get('role') != 'AXWindow':
+            index = element.get('element_index')
+            require(type(index) is int and index not in seen)
+            seen.add(index)
+            parent = element.get('parent_index')
+            require(type(parent) is int)
+            parents = [e for e in elements if type(e.get('element_index')) is int and e['element_index'] == parent]
+            require(len(parents) == 1)
+            element = parents[0]
+        require(element.get('label') == title)
     save_calls = []
     for index in [input_at] + saves:
         attempt = rows[index]
@@ -302,6 +342,7 @@ def verify_handoff_trace(rows, *, run_id, materials, expected, session_id=None):
     require(all(value(i) == expected_text + '\n' for i in reads))
     require(all(rows[i]['tool'] in {'get_window_state', 'write_result', 'read_result', 'read_materials', 'submit_handoff'}
                 for i in calls.values() if i > opened_at))
-    return {'status': 'TRACE_VERIFIED', 'runId': run_id, 'rawCalls': len(calls),
+    return {**({'inputMode': draft_input_mode} if checked_input else {}),
+            'status': 'TRACE_VERIFIED', 'runId': run_id, 'rawCalls': len(calls),
             'inputSha256': input_digest, 'documentSha256': digest, 'finalSnapshotId': latest,
             'filesVerified': False, 'sessionVerified': False, 'semanticVerified': False}

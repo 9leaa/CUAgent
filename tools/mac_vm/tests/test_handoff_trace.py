@@ -34,6 +34,7 @@ class HandoffTraceTests(unittest.TestCase):
         self.task = HandoffDesktopTask(self.root / self.run, self.transport, lambda _: None, lease=gate,
             approved=True, environment=lambda: None, input_sha256=hashlib.sha256(self.materials).hexdigest(),
             document_opener=self.open_document, draft_session_id=getattr(self, 'draft_session_id', None),
+            draft_input_mode=getattr(self, 'draft_input_mode', 'literal-text'),
             submission_protocol='p7-tool-submit-v1' if hasattr(self, 'submit_report') else 'legacy-final-json')
         path = self.task.directory / 'handoff-input.json'; path.write_bytes(self.materials); path.chmod(0o600)
         for _ in range(getattr(self, 'extra_reads', 0)): self.task.read_materials()
@@ -41,7 +42,11 @@ class HandoffTraceTests(unittest.TestCase):
         for args in getattr(self, 'quote_args', []): self.task.locate_quote(args)
         for args in getattr(self, 'draft_args', []): self.task.check_draft(args)
         state = self.task.observe()['state']
-        self.task.type_text(dict(snapshot_id=state['snapshot_id'], element_index=2, element_token='body', text=self.expected.decode()))
+        target = dict(snapshot_id=state['snapshot_id'], element_index=2, element_token='body')
+        if getattr(self, 'draft_input_mode', 'literal-text') == 'checked-draft-v1':
+            self.task.type_checked_draft(dict(target, documentSha256=hashlib.sha256(self.expected).hexdigest()))
+        else:
+            self.task.type_text(dict(target, text=self.expected.decode()))
         state = self.task.observe()['state']; self.task.save(dict(snapshot_id=state['snapshot_id']))
         state = self.task.observe()['state']; self.task.reopen(dict(snapshot_id=state['snapshot_id']))
         state = self.task.observe()['state']; self.task.write_result(dict(snapshot_id=state['snapshot_id'], value=self.expected.decode()))

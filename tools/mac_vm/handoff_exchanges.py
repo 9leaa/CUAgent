@@ -15,8 +15,11 @@ def require(condition):
         raise ValueError('HANDOFF_EXCHANGES_UNVERIFIED')
 
 
-def match_handoff_exchanges(official, trace, *, run_id, materials, expected, session_id=None):
-    verified = verify_handoff_trace(trace, run_id=run_id, materials=materials, expected=expected, session_id=session_id)
+def match_handoff_exchanges(official, trace, *, run_id, materials, expected, session_id=None,
+                            draft_input_mode='literal-text'):
+    verified = verify_handoff_trace(trace, run_id=run_id, materials=materials, expected=expected,
+                                    session_id=session_id, draft_input_mode=draft_input_mode)
+    checked_input = draft_input_mode == 'checked-draft-v1'
     source = strict_json(materials)
     hashes = {**{'notes/' + n['id']: hashlib.sha256(n['content'].encode()).hexdigest() for n in source['notes']},
               **{k: hashlib.sha256(source[k].encode()).hexdigest() for k in ('tasksCsv', 'previousReport')}}
@@ -42,7 +45,13 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected, ses
                               and e.get('role') == 'AXTextArea' and e.get('enabled', True) is True]
                 require(len(candidates) == 1 and type(candidates[0].get('element_token')) is str)
                 args.update(element_index=row['element_index'], element_token=candidates[0]['element_token'], text=expected.decode())
-            logical.append(('vm_type' if event == 'attempted_input' else 'vm_save', args, raw_results[current['call_id']]))
+            name = 'vm_type' if event == 'attempted_input' else 'vm_save'
+            if event == 'attempted_input' and checked_input:
+                # Trace gate already proved unique selection, original draft,
+                # resolved bytes, observation/target, and actual input digest.
+                args = dict(next(r['args'] for r in trace if r['event'] == 'checked_draft_input_intent'))
+                name = 'vm_type_checked_draft'
+            logical.append((name, args, raw_results[current['call_id']]))
         elif event == 'handoff_window_reopened':
             logical.append(('vm_reopen', dict(snapshot_id=intent['snapshot_id']),
                             dict(requires_new_observation=True, used=row['used'])))
@@ -89,6 +98,7 @@ def match_handoff_exchanges(official, trace, *, run_id, materials, expected, ses
                     and attachment.get('mediaType') in ('image/png', 'image/webp')
                     and all(type(attachment.get(k)) is int and attachment[k] > 0 for k in ('bytes', 'width', 'height')))
             attachments.append(dict(snapshotId=response['snapshot_id'], used=response['used'], attachment=dict(attachment)))
-    return {'status': 'EXCHANGES_MATCHED', 'runId': run_id, 'officialToolCalls': len(logical),
+    return {**({'inputMode': draft_input_mode} if checked_input else {}),
+            'status': 'EXCHANGES_MATCHED', 'runId': run_id, 'officialToolCalls': len(logical),
             'rawCalls': verified['rawCalls'], 'attachmentsToVerify': attachments,
             'sessionVerified': False, 'imageBytesVerified': False, 'semanticVerified': False}

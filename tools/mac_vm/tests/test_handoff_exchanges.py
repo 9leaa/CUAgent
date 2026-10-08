@@ -42,7 +42,11 @@ class HandoffExchangeTests(unittest.TestCase):
         for args, response in zip(drafts,completed): call('vm_check_draft',args,response)
         shift = len(quotes) + len(drafts)
         call('vm_observe', {}, projected(states[0], 4+shift), True)
-        call('vm_type', dict(snapshot_id='1', element_index=2, element_token='body', text=f.expected.decode()), dict(ok=True))
+        if getattr(f, 'draft_input_mode', 'literal-text') == 'checked-draft-v1':
+            call('vm_type_checked_draft', dict(snapshot_id='1', element_index=2, element_token='body',
+                documentSha256=hashlib.sha256(f.expected).hexdigest()), dict(ok=True))
+        else:
+            call('vm_type', dict(snapshot_id='1', element_index=2, element_token='body', text=f.expected.decode()), dict(ok=True))
         call('vm_observe', {}, projected(states[1], 6+shift), True)
         call('vm_save', dict(snapshot_id='2'), dict(ok=True))
         call('vm_observe', {}, projected(states[2], 8+shift), True)

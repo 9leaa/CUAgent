@@ -126,7 +126,7 @@ class HandoffDesktopTask(DesktopTask):
                 raise StopRun('BLOCKED', 'Idle authorized input budget required')
             # Intent alone never proves an input; raw/attempted_input must follow.
             self.record(dict(event='checked_draft_input_intent', mode=self.draft_input_mode,
-                             args=dict(args), used=self.used))
+                             args=dict(args), resolvedText=body, used=self.used))
             target = {k: args[k] for k in ('snapshot_id', 'element_index', 'element_token')}
             return self._type_exact_draft(dict(target, text=body))
 
