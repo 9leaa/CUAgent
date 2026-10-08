@@ -27,13 +27,14 @@ def input_from_stream(stream):
     return materials, expected
 
 
-def build_bundle(directory, controller, materials, expected):
+def build_bundle(directory, controller, materials, expected, *, draft_input_mode='literal-text'):
     root = Path(directory).absolute()
     require(controller.path == root / 'lease.json' and controller.gate.run_id == root.name)
     lease = controller.existing()
     require(lease is not None and lease['stopped'] is True)
     binding = {key: lease[key] for key in ('version', 'runId', 'owner', 'epoch')}
-    report = inspect_handoff_evidence(root, binding=binding, materials=materials, expected=expected)
+    report = inspect_handoff_evidence(root, binding=binding, materials=materials, expected=expected,
+                                     draft_input_mode=draft_input_mode)
     fixed = {'handoff-input.json', 'handoff-input-intent.json', 'handoff-input-receipt.json',
              'handoff-reopen-intent.json', 'trace.jsonl', 'final_state.json', 'result.txt',
              'artifacts/handoff-' + root.name + '.txt'}
@@ -41,6 +42,8 @@ def build_bundle(directory, controller, materials, expected):
         fixed.add('handoff-session-binding.json')
     if 'handoff-submission-protocol.json' in report['files']:
         fixed.add('handoff-submission-protocol.json')
+    if draft_input_mode == 'checked-draft-v1':
+        fixed.add('handoff-input-mode.json')
     contents, signatures = {}, {}
     signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns, s.st_mode, s.st_nlink)
     root_signature = signature(root.stat())
@@ -72,6 +75,8 @@ def build_bundle(directory, controller, materials, expected):
     require(controller.existing() == lease)
     manifest = dict(version=1, kind='project-handoff', binding=binding,
         inputSha256=hashlib.sha256(materials).hexdigest(), expectedSha256=hashlib.sha256(expected).hexdigest(), guest=report)
+    if draft_input_mode == 'checked-draft-v1':
+        manifest['inputMode'] = draft_input_mode
     contents['guest-manifest.json'] = json.dumps(manifest, sort_keys=True).encode()
     return contents
 
@@ -81,6 +86,7 @@ def main(argv=None):
     parser.add_argument('--run', required=True)
     parser.add_argument('--owner', required=True)
     parser.add_argument('--epoch', type=int, required=True)
+    parser.add_argument('--draft-input-mode', choices=('literal-text', 'checked-draft-v1'), default='literal-text')
     args = parser.parse_args(argv)
     try:
         require_vm()
@@ -88,7 +94,8 @@ def main(argv=None):
         root = Path.home() / 'C0Evidence' / args.run
         controller = LeaseController(root / 'lease.json', run_id=args.run, owner=args.owner,
                                      epoch=args.epoch, clock=time.time)
-        contents = build_bundle(root, controller, *input_from_stream(sys.stdin.buffer))
+        contents = build_bundle(root, controller, *input_from_stream(sys.stdin.buffer),
+                                draft_input_mode=args.draft_input_mode)
         write_bundle(contents, sys.stdout.buffer)
         return 0
     except Exception:

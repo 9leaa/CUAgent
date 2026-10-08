@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文输入的文件采集与传输
+
+- 在既有技术方案先补文件/传输细则，再实现只读链。inspect_handoff_evidence、build_bundle/导出CLI及decode_handoff_bundle接收可信draft_input_mode；默认literal-text保留旧模式，拒绝新绑定。checked-draft-v1要求私有handoff-input-mode.json严格绑定version、inputMode、run、session和原材料摘要，并沿原权限/链接/大小/两次读回检查；实际文档及result字节仍须完全一致。
+- 导出固定白名单包含模式记录；新manifest、guest及trace的inputMode必须一致，宿主重新核对原绑定与文件摘要。输出仍分别为文件/传输核验，不宣称完整会话、图片语义或业务通过。生产激活写入尚未接通；测试绑定为合成数据，不能作为运行许可。
+- 新增24项原Task＋模拟Driver文件测试，覆盖完整只读导出/读回、缺记录、身份/摘要/版本/额外字段篡改、公开权限、符号链接、旧模式降级、实际文档/result改变及采集后二次读回改变；宿主反例同时更新文件摘要，仍应拒绝错误模式绑定。相关六组pytest共137项通过，执行层unittest340项通过，原运行中的75项测试亦已确认完成。
+- 未注册工具、未部署、未调用真实模型或GUI，未改P5源码和旧失败/队列。下一步接原创建/控制激活及联合验收，再开放HTTP/Harness并固定候选做真实业务验证。README已同步，P7及后续完整目标未完成。
+
 ## 2026-10-08：已预检正文选择的轨迹与双日志核验
 
 - 按先行方案补细则后实现：输入意图保留resolvedText；trace/exchanges新增可信draft_input_mode参数，默认旧模式拒绝新事件。新模式要求唯一选择紧邻原唯一type_text派发、原成功草稿后新观察、四参数严格绑定目标和原摘要、展开正文等于独立期望、used整数等于派发前原计数。检查文本框原窗口祖先及循环/缺失/bool索引，原保存/重开/读回/完整submit和18raw重开准入门槛保留。

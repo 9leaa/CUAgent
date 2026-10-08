@@ -7,7 +7,9 @@ from backend.handoff_result import canonical
 from backend.handoff_session import strict_json, require
 
 
-def decode_handoff_bundle(raw, *, binding, materials, expected):
+def decode_handoff_bundle(raw, *, binding, materials, expected, draft_input_mode='literal-text'):
+    require(draft_input_mode in ('literal-text', 'checked-draft-v1'))
+    checked_input = draft_input_mode == 'checked-draft-v1'
     require(type(raw) is bytes and 0 < len(raw) <= 65 * 1024 * 1024)
     require(type(binding) is dict and set(binding) == {'version', 'runId', 'owner', 'epoch'})
     uuid = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
@@ -20,13 +22,15 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
     document = 'artifacts/handoff-' + binding['runId'] + '.txt'
     fixed = {'handoff-input.json', 'handoff-input-intent.json', 'handoff-input-receipt.json',
              'handoff-reopen-intent.json', 'trace.jsonl', 'final_state.json', 'result.txt', document}
+    if checked_input:
+        fixed.add('handoff-input-mode.json')
     contents, total = {}, 0
     try:
         with tarfile.open(fileobj=io.BytesIO(raw), mode='r:') as archive:
             for member in archive:
                 name = member.name
                 require(raw[member.offset + 257:member.offset + 265] == b'ustar\x0000')
-                require(len(contents) < 71 and name not in contents and member.type == tarfile.REGTYPE
+                require(len(contents) < (72 if checked_input else 71) and name not in contents and member.type == tarfile.REGTYPE
                         and not member.pax_headers and not member.linkname)
                 require(name in fixed | {'guest-manifest.json', 'handoff-session-binding.json', 'handoff-submission-protocol.json'} or re.fullmatch(r'state-(?:0[1-9]|[12][0-9]|30)\.(?:json|png)', name))
                 require(0 < member.size <= (65536 if name == 'guest-manifest.json' else 8 * 1024 * 1024))
@@ -41,12 +45,18 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
                     and not any(raw[archive.offset:]))
         require(fixed | {'guest-manifest.json'} <= contents.keys())
         manifest = strict_json(contents.pop('guest-manifest.json').decode())
-        require(type(manifest) is dict and set(manifest) == {'version', 'kind', 'binding', 'inputSha256', 'expectedSha256', 'guest'})
+        fields = {'version', 'kind', 'binding', 'inputSha256', 'expectedSha256', 'guest'}
+        require(type(manifest) is dict and set(manifest) == fields | ({'inputMode'} if checked_input else set()))
+        if checked_input:
+            require(manifest['inputMode'] == draft_input_mode)
         require(type(manifest['version']) is int and manifest['version'] == 1 and manifest['kind'] == 'project-handoff'
                 and canonical(manifest['binding']) == canonical(binding)
                 and manifest['inputSha256'] == hashlib.sha256(materials).hexdigest()
                 and manifest['expectedSha256'] == hashlib.sha256(expected).hexdigest())
         guest = manifest['guest']
+        if not checked_input:
+            require(type(guest) is dict and 'inputMode' not in guest
+                    and type(guest.get('trace')) is dict and 'inputMode' not in guest['trace'])
         require(type(guest) is dict and guest.get('status') == 'VM_EVIDENCE_VERIFIED'
                 and guest.get('runId') == binding['runId'] and canonical(guest.get('binding')) == canonical(binding)
                 and guest.get('filesVerified') is True and guest.get('sessionVerified') is False
@@ -72,6 +82,11 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
         if has_submit:
             protocol = strict_json(contents['handoff-submission-protocol.json'].decode())
             require(canonical(protocol) == canonical(dict(session, version=1, protocol='p7-tool-submit-v1')))
+        if checked_input:
+            require(has_draft and has_submit and guest.get('inputMode') == draft_input_mode
+                    and type(guest.get('trace')) is dict and guest['trace'].get('inputMode') == draft_input_mode)
+            mode = strict_json(contents['handoff-input-mode.json'].decode())
+            require(canonical(mode) == canonical(dict(session, version=1, inputMode=draft_input_mode)))
         screenshots = [name for name in contents if name.endswith('.png')]
         require(bool(screenshots))
         for name in screenshots:
@@ -79,6 +94,7 @@ def decode_handoff_bundle(raw, *, binding, materials, expected):
         for name in contents:
             if name.startswith('state-') and name.endswith('.json'): require(name[:-5] + '.png' in contents)
         return dict(status='TRANSPORT_VERIFIED', binding=dict(binding), files=contents,
-                    guest=guest, sessionVerified=False, semanticVerified=False)
+                    guest=guest, sessionVerified=False, semanticVerified=False,
+                    **({'inputMode': draft_input_mode} if checked_input else {}))
     except (tarfile.TarError, OSError, EOFError, UnicodeError, KeyError, TypeError, ValueError):
         raise ValueError('HANDOFF_BUNDLE_UNVERIFIED') from None

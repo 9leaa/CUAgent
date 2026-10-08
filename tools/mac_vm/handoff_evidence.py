@@ -37,7 +37,9 @@ def same_json(left, right):
     return encode(left) == encode(right)
 
 
-def inspect_handoff_evidence(directory, *, binding, materials, expected):
+def inspect_handoff_evidence(directory, *, binding, materials, expected, draft_input_mode='literal-text'):
+    require(draft_input_mode in ('literal-text', 'checked-draft-v1'))
+    checked_input = draft_input_mode == 'checked-draft-v1'
     require(type(binding) is dict and set(binding) == {'version', 'runId', 'owner', 'epoch'})
     require(type(binding['version']) is int and binding['version'] == 1
             and type(binding['epoch']) is int and binding['epoch'] > 0
@@ -114,7 +116,14 @@ def inspect_handoff_evidence(directory, *, binding, materials, expected):
             protocol = strict_json(read('handoff-submission-protocol.json', 4096, private=True))
             require(same_json(protocol, dict(version=1, protocol='p7-tool-submit-v1',
                 runId=run, sessionId=session_id, inputSha256=input_sha)))
-        trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected, session_id=session_id)
+        if checked_input:
+            mode = strict_json(read('handoff-input-mode.json', 4096, private=True))
+            require(session_id is not None and same_json(mode, dict(version=1, inputMode=draft_input_mode,
+                runId=run, sessionId=session_id, inputSha256=input_sha)))
+        else:
+            require(not os.path.lexists(root / 'handoff-input-mode.json'))
+        trace = verify_handoff_trace(rows, run_id=run, materials=materials, expected=expected,
+                                     session_id=session_id, draft_input_mode=draft_input_mode)
         intent = strict_json(read('handoff-reopen-intent.json', 4096, private=True))
         marker = next(row for row in rows if row['event'] == 'handoff_reopen_intent')
         require(type(intent) is dict and set(intent) == {'snapshot_id', 'pid', 'window_id', 'sha256', 'element_index', 'element_token'})
@@ -145,7 +154,8 @@ def inspect_handoff_evidence(directory, *, binding, materials, expected):
         current = root.stat(follow_symlinks=False)
         require(root.resolve(strict=True) == root and (current.st_dev, current.st_ino) == (root_info.st_dev, root_info.st_ino)
                 and current.st_uid == os.getuid() and not current.st_mode & 0o077)
-        return {'status': 'VM_EVIDENCE_VERIFIED', 'runId': run, 'binding': dict(binding),
+        return {**({'inputMode': draft_input_mode} if checked_input else {}),
+                'status': 'VM_EVIDENCE_VERIFIED', 'runId': run, 'binding': dict(binding),
                 'rawCalls': trace['rawCalls'], 'files': collected, 'trace': trace,
                 'filesVerified': True, 'sessionVerified': False, 'semanticVerified': False}
     finally:
