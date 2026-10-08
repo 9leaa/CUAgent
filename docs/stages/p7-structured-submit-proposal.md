@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+创建前门槛细化（2026-10-08，代码前）：会话prepare显式protocol默认旧版，新版才在独占desktop-request加入版本；startHandoffSession仅接受旧字段或增加一个正确protocol字段，新版ready必须同时匹配session/protocol/十工具，错配在任何RPC之前拒绝。App启动ready期望同样核对可信连接的新字段。新prompt明确完整report提交、紧邻read_result、预算包含submit及失败未知不重发，移除旧最终文本JSON要求；旧prompt字节与九工具默认保留。此步只开放显式创建API，不自动修改现有队列或生产operator选择。
+
 Harness终态细化（2026-10-08，代码前）：仅可信连接显式protocol=p7-tool-submit-v1且固定sessionId才注册完整report工具；旧连接不变。使用安装版ToolRuntime真实register/guard/concludeTurn/tools/result接口，不启用子Agent或PTC。提交HTTP派发前进入单调pending门禁，拒绝并发/后续所有工具及新模型请求；HTTP未知/失败不解除门禁、不重发，发送原stop。核对成功响应固定身份/协议/摘要/预算后调用concludeTurn；只有原execution的不可变tools/result成功且原输出一致才标committed，管线后置错误或取消仍锁止并stop，不能将HTTP成功当最终成功。完整report参数直接传VM保留原计费，参数schema使用现有HandoffResult及其defs。用安装版官方registry测试成功终态、同响应后续、并发、篡改/错误/丢失/取消和外层结果失败；新生产会话和prompt切换仍需后续贯通后才派发。
 
 控制激活细化（2026-10-08，代码前）：bind_draft_session同时一次绑定可信protocol（默认旧），新协议才向独立控制端activate-handoff发送protocol；必须包含有效session，不接受模型端激活。VM激活在原独占意图后、新Task前独占写0600 handoff-submission-protocol.json，包含version/protocol/run/session/input，失败保持原激活不可重放。新提交轨迹导出必须带该原记录，guest核验、bundle读回和host联合入口都核对，缺失/替换拒绝。旧草稿session记录字段不变，旧协议不新建该文件。
