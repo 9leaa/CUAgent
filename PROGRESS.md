@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-08：费用来源绑定结果与独立算术核验
+
+- 先补实施规则，再新增`backend/expense_result.py`及测试。报告绑定可信原run/session、完整输入SHA、独立提取记录SHA；提取记录完整覆盖原票据并核对SHA/页码，不能从报告自身取“可信事实”。
+- 按日期/商户原文生成完整候选，同额优先但不丢未知候选；同票多交易、多票候选标歧义，重复SHA/号码或模糊字段禁止直接匹配。逐笔覆盖交易并逐票列出未引用来源，重复分组不能漏报/捏造；交易减票据的有符号差额及整数分总额重新计算。原始已知票据总额明确未去重，未知金额单列数量。
+- 仅返回STRUCTURE_ARITHMETIC_VERIFIED_SEMANTICS_PENDING，filesVerified/semanticVerified/guiVerified均false；不证明票据提取、实际业务关联或GUI完成，无API/Worker接线、模型请求或运行时变更。
+- 验证命令：`/Users/zhangchengjie/CUAgent/.runtime/backend-venv/bin/python -m pytest backend/tests/test_expense_contract.py backend/tests/test_expense_result.py backend/tests/test_handoff_contract.py backend/tests/test_handoff_result.py -q`，191项通过（费用100、交接91）；`git diff --check`通过。包含身份/来源/页码/预算篡改、漏项/重复、模糊金额、多候选、共享候选、有符号差额及不安全model_copy反例。
+- 下一步准备独立人工预期与完整票据样本，明确可信提取记录采集方式，再接VM表格应用；当前不是可用的端到端费用功能。README同步，原交接待验收和P5均未修改。
+
 ## 2026-10-08：费用输入契约与精确金额计算
 
 - 按实施前方案新增`backend/expense_contract.py`：严格CSV及1–20交易/票据元数据、固定CNY正数金额、真实日历日期、输入/文件大小边界、完整规范输入SHA和重复SHA来源分组。模型冻结，辅助方法重验绕过构造/复制的非法对象；公式样商户文字原样保留但无导出或执行入口。
