@@ -137,7 +137,7 @@ class DesktopGuestRuntime:
                         sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
                     report = inspect_handoff_evidence(self.directory,
                         binding=dict(version=1, runId=gate.run_id, owner=gate.owner, epoch=gate.epoch),
-                        materials=materials, expected=expected)
+                        materials=materials, expected=expected, draft_input_mode=task.draft_input_mode)
                     verified = report['status'] == 'VM_EVIDENCE_VERIFIED'
                 else:
                     report = inspect_guest_evidence(self.directory, run_id=gate.run_id, expected=expected)
@@ -164,7 +164,8 @@ class DesktopGuestRuntime:
         return request_open_document(self.application, document)
 
     def activate_handoff(self, body):
-        if (type(body) is not dict or set(body) not in ({'inputSha256'}, {'inputSha256','sessionId'}, {'inputSha256','sessionId','protocol'})
+        if (type(body) is not dict or set(body) not in ({'inputSha256'}, {'inputSha256','sessionId'},
+                {'inputSha256','sessionId','protocol'}, {'inputSha256','sessionId','protocol','inputMode'})
                 or not isinstance(body['inputSha256'], str) or not re.fullmatch(r'[0-9a-f]{64}', body['inputSha256'])):
             raise ValueError('handoff activation binding required')
         session_id = body.get('sessionId')
@@ -174,13 +175,20 @@ class DesktopGuestRuntime:
         protocol = body.get('protocol', 'legacy-final-json')
         if 'protocol' in body and protocol != 'p7-tool-submit-v1':
             raise ValueError('explicit supported submission protocol required')
+        mode = body.get('inputMode', 'literal-text')
+        if 'inputMode' in body and mode != 'checked-draft-v1':
+            raise ValueError('explicit supported input mode required')
         return self.activate(handoff_digest=body['inputSha256'], draft_session_id=session_id,
-                             submission_protocol=protocol)
+                             submission_protocol=protocol, draft_input_mode=mode)
 
-    def activate(self, *, handoff_digest=None, draft_session_id=None, submission_protocol='legacy-final-json'):
+    def activate(self, *, handoff_digest=None, draft_session_id=None, submission_protocol='legacy-final-json',
+                 draft_input_mode='literal-text'):
         if (submission_protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
                 or submission_protocol == 'p7-tool-submit-v1' and (handoff_digest is None or draft_session_id is None)):
             raise ValueError('bound handoff protocol required')
+        if (draft_input_mode not in ('literal-text', 'checked-draft-v1')
+                or draft_input_mode == 'checked-draft-v1' and submission_protocol != 'p7-tool-submit-v1'):
+            raise ValueError('bound handoff input mode required')
         with self.lock:
             if self.closed or self.task is not None:
                 raise ValueError('activation already attempted or closed')
@@ -195,6 +203,8 @@ class DesktopGuestRuntime:
                     file.flush()
                     os.fsync(file.fileno())
                 self.controller.gate.check()
+                if draft_input_mode == 'literal-text' and os.path.lexists(self.directory / 'handoff-input-mode.json'):
+                    raise ValueError('existing input mode cannot be downgraded')
                 receipt = verify_provision(self, handoff_digest) if handoff_digest is not None else None
                 task_kwargs = {'lease': self.controller.gate, 'approved': True}
                 if not self.loopback_test:
@@ -215,6 +225,18 @@ class DesktopGuestRuntime:
                             with os.fdopen(fd, 'w') as stream:
                                 json.dump(protocol_record, stream); stream.flush(); os.fsync(stream.fileno())
                             task_kwargs['submission_protocol'] = submission_protocol
+                        if draft_input_mode == 'checked-draft-v1':
+                            mode_record = dict(record, version=1, inputMode=draft_input_mode)
+                            fd = os.open(self.directory / 'handoff-input-mode.json',
+                                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                            with os.fdopen(fd, 'w') as stream:
+                                json.dump(mode_record, stream); stream.flush(); os.fsync(stream.fileno())
+                            directory_fd = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                            try:
+                                os.fsync(directory_fd)
+                            finally:
+                                os.close(directory_fd)
+                            task_kwargs['draft_input_mode'] = draft_input_mode
                     if not self.loopback_test:
                         task_kwargs['document_opener'] = self.open_handoff_document
                     self.task = self.handoff_task_factory(self.directory, input_sha256=handoff_digest, **task_kwargs)

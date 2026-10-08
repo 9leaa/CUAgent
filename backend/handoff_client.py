@@ -9,16 +9,19 @@ from backend.handoff_result import canonical
 
 
 class HandoffControlClient(DesktopControlClient):
-    def bind_draft_session(self, session_id, *, protocol='legacy-final-json'):
+    def bind_draft_session(self, session_id, *, protocol='legacy-final-json', draft_input_mode='literal-text'):
         with self._lifecycle_lock:
             if (self._activation_attempted
                     or getattr(self, '_draft_session_id', None) is not None
                     or protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
+                    or draft_input_mode not in ('literal-text', 'checked-draft-v1')
+                    or draft_input_mode == 'checked-draft-v1' and protocol != 'p7-tool-submit-v1'
                     or type(session_id) is not str
                     or not re.fullmatch(r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',session_id)):
                 raise ControlUnconfirmed('HANDOFF_SESSION_BINDING_REQUIRED')
             self._draft_session_id = session_id
             self._submission_protocol = protocol
+            self._draft_input_mode = draft_input_mode
 
     def activation_request(self):
         receipt = getattr(self, '_input_receipt', None)
@@ -29,6 +32,8 @@ class HandoffControlClient(DesktopControlClient):
             body['sessionId'] = self._draft_session_id
         if getattr(self, '_submission_protocol', None) == 'p7-tool-submit-v1':
             body['protocol'] = self._submission_protocol
+        if getattr(self, '_draft_input_mode', None) == 'checked-draft-v1':
+            body['inputMode'] = self._draft_input_mode
         return '/activate-handoff', body
 
     def provision_handoff(self, submission, authority):

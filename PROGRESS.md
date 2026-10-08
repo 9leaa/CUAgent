@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文模式的可信激活绑定
+
+- 技术方案先补控制激活细则，再实现client首次session绑定的draft_input_mode选择；新模式仅与p7-tool-submit-v1组合，原默认请求不增加字段。guest控制端要求完整inputSha256/sessionId/protocol/inputMode，并沿原控制凭据检查，模型token不能激活。
+- 原激活意图/租约检查之后、Task及监听之前，用O_EXCL/0600写入handoff-input-mode.json并同步文件和目录；原run/session/材料摘要及模式绑定传入Task。旧模式遇模式文件拒绝降级，写失败保留原记录并撤权；未知控制响应沿原单次激活契约不重发，调用方仍负责收口或隔离。清理流程的只读证据核验传递原Task模式，不回退旧模式。
+- 新增22项测试，使用真实本地HTTP控制链（无真实模型/GUI）：覆盖持久绑定顺序/权限、无效组合、缺字段/额外字段/模型凭据、旧模式降级、原文件/符号链接/写失败/目录同步失败、P6或无session拒绝、写后失权和响应丢失不重发；清理回调模拟验证模式传递。相关四组pytest113项通过，执行层unittest340项通过，git diff --check通过。
+- 生产创建/连接/ready、独立联合验收及HTTP/Harness新输入操作仍待贯通，本次未注册新模型工具、未部署或运行真实任务，未动P5源码与旧失败/队列。README同步；P7及其后三个阶段的完整目标继续保持未完成。
+
 ## 2026-10-08：已预检正文输入的文件采集与传输
 
 - 在既有技术方案先补文件/传输细则，再实现只读链。inspect_handoff_evidence、build_bundle/导出CLI及decode_handoff_bundle接收可信draft_input_mode；默认literal-text保留旧模式，拒绝新绑定。checked-draft-v1要求私有handoff-input-mode.json严格绑定version、inputMode、run、session和原材料摘要，并沿原权限/链接/大小/两次读回检查；实际文档及result字节仍须完全一致。

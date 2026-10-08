@@ -25,3 +25,5 @@
 第2步核验细化（代码前）：trace/exchanges接收调用者明确的draft_input_mode，默认旧模式严格拒绝新增选择事件；新模式必须有且仅有一次选择，紧邻唯一type_text派发之前，位于成功原草稿及其后新观察之后。选择记录增加resolvedText，必须逐字等于独立期望/原草稿；四参数与原观察、attempted_input身份、SHA一致，used严格为整数且等于派发前计数，禁止多字段、旧token、bool冒充整数及错mode。最后仍需原保存/重开/读回/完整submit证据。双日志在新模式仅接受vm_type_checked_draft四参数，不接受旧vm_type或混合文本参数；原输入成功结果也必须一致。此层不认证整个官方会话、不验证图像字节或语义，不能直接发布。
 
 文件/传输细化（代码前）：新模式要求激活时独占保存的私有handoff-input-mode.json，严格字段version=1/inputMode/runId/sessionId/inputSha256，绑定原材料与草稿session；采集、导出CLI及host包解码均由调用者显式传mode，不从记录推断。新文件进入白名单并沿原两次读回/权限/链接/大小限制；旧模式拒绝新绑定，不能降级。新bundle manifest和guest/trace摘要显式记录inputMode，host核对同一mode、原绑定文件、原文档及result字节；包校验仍不冒充完整执行/语义认证。此步只接只读链，真实激活记录写入留待控制端接线，测试中的绑定是合成测试数据而非生产授权。
+
+控制激活细化（代码前）：可信client在首次绑定原session时一次性选择draft_input_mode，仅checked-draft-v1新增inputMode字段，且必须配套p7-tool-submit-v1；默认旧请求字段不变。控制端只接受完整四字段新请求，拒绝缺session/protocol、未知模式、额外字段及模型凭据。原激活意图和租约检查后、构造Task和监听前，用O_EXCL/0600保存模式记录并fsync文件/目录；已有文件、部分写入或返回未知不覆盖、不重试，沿原撤权路径停止。旧模式遇新绑定文件也拒绝。Task获得可信模式，自动清理的只读核验传递Task原模式；本步不注册新模型HTTP操作或Harness工具、不切换生产创建入口。真实loopback控制测试必须证明0 GUI/0 raw、绑定持久化、重放拒绝和失败撤权。
