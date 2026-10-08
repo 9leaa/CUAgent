@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-08：新协议独立审核与发布准备入口
+
+- ab9455a先写方案。新增共享review_protocol严格解析私有审核上下文：v1仅旧字段/旧协议；v2必须额外且仅有protocol=p7-tool-submit-v1，不接受布尔版本、未知值或静默回退。record_review和prepare_publication使用同一版本重新核验原执行证据及原execution完全一致。
+- 新增9项完整模拟组合：正常来源、原Task/模拟Driver/模拟模型及合成审核声明，经v2重新验收、审核登记和只读产物准备通过；上下文缺失/未知/降级/多字段、审核FAIL/UNVERIFIED和审核后版本改变均拒绝发布。原产物字节不变，未改数据库/实际发布；合成审核不当作真实语义通过。
+- 新旧审核/发布41项、联合验收与旧适配32项，共73项通过。实际任务创建/模型注册尚未同步新协议，未部署或派发；P7及后续完整目标仍未完成。
+
 ## 2026-10-08：新协议原始意图绑定与离线联合验收
 
 - a179215先写方案。verify_handoff_execution增加显式protocol，默认旧协议；新协议要求原私有desktop-request.json及desktop-session-binding.json完整匹配可信run/session/cwd/input和p7-tool-submit-v1，不从模型内容推断版本。原记录加入结束前重读，沿原文件身份/权限/大小校验。

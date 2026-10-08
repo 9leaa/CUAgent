@@ -8,7 +8,7 @@ import os
 import re
 from datetime import datetime, timezone
 from backend.desktop_collect import private_path
-from backend.handoff_operator import read_private
+from backend.handoff_operator import read_private, review_protocol
 from backend.handoff_contract import HandoffSubmission
 from backend.handoff_document import expected_document
 from backend.handoff_result import canonical
@@ -47,12 +47,11 @@ def prepare_publication(root, review_sha256):
         reviewFileSha256=review_sha256, recordedAt=intent['recordedAt'], authority=authority)))
     context = value(root / 'handoff-review-context.json', 384*1024)
     previous = value(root / 'handoff-execution-verification.json', 1024*1024)
-    require(type(context) is dict and set(context) == {'version', 'submission', 'sessionId', 'binding', 'home'}
-            and type(context['version']) is int and context['version'] == 1)
+    protocol = review_protocol(context)
     source = HandoffSubmission.model_validate(context['submission'])
     guest = root / 'guest' / root.name
     current = verify_handoff_execution(root, guest_directory=guest, home=context['home'],
-        submission=source, session_id=context['sessionId'], binding=context['binding'])
+        submission=source, session_id=context['sessionId'], binding=context['binding'], protocol=protocol)
     require(canonical(current) == canonical(previous))
     verdict = validate_independent_review(review, submission=source, report=current['result'],
         execution=current, case_name=review['binding']['caseName'])

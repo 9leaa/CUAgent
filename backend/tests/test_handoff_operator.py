@@ -23,15 +23,18 @@ def operator(evidence, tmp_path):
     guest = root / 'guest' / root.name; guest.parent.mkdir(mode=0o700)
     shutil.copytree(args['guest_directory'], guest)
     args = dict(args, guest_directory=guest)
-    execution = verify_handoff_execution(**args)
+    protocol = json.loads((root / 'desktop-session-binding.json').read_bytes()).get('protocol', 'legacy-final-json')
+    execution = verify_handoff_execution(**args, protocol=protocol)
     source = args['submission']; report = execution['result']
     review, _ = attestation(source, report)
     binding, _, _, snapshots, _ = review_subject(source, report, execution, 'normal')
     review.update(binding=binding, imagesReviewed=snapshots, reviewedAt='2026-10-05T00:00:00+00:00')
     def save(path, value):
         path.write_bytes(canonical(value)); path.chmod(0o600)
-    save(root / 'handoff-review-context.json', dict(version=1, submission=source.model_dump(mode='json'),
-        sessionId=args['session_id'], binding=args['binding'], home=str(args['home'])))
+    review_context = dict(version=1, submission=source.model_dump(mode='json'),
+        sessionId=args['session_id'], binding=args['binding'], home=str(args['home']))
+    if protocol == 'p7-tool-submit-v1': review_context.update(version=2, protocol=protocol)
+    save(root / 'handoff-review-context.json', review_context)
     save(root / 'handoff-execution-verification.json', execution)
     record = tmp_path / 'review.json'; save(record, review)
     return dict(root=root, review_file=record, reviewer_kind='codex', reviewer_id='synthetic-reviewer'), review, save

@@ -17,10 +17,13 @@ import test_handoff_exchanges
 
 @pytest.fixture
 def evidence(tmp_path, request):
-    with_submit = getattr(request, 'param', None) == 'with_submit'
+    configured = getattr(request, 'param', None)
+    with_submit = configured == 'with_submit' or type(configured) is dict and configured.get('protocol') == 'p7-tool-submit-v1'
     with_draft = with_submit or getattr(request, 'param', None) == 'with_draft'
     tools = TOOLS | {'vm_submit_handoff'} if with_submit else TOOLS
     source, report = request.param if hasattr(request, 'param') and not with_draft else fixture()
+    if type(configured) is dict:
+        source, report = configured['source'], configured['report']
     executor = test_handoff_trace.HandoffTraceTests()
     executor.run_id, executor.material_bytes = RUN, canonical(source.model_dump())
     executor.document_bytes = expected_document(source, report, run_id=RUN, session_id=SESSION)

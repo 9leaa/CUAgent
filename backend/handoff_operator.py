@@ -29,6 +29,18 @@ def read_private(path, limit):
     return raw
 
 
+def review_protocol(context):
+    """Trusted private context selects a version; never infer from model output."""
+    fields = {'version', 'submission', 'sessionId', 'binding', 'home'}
+    require(type(context) is dict and type(context.get('version')) is int)
+    if context['version'] == 1:
+        require(set(context) == fields)
+        return 'legacy-final-json'
+    require(context['version'] == 2 and set(context) == fields | {'protocol'}
+            and context['protocol'] == 'p7-tool-submit-v1')
+    return context['protocol']
+
+
 def record_review(root, review_file, *, reviewer_kind, reviewer_id):
     """Caller identity is the local OS user; reviewer labels are declarations.
 
@@ -55,11 +67,11 @@ def record_review(root, review_file, *, reviewer_kind, reviewer_id):
         raw_context = read_private(root / 'handoff-review-context.json', 384*1024)
         raw_execution = read_private(root / 'handoff-execution-verification.json', 1024*1024)
         context, previous, review = (strict_json(raw.decode()) for raw in (raw_context, raw_execution, raw_review))
-        require(type(context) is dict and set(context) == {'version', 'submission', 'sessionId', 'binding', 'home'}
-                and type(context['version']) is int and context['version'] == 1)
+        protocol = review_protocol(context)
         submission = HandoffSubmission.model_validate(context['submission'])
         current = verify_handoff_execution(root, guest_directory=root / 'guest' / root.name,
-            home=context['home'], submission=submission, session_id=context['sessionId'], binding=context['binding'])
+            home=context['home'], submission=submission, session_id=context['sessionId'], binding=context['binding'],
+            protocol=protocol)
         require(canonical(current) == canonical(previous))
         require(review['reviewer'] == dict(kind=reviewer_kind, id=reviewer_id))
         result = validate_independent_review(review, submission=submission, report=current['result'],
