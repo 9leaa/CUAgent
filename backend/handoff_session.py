@@ -5,7 +5,7 @@ import json
 from backend.desktop_notices import classify_desktop_messages
 from backend.desktop_session import MODEL
 from backend.handoff_document import expected_document
-from backend.handoff_result import HandoffResult, verify_result
+from backend.handoff_result import HandoffResult, verify_result, canonical, input_digest
 
 TOOLS = {'vm_check_draft', 'vm_locate_quote', 'vm_observe', 'vm_read_materials', 'vm_read_result', 'vm_reopen', 'vm_save', 'vm_type', 'vm_write_result'}
 
@@ -27,13 +27,17 @@ def strict_json(text):
     return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
 
 
-def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt):
+def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt,
+                           protocol='legacy-final-json'):
     """No file writes/RPC. Trusted caller must bind prompt/cwd to original intent.
 
     This does NOT authenticate arbitrary supplied logs or prove GUI execution.
     The full verifier must additionally compare the original request audit and
     each official tool exchange against the independently collected VM trace.
     """
+    require(protocol in ('legacy-final-json', 'p7-tool-submit-v1'))
+    structured = protocol == 'p7-tool-submit-v1'
+    allowed_tools = TOOLS | {'vm_submit_handoff'} if structured else TOOLS
     require(type(raw) is bytes and 0 < len(raw) <= 64 * 1024 * 1024)
     rows = [strict_json(line) for line in raw.decode('utf8').splitlines()]
     require(len(rows) > 1 and all(type(row) is dict for row in rows))
@@ -62,7 +66,7 @@ def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt):
     for request in requests:
         config = request['data']['header']
         require(all(config['config'].get(k) == v for k, v in MODEL.items())
-                and sorted(t['name'] for t in config['tools']) == sorted(TOOLS)
+                and sorted(t['name'] for t in config['tools']) == sorted(allowed_tools)
                 and user['seq'] < request['seq'] < ends[0]['seq'])
     assistants = selected('assistant/message')
     require(bool(assistants) and requests[0]['seq'] < assistants[0]['seq'])
@@ -81,7 +85,7 @@ def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt):
             require(type(block) is dict)
             if block.get('type') != 'tool-call': continue
             key = block.get('id')
-            require(type(key) is str and bool(key) and key not in declared and block.get('name') in TOOLS
+            require(type(key) is str and bool(key) and key not in declared and block.get('name') in allowed_tools
                     and type(block.get('arguments')) is str and type(strict_json(block['arguments'])) is dict)
             declared[key] = (row['seq'], block)
     calls, results = selected('tool/call'), selected('tool/result')
@@ -102,17 +106,48 @@ def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt):
             pending.remove(key); complete.add(key)
     require(not pending and complete == set(declared))
     final = assistants[-1]
-    require(final['seq'] > max(r['seq'] for r in results))
-    content = final['data']['message']['content']
-    require(all(set(b) == {'type', 'text'} and b['type'] == 'text' and type(b['text']) is str for b in content))
-    text = ''.join(b['text'] for b in content)
-    require(0 < len(text.encode('utf8')) <= 64 * 1024)
-    report = HandoffResult.model_validate(strict_json(text))
+    submitted_response = None
+    if structured:
+        submissions = [(key, seq, block) for key, (seq, block) in declared.items()
+                       if block['name'] == 'vm_submit_handoff']
+        require(len(submissions) == 1)
+        key, seq, block = submissions[0]
+        require(seq == final['seq'] and calls[-1]['data']['callId'] == key
+                and results[-1]['data']['message']['toolCallId'] == key
+                and requests[-1]['seq'] < seq)
+        require(list(declared)[-1] == key)
+        text = block['arguments']
+        require(0 < len(text.encode('utf8')) <= 64 * 1024)
+        envelope = strict_json(text)
+        require(type(envelope) is dict and set(envelope) == {'report'} and type(envelope['report']) is dict)
+        report = HandoffResult.model_validate(envelope['report'])
+        content = results[-1]['data']['message'].get('content')
+        require(type(content) is list and len(content) == 1 and type(content[0]) is dict
+                and set(content[0]) == {'type', 'text'} and content[0]['type'] == 'text'
+                and type(content[0]['text']) is str and 0 < len(content[0]['text'].encode()) <= 4096)
+        submitted_response = strict_json(content[0]['text'])
+    else:
+        require(final['seq'] > max(r['seq'] for r in results))
+        content = final['data']['message']['content']
+        require(all(set(b) == {'type', 'text'} and b['type'] == 'text' and type(b['text']) is str for b in content))
+        text = ''.join(b['text'] for b in content)
+        require(0 < len(text.encode('utf8')) <= 64 * 1024)
+        report = HandoffResult.model_validate(strict_json(text))
     structure = verify_result(submission, report, run_id=run_id, session_id=session_id)
     document = expected_document(submission, report, run_id=run_id, session_id=session_id)
+    if structured:
+        require(type(submitted_response) is dict)
+        used = submitted_response.get('used')
+        require(type(used) is int and len(calls) <= used <= 30)
+        expected_response = dict(status='HANDOFF_SUBMITTED', protocol=protocol,
+            reportSha256=hashlib.sha256(canonical(report.model_dump())).hexdigest(),
+            documentSha256=hashlib.sha256(document).hexdigest(), semanticVerified=False, guiVerified=False,
+            inputSha256=input_digest(submission), runId=run_id, sessionId=session_id, used=used)
+        require(canonical(submitted_response) == canonical(expected_response))
     return {'status': 'SESSION_RESULT_EXTRACTED', 'report': report.model_dump(), 'document': document,
             'structure': structure, 'sessionSha256': hashlib.sha256(raw).hexdigest(),
             'messageSha256': hashlib.sha256(text.encode('utf8')).hexdigest(),
             'messageId': final['data']['message']['id'], 'messageSeq': final['seq'],
             'officialToolCalls': len(calls), 'frameworkNotices': notices,
+            **({'protocol': protocol, 'submissionCallId': key} if structured else {}),
             'sessionVerified': False, 'guiVerified': False, 'semanticVerified': False}

@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-08：显式版本化官方会话报告提取
+
+- 4f620cf先写方案，extract_handoff_result增加可信protocol参数，默认legacy-final-json保持原最终纯JSON路径；只有p7-tool-submit-v1允许第10个vm_submit_handoff工具。仍核对原未委托/未seed会话、cwd/prompt/RPC、单轮completed、Flash/off、完整声明/调用/结果配对。
+- 新协议报告只取唯一原模型提交声明的完整arguments，逐字匹配tool/call；提交必须为最后调用/结果和最后模型消息，后续模型请求也拒绝。成功响应严格比对协议/run/session/input、独立报告/正文SHA及整型预算范围；不从普通文本/返回值/流片段猜报告，缺提交不回退旧JSON。
+- 新增19项测试：显式协议、身份、参数字符串/重复键/信封、失败/缺结果、预算布尔/越限、提交后消息/请求/工具和旧协议不自动升级。会话/提交证据相关78项，旧联合验收/适配/草稿组合35项，共113项通过。没有调用模型或部署；生产调用点仍用默认旧协议，可信创建意图与协议绑定、HTTP/Harness及新联合入口待接通，P7未完成。
+
 ## 2026-10-08：提交轨迹、双日志与导出链
 
 - 85c3fd8先写设计。handoff_trace识别唯一末次submit_handoff，要求原有效草稿/可信session、原参数canonicalJson及重新计算响应一致，成功read_result紧邻提交，提交结果前stop和结果后新派发均拒绝；handoff_exchanges补原vm_submit_handoff参数/响应逐项匹配。旧无提交轨迹读取不变，不把旧业务失败改判。
