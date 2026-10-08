@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：原VM表格应用只读盘点
+
+- 22:42北京时间经原SSH通道核实目标为mvpagent/VirtualMac2,1，仅枚举`/Applications`、`/System/Applications`和该测试用户的`Applications`直属app并读取Info.plist；未发现Numbers、Excel或LibreOffice。可见Safari18.6、TextEdit1.20、CuaDriver0.28.2等，但均不当作已审查表格应用。未扫描任意用户数据或猜其他位置绝无安装。
+- ioreg显示原VM仍未解锁；本轮未尝试UI输入、启动应用/服务、调用模型或检查/修改P5。私有原回执位于`.runtime/expense-app-inventory-83c719408f44471087d27f9337220a31/inventory.json`。
+- 缺表格应用使真实GUI适配无法直接开始。按原方案，新增应用需用户授权；尚未下载/安装，不以TextEdit或宿主表格应用降低验收范围。可选LibreOffice提供官方Apple Silicon版本，但安装、版本固定和AX/保存行为需另验。
+- README同步本次实际前置条件；上一轮215项测试结果不变，本轮为只读环境检查和文档更新，不称新增实机业务通过。
+
 ## 2026-10-08：费用原材料只读采集边界
 
 - 先写实施细则，再新增`backend/expense_sources.py`。可信调用方提供私有规范绝对目录和重新验证的原清单；固定id/扩展名、目录fd、NOFOLLOW/NONBLOCK，不枚举或读取未列出的测试答案。
