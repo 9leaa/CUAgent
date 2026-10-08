@@ -18,7 +18,7 @@ import test_handoff_exchanges
 @pytest.fixture
 def evidence(tmp_path, request):
     configured = getattr(request, 'param', None)
-    checked_input = configured == 'with_checked_input'
+    checked_input = configured == 'with_checked_input' or type(configured) is dict and configured.get('inputMode') == 'checked-draft-v1'
     with_submit = checked_input or configured == 'with_submit' or type(configured) is dict and configured.get('protocol') == 'p7-tool-submit-v1'
     with_draft = with_submit or getattr(request, 'param', None) == 'with_draft'
     tools = TOOLS | {'vm_submit_handoff'} if with_submit else TOOLS

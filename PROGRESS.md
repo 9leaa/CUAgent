@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文模式的审核与发布准备
+
+- 在技术方案补严格v3审核上下文后实现：v3必须绑定p7-tool-submit-v1及checked-draft-v1，v1/v2保留原精确字段和旧输入语义。record_review与prepare_publication均传同一模式重跑原完整联合核验，并要求结果与原保存的执行核验一致；拒绝丢失/未知模式、降级、错误协议及额外字段。
+- 新模式publication准备结果携带inputMode，后续实际发布意图/事件沿prepared保留该字段；原任务身份、停止状态、数据库事务、三产物独占写入及原失败记录保留规则未放宽。当前只验证审核记录和只读发布准备，未实际运行数据库发布，新字段落入数据库事件的集成验证仍待后续。
+- 新增18项测试：完整原Task＋模拟Driver/模型/图像证据经真实只读子进程重验后记录模拟审核；发布准备不改变原文件。覆盖审核前后mode/context篡改、FAIL/UNVERIFIED、审核后原guest模式/result/trace改变。五组pytest69项通过，git diff --check通过；不是实际业务语义审核或用户采用证明。
+- 正式创建/连接/ready及HTTP/Harness仍待接线，未部署、未调用真实模型或GUI，未改P5与旧任务。README同步；原完整P7工作流及P8目标未完成。
+
 ## 2026-10-08：已预检正文模式贯通离线会话及联合验收
 
 - 方案先补会话/联合入口细则。handoff_tools按显式protocol/mode固定工具集，checked-draft-v1只允许专用提交协议，将vm_type替换为vm_type_checked_draft、总工具数仍10；原会话声明/实际调用/请求header沿精确工具集检查，默认旧协议不扩权。

@@ -8,7 +8,7 @@ import os
 import re
 from datetime import datetime, timezone
 from backend.desktop_collect import private_path
-from backend.handoff_operator import read_private, review_protocol
+from backend.handoff_operator import read_private, review_protocol, review_input_mode
 from backend.handoff_contract import HandoffSubmission
 from backend.handoff_document import expected_document
 from backend.handoff_result import canonical
@@ -51,7 +51,8 @@ def prepare_publication(root, review_sha256):
     source = HandoffSubmission.model_validate(context['submission'])
     guest = root / 'guest' / root.name
     current = verify_handoff_execution(root, guest_directory=guest, home=context['home'],
-        submission=source, session_id=context['sessionId'], binding=context['binding'], protocol=protocol)
+        submission=source, session_id=context['sessionId'], binding=context['binding'], protocol=protocol,
+        draft_input_mode=review_input_mode(context))
     require(canonical(current) == canonical(previous))
     verdict = validate_independent_review(review, submission=source, report=current['result'],
         execution=current, case_name=review['binding']['caseName'])
@@ -70,7 +71,7 @@ def prepare_publication(root, review_sha256):
         submission=source.model_dump(mode='json'), reviewFileSha256=review_sha256,
         reviewReceiptSha256=hashlib.sha256(originals[attempt / 'receipt.json'][0]).hexdigest(),
         artifacts={name: dict(sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw)) for name, raw in files.items()},
-        files=files)
+        files=files, **({'inputMode': current['inputMode']} if 'inputMode' in current else {}))
 
 
 def publish_reviewed_task(service, task_id, review_sha256):
@@ -113,6 +114,8 @@ def publish_reviewed_task(service, task_id, review_sha256):
         intent = dict(version=1, taskId=task.id, sessionId=task.session_id, identity=identity,
             previousEventId=prior.id, previousErrorCode=task.error_code, reviewFileSha256=review_sha256,
             reviewReceiptSha256=prepared['reviewReceiptSha256'], artifacts=prepared['artifacts'])
+        if 'inputMode' in prepared:
+            intent['inputMode'] = prepared['inputMode']
         save_exclusive(root / 'handoff-publication-intent.json', canonical(intent))
         for name, raw in prepared['files'].items():
             save_exclusive(workspace / name, raw)

@@ -36,9 +36,17 @@ def review_protocol(context):
     if context['version'] == 1:
         require(set(context) == fields)
         return 'legacy-final-json'
-    require(context['version'] == 2 and set(context) == fields | {'protocol'}
+    require(context['version'] in (2, 3) and set(context) == fields | {'protocol'} |
+            ({'inputMode'} if context['version'] == 3 else set())
             and context['protocol'] == 'p7-tool-submit-v1')
+    if context['version'] == 3:
+        require(context['inputMode'] == 'checked-draft-v1')
     return context['protocol']
+
+
+def review_input_mode(context):
+    review_protocol(context)
+    return context['inputMode'] if context['version'] == 3 else 'literal-text'
 
 
 def record_review(root, review_file, *, reviewer_kind, reviewer_id):
@@ -71,7 +79,7 @@ def record_review(root, review_file, *, reviewer_kind, reviewer_id):
         submission = HandoffSubmission.model_validate(context['submission'])
         current = verify_handoff_execution(root, guest_directory=root / 'guest' / root.name,
             home=context['home'], submission=submission, session_id=context['sessionId'], binding=context['binding'],
-            protocol=protocol)
+            protocol=protocol, draft_input_mode=review_input_mode(context))
         require(canonical(current) == canonical(previous))
         require(review['reviewer'] == dict(kind=reviewer_kind, id=reviewer_id))
         result = validate_independent_review(review, submission=submission, report=current['result'],

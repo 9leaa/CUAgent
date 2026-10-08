@@ -24,7 +24,8 @@ def operator(evidence, tmp_path):
     shutil.copytree(args['guest_directory'], guest)
     args = dict(args, guest_directory=guest)
     protocol = json.loads((root / 'desktop-session-binding.json').read_bytes()).get('protocol', 'legacy-final-json')
-    execution = verify_handoff_execution(**args, protocol=protocol)
+    mode = json.loads((root / 'desktop-session-binding.json').read_bytes()).get('inputMode','literal-text')
+    execution = verify_handoff_execution(**args, protocol=protocol, draft_input_mode=mode)
     source = args['submission']; report = execution['result']
     review, _ = attestation(source, report)
     binding, _, _, snapshots, _ = review_subject(source, report, execution, 'normal')
@@ -34,6 +35,7 @@ def operator(evidence, tmp_path):
     review_context = dict(version=1, submission=source.model_dump(mode='json'),
         sessionId=args['session_id'], binding=args['binding'], home=str(args['home']))
     if protocol == 'p7-tool-submit-v1': review_context.update(version=2, protocol=protocol)
+    if mode == 'checked-draft-v1': review_context.update(version=3,inputMode=mode)
     save(root / 'handoff-review-context.json', review_context)
     save(root / 'handoff-execution-verification.json', execution)
     record = tmp_path / 'review.json'; save(record, review)
