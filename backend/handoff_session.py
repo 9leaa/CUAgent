@@ -15,6 +15,16 @@ def require(condition):
         raise ValueError('HANDOFF_SESSION_RESULT_UNVERIFIED')
 
 
+def handoff_tools(protocol='legacy-final-json', draft_input_mode='literal-text'):
+    require(protocol in ('legacy-final-json', 'p7-tool-submit-v1')
+            and draft_input_mode in ('literal-text', 'checked-draft-v1')
+            and (draft_input_mode == 'literal-text' or protocol == 'p7-tool-submit-v1'))
+    tools = TOOLS | {'vm_submit_handoff'} if protocol == 'p7-tool-submit-v1' else set(TOOLS)
+    if draft_input_mode == 'checked-draft-v1':
+        tools = (tools - {'vm_type'}) | {'vm_type_checked_draft'}
+    return tools
+
+
 def strict_json(text):
     def pairs(items):
         result = {}
@@ -28,7 +38,7 @@ def strict_json(text):
 
 
 def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt,
-                           protocol='legacy-final-json'):
+                           protocol='legacy-final-json', draft_input_mode='literal-text'):
     """No file writes/RPC. Trusted caller must bind prompt/cwd to original intent.
 
     This does NOT authenticate arbitrary supplied logs or prove GUI execution.
@@ -37,7 +47,7 @@ def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt,
     """
     require(protocol in ('legacy-final-json', 'p7-tool-submit-v1'))
     structured = protocol == 'p7-tool-submit-v1'
-    allowed_tools = TOOLS | {'vm_submit_handoff'} if structured else TOOLS
+    allowed_tools = handoff_tools(protocol, draft_input_mode)
     require(type(raw) is bytes and 0 < len(raw) <= 64 * 1024 * 1024)
     rows = [strict_json(line) for line in raw.decode('utf8').splitlines()]
     require(len(rows) > 1 and all(type(row) is dict for row in rows))
@@ -150,4 +160,5 @@ def extract_handoff_result(raw, *, submission, run_id, session_id, cwd, prompt,
             'messageId': final['data']['message']['id'], 'messageSeq': final['seq'],
             'officialToolCalls': len(calls), 'frameworkNotices': notices,
             **({'protocol': protocol, 'submissionCallId': key} if structured else {}),
+            **({'inputMode': draft_input_mode} if draft_input_mode == 'checked-draft-v1' else {}),
             'sessionVerified': False, 'guiVerified': False, 'semanticVerified': False}

@@ -29,3 +29,5 @@
 控制激活细化（代码前）：可信client在首次绑定原session时一次性选择draft_input_mode，仅checked-draft-v1新增inputMode字段，且必须配套p7-tool-submit-v1；默认旧请求字段不变。控制端只接受完整四字段新请求，拒绝缺session/protocol、未知模式、额外字段及模型凭据。原激活意图和租约检查后、构造Task和监听前，用O_EXCL/0600保存模式记录并fsync文件/目录；已有文件、部分写入或返回未知不覆盖、不重试，沿原撤权路径停止。旧模式遇新绑定文件也拒绝。Task获得可信模式，自动清理的只读核验传递Task原模式；本步不注册新模型HTTP操作或Harness工具、不切换生产创建入口。真实loopback控制测试必须证明0 GUI/0 raw、绑定持久化、重放拒绝和失败撤权。
 
 宿主独立草稿/提交核验细化（代码前）：两入口增加显式draft_input_mode，默认旧模式拒绝新选择事件或工具。新模式在宿主原Pydantic/正文投影重算通过后，独立比较唯一选择resolvedText、documentSha256、目标四参数、派发前used、原type_text成功结果及attempted_input字节/摘要；官方唯一vm_type_checked_draft须在全部原预检响应之后，其参数及成功响应分别等于原选择和raw结果，拒绝混用vm_type、重号/重复响应及前置选择。最终提交核验传同一模式重验原草稿并显式返回inputMode；仍不声称完整会话/GUI/图像/语义通过，不直接开放生产联合验收或模型入口。
+
+会话/联合入口细化（代码前）：统一按可信protocol和draft_input_mode生成精确工具集，新模式必须使用专用提交协议并以vm_type_checked_draft替换vm_type（不是增加任意工具）。原创建意图及session绑定必须同时显式保存inputMode；每步原请求审计也须记录同一模式和工具集，旧模式拒绝新标记。联合入口读取并重验私有guest模式记录，将显式mode传至原会话提取、宿主草稿/提交、只读inspect子进程及请求审计；子进程显式CLI参数沿原文件与双日志检查，不能从证据推断。结果携带inputMode但语义仍待审核；本步只接离线组合，不生成生产创建/审计记录、不开放模型入口。

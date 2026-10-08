@@ -18,9 +18,12 @@ import test_handoff_exchanges
 @pytest.fixture
 def evidence(tmp_path, request):
     configured = getattr(request, 'param', None)
-    with_submit = configured == 'with_submit' or type(configured) is dict and configured.get('protocol') == 'p7-tool-submit-v1'
+    checked_input = configured == 'with_checked_input'
+    with_submit = checked_input or configured == 'with_submit' or type(configured) is dict and configured.get('protocol') == 'p7-tool-submit-v1'
     with_draft = with_submit or getattr(request, 'param', None) == 'with_draft'
     tools = TOOLS | {'vm_submit_handoff'} if with_submit else TOOLS
+    if checked_input:
+        tools = (tools - {'vm_type'}) | {'vm_type_checked_draft'}
     source, report = request.param if hasattr(request, 'param') and not with_draft else fixture()
     if type(configured) is dict:
         source, report = configured['source'], configured['report']
@@ -32,6 +35,8 @@ def evidence(tmp_path, request):
         executor.draft_args = [{'raw': '{broken'}, {'raw': json.dumps(report, ensure_ascii=False)}]
     if with_submit:
         executor.submit_report = report
+    if checked_input:
+        executor.draft_input_mode = 'checked-draft-v1'
     executor.setUp()
     try:
         exchange = test_handoff_exchanges.HandoffExchangeTests()
@@ -48,6 +53,10 @@ def evidence(tmp_path, request):
         if with_submit:
             save(executor.task.directory / 'handoff-submission-protocol.json',
                  dict(version=1, protocol='p7-tool-submit-v1', runId=RUN,
+                      sessionId=SESSION, inputSha256=input_digest(source)))
+        if checked_input:
+            save(executor.task.directory / 'handoff-input-mode.json',
+                 dict(version=1, inputMode='checked-draft-v1', runId=RUN,
                       sessionId=SESSION, inputSha256=input_digest(source)))
         for name, status in [('handoff-input-intent.json', 'INTENT'), ('handoff-input-receipt.json', 'STORED')]:
             save(executor.task.directory / name, dict(status=status, binding=binding,
@@ -71,6 +80,8 @@ def evidence(tmp_path, request):
         prompt = dict(sessionId=SESSION, requestId='original', mode='queue', content=[dict(type='text', text='frozen original prompt')])
         saved_binding = dict(kind='project-handoff', runId=RUN, sessionId=SESSION,
             cwd=str(root / 'workspace'), inputSha256=input_digest(source))
+        if checked_input:
+            saved_binding['inputMode'] = 'checked-draft-v1'
         if with_submit:
             saved_binding['protocol'] = 'p7-tool-submit-v1'
             save(root / 'desktop-request.json', saved_binding)
@@ -85,6 +96,8 @@ def evidence(tmp_path, request):
             audit.append(dict(at='2026-10-05T04:00:00+00:00', runId=RUN, sessionId=SESSION,
                 inputSha256=input_digest(source), provider=MODEL['provider'], model=MODEL['model'],
                 toolNames=sorted(tools), imageBlocks=len(ids), imageAttachmentIds=list(ids)))
+            if checked_input:
+                audit[-1]['inputMode'] = 'checked-draft-v1'
             rows.append(dict(type='assistant/message', data=dict(turn=1, step=len(audit), message=dict(id=str(len(audit)),
                 role='assistant', source=dict(kind='model', provider=MODEL['provider'], model=MODEL['model']), content=content))))
         for index in range(0, len(exchange.rows), 2):

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文模式贯通离线会话及联合验收
+
+- 方案先补会话/联合入口细则。handoff_tools按显式protocol/mode固定工具集，checked-draft-v1只允许专用提交协议，将vm_type替换为vm_type_checked_draft、总工具数仍10；原会话声明/实际调用/请求header沿精确工具集检查，默认旧协议不扩权。
+- verify_handoff_execution要求原desktop-request及desktop-session-binding同时绑定inputMode，私有guest模式记录精确绑定run/session/材料/version；每步请求审计须同一inputMode与工具集，旧模式拒绝新字段。显式模式传入原会话提取、宿主独立草稿/提交、handoff_inspect只读子进程、文件/双日志和请求审计；子进程返回guest/exchanges模式亦须一致。保留原图像附件、文件两次读取及语义待审核门槛。
+- 新增21项测试，原Task＋模拟Driver/模型及图像生成18raw完整链，经真实本地inspect子进程联合核验，原证据未修改。反例覆盖模式缺失/降级、创建/session绑定、guest权限/身份/版本、审计模式/工具、原模型参数/结果及文档/result/trace/图像记录改变；四组相关87项与六组回归147项通过，共234项，guest unittest340项通过，git diff --check通过。合成会话和图像不冒充真实模型/VM业务验收。
+- 本步为离线门槛，生产创建与连接/ready、审核发布上下文及HTTP/Harness新工具仍未接齐；没有生成运行许可、没有部署/真实推理或更改旧任务/P5。README同步，P7及后续完整目标继续未完成。
+
 ## 2026-10-08：宿主独立重算已预检正文选择
 
 - 先在方案补宿主核验细则，再为verify_draft_evidence/verify_submission_evidence增加可信draft_input_mode。默认literal-text拒绝checked_draft_input_intent和vm_type_checked_draft；新模式在原宿主Pydantic/check_draft及正文投影通过后，核对唯一选择全文和SHA、四参数、原used整数、紧邻唯一type_text、成功结果及attempted_input字节/摘要/目标。
