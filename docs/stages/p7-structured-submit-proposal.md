@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+控制激活细化（2026-10-08，代码前）：bind_draft_session同时一次绑定可信protocol（默认旧），新协议才向独立控制端activate-handoff发送protocol；必须包含有效session，不接受模型端激活。VM激活在原独占意图后、新Task前独占写0600 handoff-submission-protocol.json，包含version/protocol/run/session/input，失败保持原激活不可重放。新提交轨迹导出必须带该原记录，guest核验、bundle读回和host联合入口都核对，缺失/替换拒绝。旧草稿session记录字段不变，旧协议不新建该文件。
+
 工具入口细化（2026-10-08，代码前）：Task构造增加可信submission_protocol，默认legacy-final-json；只有显式p7-tool-submit-v1且绑定session才允许submit_handoff方法及HTTP操作。旧P7/P6不扩权。原HTTP单次提交走task锁/计费/stop/lease，完整report信封可用既有P7预检的512KiB上限，但规范report仍限制64KiB。先验证真实loopback请求、无权限/错误协议/拒绝/重复提交，再接控制端激活与模型注册；不靠模型参数切换协议。
 
 审核/发布细化（2026-10-08，代码前）：审核上下文v1固定旧协议；新上下文v2必须显式protocol=p7-tool-submit-v1，字段集合严格校验，未知/缺失版本不回退。记录独立审核和准备发布都按此版本重新核验原任务请求/会话/guest/图像证据，必须与原execution完全一致；独立审核的executionSha256同时绑定协议结果。保留原审核失败/未通过/未知状态及禁止重放，不改变发布授权、数据库锁和产物字节门槛。
