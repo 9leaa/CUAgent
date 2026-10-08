@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：费用输入契约与精确金额计算
+
+- 按实施前方案新增`backend/expense_contract.py`：严格CSV及1–20交易/票据元数据、固定CNY正数金额、真实日历日期、输入/文件大小边界、完整规范输入SHA和重复SHA来源分组。模型冻结，辅助方法重验绕过构造/复制的非法对象；公式样商户文字原样保留但无导出或执行入口。
+- Decimal局部精度固定后转整数分，0.10+0.20精确30分，不受调用者低精度上下文影响；拒绝浮点、bool、负数、指数、NaN、超精度和越界金额。票据清单不等于真实文件校验，不读取用户路径、不进行OCR或模型推理。
+- 验证：在本分支执行`/Users/zhangchengjie/CUAgent/.runtime/backend-venv/bin/python -m pytest backend/tests/test_expense_contract.py backend/tests/test_handoff_contract.py -q`，89项通过（费用52、原交接37）；`git diff --check`通过。测试为离线单元，不证明GUI或业务完成。
+- 下一步实现来源绑定结果及覆盖/金额独立核验，再准备完整票据样本和VM应用适配；P5、原交接运行时及候选008未动。README同步。
+
 ## 2026-10-08：费用核对独立分支与实施前方案
 
 - 用户要求先不处理P5、向前推进。由交接分支410da1f建立独立工作区和`p7-expense-reconcile`分支，原交接冻结源码、运行时和队列不动。仅提前推进方案/离线开发准备，不跳过交接真实验收门槛。
