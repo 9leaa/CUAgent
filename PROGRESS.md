@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：候选008原三组任务已准备，临时API已退出
+
+- 在冻结源码/原三组输入与rubric摘要、部署25文件独立读回再次一致后，创建新的隔离数据库及私有profile。原API接受normal/conflict/dependencies三组完整输入，创建意图和cohort显式固定checked-draft-v1；不升级或消费任何旧队列。
+- 直接查询本次新数据库，确认恰好三项任务且身份等于三份原API响应，均QUEUED/0raw/session_id=null。原候选冻结manifest不回写；后续创建事实另存`.runtime/p7-handoff-008/cohort.json`、`queue-verified.json`及每项提交意图/响应。
+- 本轮创建的临时API进程29776以原Popen身份正常TERM并wait确认exitCode=0，18127端口重新绑定成功；私有temporary-api-stopped.json保存回执。没有启动Worker、VM执行服务或模型，不额外遗留常驻进程，数据库/原任务保留供后续继续。
+- 宿主ioreg复查仍IOConsoleLocked=Yes；未尝试宿主解锁，不提前生成模型额度许可。真实任务需桌面恢复后重新准入，并在独立API就绪后以显式新输入模式启动原normal身份；首例未通过则保留证据、停止本批其余执行。P7及完整后续目标仍未完成。
+
 ## 2026-10-08：已预检正文候选008全链回归、部署与冻结
 
 - 回收原pytest进程而非重跑：`backend/tests/test_handoff*.py`及`test_desktop_deploy.py`共865项通过，1条既有Starlette/httpx弃用告警。Node开启`CUAGENT_TEST_BUILD_TOOLS`指向既有固定编译器，`agent/tests/*.test.mjs`共158项通过、零跳过；两项先前跳过的真实编译器测试此次执行成功。仍为本地/隔离数据库/模拟外部环境验证，不是模型业务通过。
