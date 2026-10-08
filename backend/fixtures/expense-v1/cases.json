@@ -1,0 +1,51 @@
+{
+  "normal": {
+    "transactionsCsv": "transaction_id,date,merchant,amount,currency\nt1,2026-10-01,Test Stationery,12.30,CNY\nt2,2026-10-02,Test Transit,45.60,CNY\n",
+    "receipts": [
+      {"id":"r1","date":"2026-10-01","merchant":"Test Stationery","amount":"12.30","number":"TEST-N-001"},
+      {"id":"r2","date":"2026-10-02","merchant":"Test Transit","amount":"45.60","number":"TEST-N-002"}
+    ],
+    "expected": {
+      "rows":[
+        {"transactionId":"t1","status":"matched","receiptIds":["r1"],"differenceCents":0,"explanation":"Exact date, merchant and amount; business meaning remains subject to review."},
+        {"transactionId":"t2","status":"matched","receiptIds":["r2"],"differenceCents":0,"explanation":"Exact date, merchant and amount; business meaning remains subject to review."}
+      ],
+      "unreferencedReceiptIds":[],"duplicateShaGroups":[],"duplicateNumberGroups":[],
+      "totals":{"totalCents":5790,"matchedCents":5790,"unresolvedCents":0,"rawKnownReceiptCents":5790,"unknownReceiptAmounts":0}
+    }
+  },
+  "anomalies": {
+    "transactionsCsv":"transaction_id,date,merchant,amount,currency\nt1,2026-10-03,Test Office,100.00,CNY\nt2,2026-10-04,Test Travel,50.00,CNY\nt3,2026-10-05,Test Meals,30.00,CNY\n",
+    "receipts":[
+      {"id":"r1","date":"2026-10-03","merchant":"Test Office","amount":"95.00","number":"TEST-A-001"},
+      {"id":"r2","date":"2026-10-04","merchant":"Test Travel","amount":"50.00","number":"TEST-A-002"},
+      {"id":"r3","copyOf":"r2","date":"2026-10-04","merchant":"Test Travel","amount":"50.00","number":"TEST-A-002"}
+    ],
+    "expected":{
+      "rows":[
+        {"transactionId":"t1","status":"amount_mismatch","receiptIds":["r1"],"differenceCents":500,"explanation":"Transaction is CNY 5.00 above the receipt."},
+        {"transactionId":"t2","status":"ambiguous","receiptIds":["r2","r3"],"differenceCents":null,"explanation":"Two candidate sources are identical receipt copies; do not count both as payment evidence."},
+        {"transactionId":"t3","status":"missing_receipt","receiptIds":[],"differenceCents":null,"explanation":"No compatible receipt exists in this fixed test set."}
+      ],
+      "unreferencedReceiptIds":[],"duplicateShaGroups":[["r2","r3"]],"duplicateNumberGroups":[["r2","r3"]],
+      "totals":{"totalCents":18000,"matchedCents":0,"unresolvedCents":18000,"rawKnownReceiptCents":19500,"unknownReceiptAmounts":0}
+    }
+  },
+  "ambiguity": {
+    "transactionsCsv":"transaction_id,date,merchant,amount,currency\nt1,2026-10-06,Test Cafe,20.00,CNY\nt2,2026-10-06,Test Cafe,20.00,CNY\nt3,2026-10-07,Test Supplies,30.00,CNY\n",
+    "receipts":[
+      {"id":"r1","date":"2026-10-06","merchant":"Test Cafe","amount":"20.00","number":"TEST-U-001"},
+      {"id":"r2","date":"2026-10-06","merchant":"Test Cafe","amount":"20.00","number":"TEST-U-002"},
+      {"id":"r3","date":"2026-10-07","merchant":"Test Supplies","amount":null,"number":"TEST-U-003"}
+    ],
+    "expected":{
+      "rows":[
+        {"transactionId":"t1","status":"ambiguous","receiptIds":["r1","r2"],"differenceCents":null,"explanation":"Same-date same-merchant equal amounts have two candidates shared by two transactions."},
+        {"transactionId":"t2","status":"ambiguous","receiptIds":["r1","r2"],"differenceCents":null,"explanation":"No independent evidence selects a unique receipt for this transaction."},
+        {"transactionId":"t3","status":"needs_confirmation","receiptIds":["r3"],"differenceCents":null,"explanation":"Receipt amount is visibly obscured; do not infer CNY 30.00 from the transaction."}
+      ],
+      "unreferencedReceiptIds":[],"duplicateShaGroups":[],"duplicateNumberGroups":[],
+      "totals":{"totalCents":7000,"matchedCents":0,"unresolvedCents":7000,"rawKnownReceiptCents":4000,"unknownReceiptAmounts":1}
+    }
+  }
+}

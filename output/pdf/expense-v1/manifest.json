@@ -1,0 +1,64 @@
+{
+  "normal": [
+    {
+      "id": "r1",
+      "sha256": "3d62b76e84fe69029a695ab0a3c2b6cef7a0aa2ce2cc4cdb2f597fe8bf41ea0a",
+      "sizeBytes": 1914,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    },
+    {
+      "id": "r2",
+      "sha256": "b16220cdcd974be79b362e794f3551236587022d2bed49e3bf96234c12cd0661",
+      "sizeBytes": 1913,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    }
+  ],
+  "anomalies": [
+    {
+      "id": "r1",
+      "sha256": "f85211f396c61b5f02893f7f33340f081329c74bccbc42b98c86f2df52c85fd4",
+      "sizeBytes": 1912,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    },
+    {
+      "id": "r2",
+      "sha256": "d8b0073fdd01d97b4d07c779a1ca941d5a74f59f54896076e67d8e1dfb5ec672",
+      "sizeBytes": 1911,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    },
+    {
+      "id": "r3",
+      "sha256": "d8b0073fdd01d97b4d07c779a1ca941d5a74f59f54896076e67d8e1dfb5ec672",
+      "sizeBytes": 1911,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    }
+  ],
+  "ambiguity": [
+    {
+      "id": "r1",
+      "sha256": "742fb11a0766ffadde68b028d63c180619a1400c52146a3245642c5b17f9be67",
+      "sizeBytes": 1911,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    },
+    {
+      "id": "r2",
+      "sha256": "70130fdda70da99e9b089274d7515a8f92bba91d95eab348618929dc273d13f0",
+      "sizeBytes": 1911,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    },
+    {
+      "id": "r3",
+      "sha256": "04157be73afa1e5dbbdfd61593240fbc4e6a70e9a832ac1379e69997e89eb59b",
+      "sizeBytes": 1923,
+      "mediaType": "application/pdf",
+      "pageCount": 1
+    }
+  ]
+}
