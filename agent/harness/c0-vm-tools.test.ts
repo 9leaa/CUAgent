@@ -10,6 +10,66 @@ import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
 import { handoffObservation } from './handoff-observation.ts'
 
+test('P7 checked draft tool replaces literal input and binds readiness and request audit', async t => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-checked-input-')))
+  const prior = { connection: process.env.CUAGENT_C0_CONNECTION, audit: process.env.CUAGENT_C0_AUDIT_PATH, fetch: globalThis.fetch }
+  t.after(() => {
+    globalThis.fetch = prior.fetch
+    if (prior.connection === undefined) delete process.env.CUAGENT_C0_CONNECTION; else process.env.CUAGENT_C0_CONNECTION = prior.connection
+    if (prior.audit === undefined) delete process.env.CUAGENT_C0_AUDIT_PATH; else process.env.CUAGENT_C0_AUDIT_PATH = prior.audit
+    rmSync(dir, { recursive: true, force: true })
+  })
+  const config = { url: 'http://192.168.64.3:8766', token: 'x'.repeat(43), caseId: 'project_handoff', stage: 'p7',
+    protocol: 'p7-tool-submit-v1', inputMode: 'checked-draft-v1', sessionId: 'session-22222222-2222-2222-2222-222222222222',
+    runId: 'p2-11111111-1111-1111-1111-111111111111', inputSha256: 'a'.repeat(64) }
+  process.env.CUAGENT_C0_CONNECTION = join(dir, 'connection.json'); process.env.CUAGENT_C0_AUDIT_PATH = join(dir, 'audit.jsonl')
+  const registered: any[] = [], guards: any[] = [], handlers = new Map(), calls: any[] = []
+  const ctx: any = { inject() {}, on: (name: string, fn: any) => handlers.set(name, fn), logger: { error() {} },
+    tools: { register: (tool: any) => registered.push(tool), guard: (fn: any) => guards.push(fn) } }
+  for (const change of [{ inputMode: 'literal-text' }, { inputMode: true }, { protocol: undefined },
+    { sessionId: undefined }, { caseId: 'real_textedit' }, { stage: 'c2' }]) {
+    writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify({ ...config, ...change }), { mode: 0o600 })
+    assert.throws(() => apply(ctx)); assert.equal(registered.length, 0)
+  }
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify(config), { mode: 0o600 })
+  let deny = false
+  globalThis.fetch = (async (_url: any, options: any) => {
+    calls.push(JSON.parse(options.body))
+    return { ok: !deny, json: async () => deny ? { error: 'refused' } : { ok: true } }
+  }) as any
+  apply(ctx)
+  const names = registered.map(x => x.name).sort()
+  assert.equal(names.length,10); assert.ok(names.includes('vm_type_checked_draft')); assert.ok(!names.includes('vm_type'))
+  const ready = JSON.parse(readFileSync(join(dir,'vm-tools-ready.json'),'utf8'))
+  assert.equal(ready.inputMode,config.inputMode); assert.deepEqual(ready.toolNames,names)
+  const controller = new AbortController(), signal = controller.signal, agent = { session: { id: config.sessionId } }
+  await handlers.get('agent/pre-step')({agent,signal},async () => {})
+  assert.ok(guards.some(g => g({name:'vm_type',signal,agent})))
+  assert.ok(guards.some(g => g({name:'vm_type_checked_draft',signal,agent:{session:{id:'other'}}})))
+  const tool = registered.find(x=>x.name==='vm_type_checked_draft')
+  const keys = ['snapshot_id','element_index','element_token','documentSha256']
+  assert.deepEqual(tool.parameters.required.sort(),keys.sort())
+  assert.deepEqual(Object.keys(tool.parameters.properties).sort(),keys.sort())
+  assert.equal(tool.parameters.additionalProperties,false)
+  const args = {snapshot_id:'fresh',element_index:1,element_token:'fresh:1',documentSha256:'b'.repeat(64)}
+  assert.equal((await tool.execute(args,{agent,signal})).result,'{"ok":true}')
+  assert.deepEqual(calls,[{op:'type_checked_draft',args}])
+  deny = true
+  await assert.rejects(tool.execute({...args,documentSha256:'wrong'},{agent,signal}),/refused/)
+  assert.equal(calls.length,2) // No retry or digest repair.
+  assert.match(registered.find(x=>x.name==='vm_reopen').description,/twelve/)
+  const stream = handlers.get('llm/stream'), next = async function* () { yield 'ok' }
+  const options = {tools:names.map(name=>({name})),messages:[],provider:'deepseek-account',model:'deepseek-flash'}
+  for await (const _ of stream(options,next)) {}
+  const audit = JSON.parse(readFileSync(join(dir,'audit.jsonl'),'utf8'))
+  assert.equal(audit.inputMode,config.inputMode); assert.equal(audit.sessionId,config.sessionId)
+  await assert.rejects(async () => { for await (const _ of stream({...options,tools:[...options.tools,{name:'vm_type'}]},next)) {} })
+  controller.abort(); await Promise.resolve()
+  const count = calls.length
+  await assert.rejects(tool.execute(args,{agent,signal:new AbortController().signal}),/stopped/)
+  assert.equal(calls.length,count)
+})
+
 test('P7 explicit submission connection pins owner, ten tools, terminal HTTP and next model step', async t => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-p7-submit-')))
   const prior = { connection: process.env.CUAGENT_C0_CONNECTION, audit: process.env.CUAGENT_C0_AUDIT_PATH, fetch: globalThis.fetch }

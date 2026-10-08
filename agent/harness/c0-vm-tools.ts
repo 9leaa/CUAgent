@@ -3,6 +3,7 @@ import { readFileSync, statSync, appendFileSync, writeFileSync, existsSync } fro
 import { join, dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { assertImageCapableRoute } from './image-probe.ts'
 import { verifyHandoffMaterials } from './handoff-materials.ts'
@@ -24,6 +25,10 @@ export function apply(ctx: Context): void {
   }
   const handoff = connection.caseId === 'project_handoff'
   const submit = connection.protocol === 'p7-tool-submit-v1'
+  const checkedInput = connection.inputMode === 'checked-draft-v1'
+  if ('inputMode' in connection && (!checkedInput || !handoff || !submit)) {
+    throw new Error('Explicit trusted P7 checked input mode required')
+  }
   if ('protocol' in connection && (!handoff || !submit || typeof connection.sessionId !== 'string'
       || !/^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(connection.sessionId))) {
     throw new Error('Explicit trusted P7 submission session required')
@@ -35,7 +40,7 @@ export function apply(ctx: Context): void {
   }
   const realApp = connection.caseId === 'real_textedit' || handoff
   const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
-    ...(realApp ? ['vm_type', 'vm_save'] : []),
+    ...(realApp ? [checkedInput ? 'vm_type_checked_draft' : 'vm_type', 'vm_save'] : []),
     ...(handoff ? ['vm_read_materials', 'vm_reopen', 'vm_locate_quote', 'vm_check_draft'] : []),
     ...(submit ? ['vm_submit_handoff'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -105,7 +110,7 @@ export function apply(ctx: Context): void {
     appendFileSync(auditPath, JSON.stringify({ at: new Date().toISOString(), toolNames,
       provider: options.provider, model: options.model,
       imageBlocks, ...(handoff ? { runId: connection.runId, sessionId: owner, inputSha256: connection.inputSha256,
-        imageAttachmentIds } : {}) })+'\n', { mode: 0o600 })
+        imageAttachmentIds } : {}), ...(checkedInput ? { inputMode: connection.inputMode } : {}) })+'\n', { mode: 0o600 })
     if (modelFault === 'after_first_observation' && !modelFaultInjected && owner && toolNames.length && imageBlocks > 0) {
       writeFileSync(modelFaultFile, JSON.stringify({ fault: modelFault, injected: true, sessionId: owner,
         layer: 'official llm/stream project hook before provider call', imageBlocks,
@@ -177,6 +182,18 @@ export function apply(ctx: Context): void {
     isConcurrencySafe: () => false,
     async execute(args, exec) { return { result: JSON.stringify(await request(spec.op, args, exec.signal)) } },
   }))
+  if (checkedInput) ctx.tools.register({
+    name: 'vm_type_checked_draft',
+    description: 'Select the exact original validated draft by its documentSha256 and insert it once through GUI into the fresh approved TextEdit body. No replacement text or file path. Observe the effect, then save/reopen/read back and submit the complete original report. Counts one original raw request; no retry after uncertain effects.',
+    parameters: { type: 'object', additionalProperties: false,
+      required: ['snapshot_id','element_index','element_token','documentSha256'], properties: {
+        snapshot_id: { type: 'string' }, element_index: { type: 'integer' },
+        element_token: { type: 'string' }, documentSha256: { type: 'string' } } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
+      render: (_args: unknown, value: { result: string }) => [{ type: 'text' as const, text: value.result }] },
+    isConcurrencySafe: () => false,
+    async execute(args: unknown, exec: ToolRunContext) { return { result: JSON.stringify(await request('type_checked_draft', args, exec.signal)) } },
+  })
   if (allowed.includes('vm_type')) ctx.tools.register(defineTool({
     name: 'vm_type', description: realApp
       ? 'Insert the task document text (UTF-8 <=4 KiB, no NUL) into the approved TextEdit body from a fresh AX observation. Only this task document is writable. Observe the effect; input does not imply saving.'
@@ -203,6 +220,7 @@ export function apply(ctx: Context): void {
     name: 'vm_check_draft',
     description: 'Before GUI input, validate your complete report JSON against frozen task sources and trusted session identity. Pass raw JSON text only. Returns DRAFT_REJECTED or DRAFT_STRUCTURE_VALID with canonicalJson and document. Does not repair or verify meaning. Use exactly returned document for GUI input and result. '
       + (submit ? 'After complete GUI save/reopen/result readback, submit that same full report with vm_submit_handoff. ' : 'Final message must be the same report JSON. ')
+      + (checkedInput ? 'For GUI input use vm_type_checked_draft with the returned documentSha256 and a fresh target; do not retype the document. ' : '')
       + 'Counts one original raw request including rejection and invalidates old observations. No calls after input; no budget reset.',
     parameters: { raw: { type: 'string', required: true } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
@@ -221,7 +239,8 @@ export function apply(ctx: Context): void {
   }))
   if (handoff) ctx.tools.register(defineTool({
     name: 'vm_reopen',
-    description: 'After Save and a fresh observation of the fully saved body, close and reopen only this same-process task document once. Requires at least eleven raw calls left including later verification. Never handles discard/save dialogs or retries an uncertain open. Then vm_observe again before vm_write_result; no more typing/saving after this operation.',
+    description: 'After Save and a fresh observation of the fully saved body, close and reopen only this same-process task document once. Requires at least '
+      + (submit ? 'twelve' : 'eleven') + ' raw calls left including later verification. Never handles discard/save dialogs or retries an uncertain open. Then vm_observe again before vm_write_result; no more typing/saving after this operation.',
     parameters: { snapshot_id: { type: 'string', required: true } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
       render: (_args, value) => [{ type: 'text', text: value.result }] },
@@ -253,5 +272,6 @@ export function apply(ctx: Context): void {
   if (realApp && connection.runId?.startsWith('p2-')) writeFileSync(join(dirname(configPath), 'vm-tools-ready.json'),
     JSON.stringify({ runId: connection.runId, toolNames: [...allowed].sort(),
       ...(handoff ? { kind: 'project-handoff', inputSha256: connection.inputSha256 } : {}),
-      ...(submit ? { protocol: connection.protocol, sessionId: connection.sessionId } : {}) }), { mode: 0o600, flag: 'wx' })
+      ...(submit ? { protocol: connection.protocol, sessionId: connection.sessionId } : {}),
+      ...(checkedInput ? { inputMode: connection.inputMode } : {}) }), { mode: 0o600, flag: 'wx' })
 }

@@ -35,3 +35,5 @@
 审核发布细化（代码前）：新增严格v3私有review context，必须显式protocol=p7-tool-submit-v1和inputMode=checked-draft-v1；v1/v2保持原字段与literal-text语义，不推断或自动升级。record_review与prepare_publication均从原context取模式并调用完整联合核验，重算结果必须与原执行验证完全一致。新模式发布准备结果及持久publication intent保留inputMode；原语义FAIL/UNVERIFIED不能发布，审核后模式/原证据篡改拒绝。测试使用真实只读重验和模拟审核声明，不把回执/准备当已写数据库或真实用户采用。
 
 HTTP入口细化（代码前）：仅Task可信checked-draft-v1替换允许操作type_text为type_checked_draft，其他P7/P6工具集不变。仍由原HTTP鉴权/大小限制/串行锁/charge_rejection处理；拒绝计一次原raw，已经派发后失败不双计，停止/失权/30次/UNKNOWN后不发新GUI。参数不得包含text、路径、session或模式覆盖；新操作不获得大请求例外。实测loopback成功和反例，旧P7/P6必须拒绝该操作。本步仅执行HTTP接线，Harness未注册且生产创建未选模式，不运行真实模型。
+
+Harness注册细化（代码前）：仅可信P7 connection显式inputMode=checked-draft-v1且绑定原专用提交protocol/session时注册vm_type_checked_draft替代vm_type，schema固定四参数；执行原样转发到type_checked_draft，不补正文、摘要或身份。ready和每步请求审计保存inputMode，工具白名单仍10项、原session guard/停止/终态保留。工具说明提示使用原预检documentSha256并重新观察效果；同时修正专用提交模式重开说明为12raw预留（旧模式11）。未贯通创建/prompt前不部署；用安装版官方defineTool与模拟HTTP验证注册、schema、原样转发、拒绝和审计。

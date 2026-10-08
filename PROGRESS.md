@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：Harness已预检正文工具注册与请求审计
+
+- 先补注册方案，再按可信connection.inputMode、原P7提交协议/session开放vm_type_checked_draft替代vm_type；schema固定snapshot_id/element_index/element_token/documentSha256且additionalProperties=false，原样转发type_checked_draft，不生成或修补正文。ready及每步请求审计写同一inputMode，原工具总数10、session/停止/提交终态guard保留。
+- 预检工具说明增加原摘要选择方式；同时修正新提交协议vm_reopen工具说明为12raw预留，旧模式仍11，执行预算门槛未变。生产创建、连接和prompt尚未选择新模式，因此未启用实际模型任务。
+- 新增安装版官方工具对象测试覆盖6种错误绑定、工具替换、四参数schema、ready/审计原身份、原样HTTP参数/结果、拒绝不重试、旧工具及外来session拒绝、停止后无请求。首次失败揭示defineTool简写schema未显式禁止额外字段，已改用官方register完整JSON schema，未放宽测试。用固定esbuild0.28.1生成私有测试包、安装版App内置Node及官方包执行，适配器13项＋提交registry14项共27项通过；无真实HTTP/VM/模型。
+- Node通用回归146项中144通过、2跳过，未宣称零跳过；git diff --check通过。仅源码和测试更新，未修改运行配置或部署。README同步，下一步贯通创建/连接/提示词与后端适配器后再固定候选；完整P7及后续目标未完成。
+
 ## 2026-10-08：已预检正文输入的执行HTTP入口
 
 - 先补HTTP入口方案，再在原tools_server中按Task可信draft_input_mode替换type_text为type_checked_draft；默认旧P7/P6保持原操作集，新模式不能调用旧输入绕过。新操作沿原小请求限制、模型鉴权、串行锁、拒绝计费和停止/失权检查；没有增加任意文本、路径或模式覆盖参数。
