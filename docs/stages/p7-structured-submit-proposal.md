@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+独立host证据门槛（2026-10-08，代码前）：不调用guest提交校验作为真值，使用host Pydantic及原draft证据核验重新计算完整报告/正文/摘要；要求提交为唯一末次raw，唯一原helper_arguments/result、连续预算、原run/session/input绑定和紧邻成功read_result。官方日志必须有唯一匹配vm_submit_handoff调用及成功结果，完整参数/响应一致且后续零工具调用；stop先于提交完成则拒绝。此门槛返回仅SUBMISSION_EVIDENCE_MATCHED，不代表完整会话真实性、截图语义或发布通过，之后仍需接完整trace/export/session联合入口。
+
 执行端提交设计细化（2026-10-08，代码前）：原Task记录成功write_result与紧邻成功read_result；任何其他准入调用使读回绑定失效。submit_handoff自身先计一次原raw，再核对可信session、输入/保存/重开标记、原文档与reopen摘要、原文档逐字节等于预检document、刚读回内容等于document+LF。提交前在dispatch锁内再次核对stop/lease；原helper_arguments与result用既有fsync审计写入，成功result作为原提交凭据。内存终态先锁止，审计写失败则stop，不能重试或宣告成功；跨进程沿既有非零预算即停止的恢复规则，旧记录不会自动恢复执行。此步只新增未开放方法，必须补齐独立证据核验和官方结果后结束本轮，才能注册模型工具。
 
 先做安装版适配及无模型反例：提交前置缺失、报告被替换、错误session、双提交、同响应提交后动作、结果失败/未知、停止和预算耗尽；再做完整原Task/模拟Driver/独立导出验证。通过后才固定新候选，并按原额度/模型/VM限制运行完整三组真实业务。失败保留，不以模型前缀被忽略替代业务验收。README/PROGRESS、提交推送继续随实现同步。
