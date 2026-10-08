@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+联合入口绑定细化（2026-10-08，代码前）：verify_handoff_execution增加可信protocol参数，默认旧协议。新协议必须在原私有desktop-request.json及desktop-session-binding.json同时存在相同protocol字段且身份/输入/cwd完全一致；不得从模型日志自动推断。提取、请求审计白名单、原guest双日志与host提交门槛使用同一版本，最终返回显式protocol与提交证据摘要；收尾重新读取创建记录/绑定和其他证据防变化。新模拟组合覆盖全套只读子进程与原文件，不开放模型入口；生产创建和后续人工审核入口稍后同步版本。
+
 会话提取细化（2026-10-08，代码前）：extract_handoff_result增加可信调用者显式protocol参数，默认legacy-final-json保持旧行为，p7-tool-submit-v1才允许第10个工具。新协议报告只来自原assistant/message声明的vm_submit_handoff完整arguments，与对应tool/call原字符串一致；必须唯一末次调用、唯一成功结果、原模型/会话/请求和completed单轮，禁止提交后新模型消息/请求/工具。核对响应协议、身份、报告与文档摘要和预算范围。无提交即拒绝，绝不从tool/result或普通文本猜报告。生产路由仍不切换，待可信创建意图/绑定和联合验收入口一致后另接通。
 
 trace/exchange接入细化（2026-10-08，代码前）：旧轨迹仍按旧协议处理；出现submit_handoff即要求原有效草稿和可信session，并核对唯一最后提交在成功read_result后紧邻发生，原参数与草稿完整对象一致、响应字段和摘要重算一致。提交结果前stop或之后新派发均拒绝。双日志按原参数/原结果增加vm_submit_handoff匹配；导出仍依赖既有草稿session私有绑定，不新增模型可写的身份。此兼容读取不允许旧业务失败按新协议改判，正式入口后续需显式新协议选择。
