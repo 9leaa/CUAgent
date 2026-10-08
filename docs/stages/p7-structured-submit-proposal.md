@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+trace/exchange接入细化（2026-10-08，代码前）：旧轨迹仍按旧协议处理；出现submit_handoff即要求原有效草稿和可信session，并核对唯一最后提交在成功read_result后紧邻发生，原参数与草稿完整对象一致、响应字段和摘要重算一致。提交结果前stop或之后新派发均拒绝。双日志按原参数/原结果增加vm_submit_handoff匹配；导出仍依赖既有草稿session私有绑定，不新增模型可写的身份。此兼容读取不允许旧业务失败按新协议改判，正式入口后续需显式新协议选择。
+
 独立host证据门槛（2026-10-08，代码前）：不调用guest提交校验作为真值，使用host Pydantic及原draft证据核验重新计算完整报告/正文/摘要；要求提交为唯一末次raw，唯一原helper_arguments/result、连续预算、原run/session/input绑定和紧邻成功read_result。官方日志必须有唯一匹配vm_submit_handoff调用及成功结果，完整参数/响应一致且后续零工具调用；stop先于提交完成则拒绝。此门槛返回仅SUBMISSION_EVIDENCE_MATCHED，不代表完整会话真实性、截图语义或发布通过，之后仍需接完整trace/export/session联合入口。
 
 执行端提交设计细化（2026-10-08，代码前）：原Task记录成功write_result与紧邻成功read_result；任何其他准入调用使读回绑定失效。submit_handoff自身先计一次原raw，再核对可信session、输入/保存/重开标记、原文档与reopen摘要、原文档逐字节等于预检document、刚读回内容等于document+LF。提交前在dispatch锁内再次核对stop/lease；原helper_arguments与result用既有fsync审计写入，成功result作为原提交凭据。内存终态先锁止，审计写失败则stop，不能重试或宣告成功；跨进程沿既有非零预算即停止的恢复规则，旧记录不会自动恢复执行。此步只新增未开放方法，必须补齐独立证据核验和官方结果后结束本轮，才能注册模型工具。
