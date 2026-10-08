@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { realpathSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { startDesktopSession, startHandoffSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
-import { HANDOFF_TOOLS } from '../harness/handoff-prompt.mjs';
+import { HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 import { DAILY_MODEL } from '../harness/daily-report-runner.mjs';
 
 function fixture(t, fault) {
@@ -101,6 +101,32 @@ function handoffFixture(t, fault) {
     return originalRpc(method, args);
   };
   return f;
+}
+
+for (const fault of ['none', 'legacy_tools', 'wrong_session', 'missing_protocol', 'unknown_protocol']) {
+  test(`new submission creation binding ${fault} stays explicit and one-shot`, async t => {
+    const f = handoffFixture(t);
+    f.binding.protocol = 'p7-tool-submit-v1';
+    f.ready = {...f.ready, protocol:f.binding.protocol, sessionId:f.binding.sessionId,
+      toolNames:handoffTools(f.binding.protocol)};
+    if (fault === 'legacy_tools') f.ready.toolNames = HANDOFF_TOOLS;
+    if (fault === 'wrong_session') f.ready.sessionId = 'session-33333333-3333-3333-3333-333333333333';
+    if (fault === 'missing_protocol') delete f.ready.protocol;
+    if (fault === 'unknown_protocol') f.binding.protocol = 'unknown';
+    writeFileSync(join(f.root, 'vm-tools-ready.json'), JSON.stringify(f.ready));
+    if (fault !== 'none') {
+      await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+      assert.equal(f.calls.length, 0); assert.equal(existsSync(join(f.root, 'desktop-session-binding.json')), false);
+      return;
+    }
+    assert.equal((await startHandoffSession(f.root, f.binding, f.rpc)).accepted, true);
+    const saved = JSON.parse(readFileSync(join(f.root, 'desktop-session-binding.json'), 'utf8'));
+    assert.deepEqual(saved, f.binding);
+    const prompt = f.calls.find(call => call.method === 'session/prompt').args.request.content[0].text;
+    assert.ok(prompt.includes('vm_submit_handoff({report:R})'));
+    await assert.rejects(startHandoffSession(f.root, f.binding, f.rpc));
+    assert.equal(f.calls.filter(call => call.method === 'session/prompt').length, 1);
+  });
 }
 
 test('P7 uses source-bound analysis prompt, exact preset and original Flash/off lifecycle', async t => {

@@ -6,7 +6,7 @@ import { closeSync, constants, fsyncSync, lstatSync, openSync, readFileSync, rea
 import { isAbsolute, join, resolve } from 'node:path';
 import { createDesktopRpc } from './desktop-session.mjs';
 import { loadA1TaskConfig } from '../a1-task-config.mjs';
-import { HANDOFF_TOOLS } from './handoff-prompt.mjs';
+import { handoffTools } from './handoff-prompt.mjs';
 
 const APP = '/Applications/DeepSeek Harness.app';
 const EXECUTABLE = APP + '/Contents/MacOS/DeepSeek Harness';
@@ -93,7 +93,14 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
       assert.equal(connection.stage, 'p7');
       assert.match(connection.runId, /^p2-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
       assert.match(connection.inputSha256, /^[0-9a-f]{64}$/u);
-      handoffBinding = { runId: connection.runId, kind: 'project-handoff', inputSha256: connection.inputSha256, toolNames: HANDOFF_TOOLS };
+      const submit = Object.hasOwn(connection, 'protocol');
+      if (submit) {
+        assert.equal(connection.protocol, 'p7-tool-submit-v1');
+        assert.match(connection.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
+      }
+      handoffBinding = { runId: connection.runId, kind: 'project-handoff', inputSha256: connection.inputSha256,
+        toolNames: handoffTools(connection.protocol),
+        ...(submit ? { protocol: connection.protocol, sessionId: connection.sessionId } : {}) };
     }
     assert.equal(connection.url, 'http://192.168.64.3:8766');
     assert.match(connection.token, /^[A-Za-z0-9_-]{43,60}$/u);

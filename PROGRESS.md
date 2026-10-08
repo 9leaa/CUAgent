@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：显式新会话创建、App就绪与提交提示词
+
+- a2a523c先写方案。HandoffSessionClient.prepare支持显式protocol，默认仍旧；新版独占desktop-request包含新版本，不覆盖旧请求。startHandoffSession仅接受既有字段或额外的正确新协议，新版ready必须绑定同session/protocol/完整十工具，任何错配在RPC前拒绝。App启动门槛使用同一清单并核对session/protocol，未知协议在启动前拒绝。
+- 新prompt保留完整业务来源/引用/GUI保存重开读回/30raw要求，增加submit预算；最终report传完整对象，紧邻成功read_result，工具结束本轮，失败或未知不重发。旧最终文本JSON要求仅留旧协议；同一显式版本控制白名单，不从现有工具猜测协议。
+- 新增Python原始请求版本/0600/禁止覆盖3项；相关Python30项通过。新增Node新提示词、五种会话创建/错配/禁止重放及四种App就绪测试；完整agent/tests共142通过、2原跳过。全部使用模拟RPC/App，未真实启动App、部署或请求模型。
+- 生产operator/adapter尚未选择新协议，后续须将可信版本贯通连接生成、控制激活、联合核验和v2审核上下文，再固定新候选验证；既有005失败及剩余旧队列不改协议。README同步，P7/后续路线仍未完成。
+
 ## 2026-10-08：Harness提交工具与官方终态接口
 
 - d90f862先写设计。新增handoff-submit.ts，完整report schema保留现有$defs并注册vm_submit_handoff；c0-vm-tools仅可信新协议+固定session连接开放第10工具，新ready记录包含协议/session，旧P7/P6工具集不变。首次owner必须等于可信session，模型不能传参切版本。

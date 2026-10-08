@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stopIdleDesktop, startDesktop } from '../harness/desktop-app.mjs';
@@ -72,6 +72,26 @@ test('P7 explicit launch verifies original input identity and eight tools then r
   await stopIdleDesktop(f.root, 'unused', 'restore', f.dependencies);
   await startDesktop(f.root, f.home, 'unused', 'restore', f.tasks, f.dependencies);
   assert.deepEqual(f.state.presets, ['p1-daily-report']);
+});
+
+for (const fault of ['none', 'wrong_session', 'legacy_tools', 'unknown_protocol']) test(`P7 new protocol App readiness ${fault}`, async t => {
+  const f = fixture(t, true); f.state.running = false;
+  const protocol = 'p7-tool-submit-v1', sessionId = 'session-22222222-2222-2222-2222-222222222222';
+  const connection = {...JSON.parse(readFileSync(f.connection, 'utf8')), protocol, sessionId};
+  const path = join(f.root, 'vm-tools-ready.json');
+  const ready = {...JSON.parse(readFileSync(path, 'utf8')), protocol, sessionId};
+  if (fault !== 'legacy_tools') ready.toolNames = [...ready.toolNames, 'vm_submit_handoff'].sort();
+  if (fault === 'wrong_session') ready.sessionId = 'session-33333333-3333-3333-3333-333333333333';
+  if (fault === 'unknown_protocol') connection.protocol = 'unknown';
+  writeFileSync(f.connection, JSON.stringify(connection)); writeFileSync(path, JSON.stringify(ready));
+  if (fault === 'none') {
+    await startDesktop(f.root, f.home, 'unused', 'p7', f.connection, f.dependencies);
+    assert.ok(existsSync(join(f.root, 'app-p7-start-receipt.json')));
+  } else {
+    await assert.rejects(startDesktop(f.root, f.home, 'unused', 'p7', f.connection, f.dependencies));
+    assert.ok(!existsSync(join(f.root, 'app-p7-start-receipt.json')));
+    if (fault === 'unknown_protocol') assert.ok(!f.state.commands.some(([p]) => p === '/usr/bin/open'));
+  }
 });
 
 test('P6 cannot launch P7 connection and P7 cannot accept mismatched ready receipt', async t => {

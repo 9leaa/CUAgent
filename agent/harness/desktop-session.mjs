@@ -5,7 +5,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from
 import { isAbsolute, resolve, join } from 'node:path';
 import { DAILY_MODEL, observedSession } from './daily-report-runner.mjs';
 import { classifyDesktopMessages } from './desktop-notices.mjs';
-import { HANDOFF_TOOLS, handoffPrompt } from './handoff-prompt.mjs';
+import { handoffTools, handoffPrompt } from './handoff-prompt.mjs';
 
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
 function save(root, name, value) {
@@ -58,7 +58,9 @@ export async function startDesktopSession(root, binding, rpc) {
 
 export async function startHandoffSession(root, binding, rpc) {
   privateRoot(root);
-  assert.deepEqual(Object.keys(binding).sort(), ['cwd', 'inputSha256', 'kind', 'runId', 'sessionId']);
+  const submit = Object.hasOwn(binding, 'protocol');
+  if (submit) assert.equal(binding.protocol, 'p7-tool-submit-v1');
+  assert.deepEqual(Object.keys(binding).sort(), ['cwd', 'inputSha256', 'kind', ...(submit ? ['protocol'] : []), 'runId', 'sessionId']);
   assert.equal(binding.kind, 'project-handoff');
   assert.match(binding.runId, /^p2-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
   assert.match(binding.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
@@ -69,7 +71,8 @@ export async function startHandoffSession(root, binding, rpc) {
   const info = lstatSync(path);
   assert.ok(info.isFile() && info.uid === process.getuid() && !(info.mode & 0o077) && info.size <= 4096);
   assert.deepEqual(load(path), { runId: binding.runId, kind: binding.kind,
-    inputSha256: binding.inputSha256, toolNames: HANDOFF_TOOLS });
+    inputSha256: binding.inputSha256, toolNames: handoffTools(binding.protocol),
+    ...(submit ? { protocol: binding.protocol, sessionId: binding.sessionId } : {}) });
   return startBoundSession(root, binding, rpc, 'project-handoff', handoffPrompt(binding));
 }
 

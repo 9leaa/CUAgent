@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handoffPrompt, HANDOFF_TOOLS } from '../harness/handoff-prompt.mjs';
+import { handoffPrompt, HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
+
+test('explicit new protocol uses full report submission, no final-text contract or retries', () => {
+  const binding = {runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)};
+  const prompt = handoffPrompt({...binding, protocol:'p7-tool-submit-v1'});
+  for (const rule of ['唯一参数report传完整同一对象R', 'vm_submit_handoff({report:R})',
+    '不得在两者之间插入其他工具', '普通文本不能代替提交', '不能重试、换会话',
+    'read_result和submit_handoff预算', '原30次实际请求']) assert.ok(prompt.includes(rule), rule);
+  for (const old of ['最终助手消息才输出R的JSON', '最终回复只输出同一个HandoffResult JSON']) assert.ok(!prompt.includes(old));
+  assert.equal(handoffTools('p7-tool-submit-v1').length, 10);
+  assert.equal(handoffTools().length, 9);
+  assert.throws(() => handoffPrompt({...binding, protocol:'unknown'}));
+});
 
 test('handoff prompt keeps GUI body, result transport and final object distinct', () => {
   const prompt = handoffPrompt({runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)});
