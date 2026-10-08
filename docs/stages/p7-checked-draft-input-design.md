@@ -39,3 +39,5 @@ HTTP入口细化（代码前）：仅Task可信checked-draft-v1替换允许操�
 Harness注册细化（代码前）：仅可信P7 connection显式inputMode=checked-draft-v1且绑定原专用提交protocol/session时注册vm_type_checked_draft替代vm_type，schema固定四参数；执行原样转发到type_checked_draft，不补正文、摘要或身份。ready和每步请求审计保存inputMode，工具白名单仍10项、原session guard/停止/终态保留。工具说明提示使用原预检documentSha256并重新观察效果；同时修正专用提交模式重开说明为12raw预留（旧模式11）。未贯通创建/prompt前不部署；用安装版官方defineTool与模拟HTTP验证注册、schema、原样转发、拒绝和审计。
 
 创建/prompt细化（代码前）：HandoffSessionClient.prepare显式接mode并独占写原desktop-request，未知或旧提交协议搭配新模式在写入前拒绝。App启动与session创建均校验connection/request/ready中的同一inputMode及替换后的精确工具集；默认旧字段不变。新prompt明确四参数选择、原预检摘要、不重复抄正文或直接写文件，保留完整R最终提交及D读回；替换旧vm_type.text指令以避免冲突。测试创建一次性、ready错配前零RPC、旧模式不变及提示仍保留30raw/12raw/完整业务门槛。后端operator/adapter选模式仍待后续贯通，不启动真实App。
+
+后台接线细化（代码前）：operator新增显式handoff-input-mode（默认literal-text），checked-draft-v1只允许project-handoff及专用提交协议。adapter在prepare/原request校验/connection/控制绑定/会话提取/采集/联合验收使用同一模式并生成v3审核context；旧调用字段保持兼容。collector显式mode传原SSH导出CLI和host decoder，原单次intent、撤权/零在途、前后计数与租约复核不变，新intent/receipt保留inputMode。测试通过合成官方/VM记录走真实导出和独立联合验收，SSH/实际App模拟；生产启用须固定新候选、独立部署核对和新准入，不升级旧队列。

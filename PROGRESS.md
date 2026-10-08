@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文模式贯通后台单任务及采集
+
+- 在方案补后台细则后，实现operator显式handoff-input-mode；新模式仅project-handoff＋p7-tool-submit-v1合法，原launch intent保存inputMode。adapter将同一模式传至prepare、原request核对、connection、控制绑定、会话提取、采集和联合核验，再独占生成v3审核context；旧默认调用和字段保持兼容。
+- collector显式模式传原SSH导出CLI及host decoder，intent/receipt保存inputMode；仍先撤权、零在途、前后原计数/租约一致，未知结果不重采集。原执行证据只允许清理已核对应用，仍抛HANDOFF_SEMANTIC_REVIEW_REQUIRED，不自动发布。
+- adapter/collect/审核/创建四组52项通过，包含原Task＋模拟Driver/官方日志及真实本地导出、解包、inspect子进程；SSH/App模拟。另在既有专用测试PostgreSQL连接上由fixture逐例新建随机cuagent_test数据库，queue＋新模式发布＋旧发布共35项通过，测试结束删除各自临时数据库；确认新模式保留到原publication intent和数据库事件。合计87项，1条现有Starlette/httpx弃用告警，git diff --check通过。没有操作真实任务或运行模型。
+- 本轮补上此前未测的新模式数据库发布字段；不代表真实业务审核/交付。下一步汇总全链回归、固定新候选、独立部署核对和实时准入后才执行原三类完整任务；旧失败和队列不升级，P5源码未动。README及backend用法同步，P7和后续目标未完成。
+
 ## 2026-10-08：已预检正文模式的创建、就绪与提示词
 
 - 按先行补充方案实现HandoffSessionClient.prepare显式mode，合法新模式独占写原desktop-request.inputMode；旧协议配新模式或未知值在写入前拒绝，已创建请求不可覆盖。默认旧字段不变。

@@ -59,12 +59,13 @@ def test_wrong_kind_is_rejected_before_guest_bootstrap(handoff):
     session.prepare.assert_not_called(); client.activate.assert_not_called()
 
 
-@pytest.mark.parametrize('evidence', ['with_draft', 'with_submit'], indirect=True)
+@pytest.mark.parametrize('evidence', ['with_draft', 'with_submit','with_checked_input'], indirect=True)
 def test_real_combined_evidence_allows_saved_app_cleanup_but_not_success(handoff, evidence):
     adapter, _, _, _, _, _ = handoff
     args, _, _ = evidence
     original_binding = json.loads((args['root'] / 'desktop-session-binding.json').read_bytes())
     adapter.protocol = original_binding.get('protocol', 'legacy-final-json')
+    adapter.draft_input_mode = original_binding.get('inputMode','literal-text')
     adapter.settings = replace(adapter.settings, official_home=args['home'])
     control = Mock(identity=args['binding'])
     prepared = PreparedDesktop(args['root'], args['session_id'], control)
@@ -72,13 +73,15 @@ def test_real_combined_evidence_allows_saved_app_cleanup_but_not_success(handoff
     directory = prepared.run / 'guest' / prepared.run.name
     directory.parent.mkdir(mode=0o700)
     shutil.copytree(args['guest_directory'], directory)
-    with patch('backend.handoff_adapter.collect_handoff_bundle', return_value=directory):
+    with patch('backend.handoff_adapter.collect_handoff_bundle', return_value=directory) as collect:
         with pytest.raises(ValueError, match='HANDOFF_SEMANTIC_REVIEW_REQUIRED'): adapter.verify(prepared)
+        assert collect.call_args.kwargs.get('draft_input_mode','literal-text') == adapter.draft_input_mode
     result = json.loads((prepared.run / 'handoff-execution-verification.json').read_bytes())
     assert result['sessionVerified'] is True and result['semanticVerified'] is False
     assert json.loads((prepared.run / 'handoff-review-context.json').read_bytes())['binding'] == args['binding']
     review = json.loads((prepared.run / 'handoff-review-context.json').read_bytes())
-    assert review['version'] == (2 if adapter.protocol == 'p7-tool-submit-v1' else 1)
+    assert review['version'] == (3 if adapter.draft_input_mode == 'checked-draft-v1' else 2 if adapter.protocol == 'p7-tool-submit-v1' else 1)
+    assert review.get('inputMode','literal-text') == adapter.draft_input_mode
     assert review.get('protocol', 'legacy-final-json') == adapter.protocol
     hashes = adapter.context(prepared)['verified_cleanup_hashes']
     assert hashes == {key: result['guest']['files'][name]['sha256'] for key, name in {
@@ -89,25 +92,29 @@ def test_real_combined_evidence_allows_saved_app_cleanup_but_not_success(handoff
     control.cleanup_application.assert_not_called()
 
 
-def test_new_adapter_prepare_freezes_protocol_and_activation(handoff):
+@pytest.mark.parametrize('mode',['literal-text','checked-draft-v1'])
+def test_new_adapter_prepare_freezes_protocol_and_activation(handoff,mode):
     adapter, task, session, client, _, _ = handoff
     adapter.protocol = 'p7-tool-submit-v1'
+    adapter.draft_input_mode = mode
     # The session factory is mocked in this fixture; materialize exactly the
     # original request that the real session client's prepare writes.
     with patch('backend.handoff_adapter.HandoffSessionClient') as factory:
         factory.return_value = session
-        def prepare(source, *, protocol):
+        def prepare(source, *, protocol, **options):
+            assert options == adapter.input_options()
             kwargs = factory.call_args.kwargs
             path = kwargs['root'] / 'desktop-request.json'
             path.write_text(json.dumps(adapter.expected_binding(kwargs['root'], kwargs['session_id'], source)))
             path.chmod(0o600)
         session.prepare.side_effect = prepare
         prepared = adapter.prepare(task)
-    session.prepare.assert_called_once_with(fixture()[0], protocol='p7-tool-submit-v1')
+    session.prepare.assert_called_once_with(fixture()[0], protocol='p7-tool-submit-v1', **adapter.input_options())
     connection = json.loads((prepared.run / 'c0-connection.json').read_bytes())
     assert connection['sessionId'] == prepared.session_id and connection['protocol'] == adapter.protocol
+    assert connection.get('inputMode','literal-text') == mode
     adapter.start(prepared)
-    client.bind_draft_session.assert_called_once_with(prepared.session_id, protocol=adapter.protocol)
+    client.bind_draft_session.assert_called_once_with(prepared.session_id, protocol=adapter.protocol, **adapter.input_options())
     with pytest.raises(RuntimeError): adapter.start(prepared)
 
 

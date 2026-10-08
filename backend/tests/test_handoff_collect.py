@@ -26,14 +26,39 @@ def collector(evidence, tmp_path):
     controller.revoke()
     _, report = fixture()
     expected = expected_document(args['submission'], report, run_id=binding['runId'], session_id=args['session_id'])
-    contents = build_bundle(guest, controller, (guest / 'handoff-input.json').read_bytes(), expected)
+    mode = json.loads((args['root']/'desktop-session-binding.json').read_bytes()).get('inputMode','literal-text')
+    contents = build_bundle(guest, controller, (guest / 'handoff-input.json').read_bytes(), expected,draft_input_mode=mode)
     out = io.BytesIO(); write_bundle(contents, out)
     wrapper = tmp_path / 'ssh'; wrapper.write_text('#!/bin/sh\nexit 1\n'); wrapper.chmod(0o700)
     client = HandoffControlClient(port=19001, token=secrets.token_urlsafe(32), run_id=binding['runId'], owner=binding['owner'], epoch=1)
-    client.status = Mock(return_value=dict(stopped=True, pendingCalls=0, rawCalls=15))
+    count = json.loads(contents['guest-manifest.json'])['guest']['rawCalls']
+    client.status = Mock(return_value=dict(stopped=True, pendingCalls=0, rawCalls=count))
     client.inspect = Mock(return_value=dict(lease=dict(binding, stopped=True)))
     yield dict(root=args['root'], ssh_wrapper=wrapper, deployment='/Users/mvpagent/CUAgent-p6-'+'a'*40,
-               client=client, submission=args['submission'], expected=expected), out.getvalue(), args
+               client=client, submission=args['submission'], expected=expected,
+               **({'draft_input_mode':mode} if mode=='checked-draft-v1' else {})), out.getvalue(), args
+
+
+@pytest.mark.parametrize('evidence',['with_checked_input'],indirect=True)
+@pytest.mark.parametrize('fault',['none','downgrade','unknown'])
+def test_checked_mode_collection_binds_export_decode_receipt_and_full_verification(collector,fault):
+    kwargs, raw, args = collector
+    if fault=='downgrade': kwargs['draft_input_mode']='literal-text'
+    if fault=='unknown': kwargs['draft_input_mode']='auto'
+    with patch('backend.handoff_collect.run_bounded',return_value=raw) as run:
+        if fault!='none':
+            with pytest.raises(ValueError): collect_handoff_bundle(**kwargs)
+            if fault=='unknown': run.assert_not_called()
+            assert not (kwargs['root']/'handoff-collection-receipt.json').exists()
+            return
+        directory=collect_handoff_bundle(**kwargs)
+        assert '--draft-input-mode checked-draft-v1' in run.call_args.args[0][-1]
+        for name in ('intent','receipt'):
+            assert json.loads((kwargs['root']/f'handoff-collection-{name}.json').read_bytes())['inputMode']=='checked-draft-v1'
+        result=verify_handoff_execution(**dict(args,guest_directory=directory),protocol='p7-tool-submit-v1',draft_input_mode='checked-draft-v1')
+        assert result['inputMode']=='checked-draft-v1' and not result['semanticVerified']
+        with pytest.raises(FileExistsError): collect_handoff_bundle(**kwargs)
+        run.assert_called_once()
 
 
 def test_guest_export_host_decode_save_and_actual_combined_verification(collector):

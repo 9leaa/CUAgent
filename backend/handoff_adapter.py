@@ -8,29 +8,34 @@ from backend.handoff_client import HandoffControlClient
 from backend.handoff_session_client import HandoffSessionClient
 from backend.handoff_contract import HandoffSubmission
 from backend.handoff_result import canonical, input_digest
-from backend.handoff_session import extract_handoff_result, strict_json, require
+from backend.handoff_session import extract_handoff_result, strict_json, require, handoff_tools
 from backend.handoff_collect import collect_handoff_bundle
 from backend.handoff_verify import verify_handoff_execution
 
 
 class HandoffTaskAdapter(DesktopTaskAdapter):
-    def __init__(self, service, settings, *, execution_gate, protocol='legacy-final-json'):
-        if protocol not in ('legacy-final-json', 'p7-tool-submit-v1'):
-            raise ValueError('UNSUPPORTED_HANDOFF_PROTOCOL')
+    def __init__(self, service, settings, *, execution_gate, protocol='legacy-final-json', draft_input_mode='literal-text'):
+        handoff_tools(protocol,draft_input_mode)
         super().__init__(service, settings, execution_gate=execution_gate)
         self.protocol = protocol
+        self.draft_input_mode = draft_input_mode
+
+    def input_options(self):
+        return {'draft_input_mode': self.draft_input_mode} if self.draft_input_mode == 'checked-draft-v1' else {}
 
     def prepare_session(self, session, submission):
         if self.protocol == 'legacy-final-json':
             session.prepare(submission)
         else:
-            session.prepare(submission, protocol=self.protocol)
+            session.prepare(submission, protocol=self.protocol, **self.input_options())
 
     def expected_binding(self, root, session_id, submission):
         value = dict(kind='project-handoff', runId=root.name, sessionId=session_id,
             cwd=str(root / 'workspace'), inputSha256=input_digest(submission))
         if self.protocol == 'p7-tool-submit-v1':
             value['protocol'] = self.protocol
+        if self.draft_input_mode == 'checked-draft-v1':
+            value['inputMode'] = self.draft_input_mode
         return value
 
     def submission(self, payload):
@@ -58,12 +63,14 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
             require(re.fullmatch(r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', request['sessionId']))
             require(request == self.expected_binding(root, request['sessionId'], submission))
             value.update(protocol=self.protocol, sessionId=request['sessionId'])
+        if self.draft_input_mode == 'checked-draft-v1':
+            value['inputMode'] = self.draft_input_mode
         return value
 
     def provision(self, prepared, context):
         task = context['task']
         if self.protocol == 'p7-tool-submit-v1':
-            prepared.control_client.bind_draft_session(prepared.session_id, protocol=self.protocol)
+            prepared.control_client.bind_draft_session(prepared.session_id, protocol=self.protocol, **self.input_options())
         else:
             prepared.control_client.bind_draft_session(prepared.session_id)
         prepared.control_client.provision_handoff(context['submission'], lambda: self.service.desktop_authority(
@@ -89,12 +96,12 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
         raw = read('session.jsonl', 64*1024*1024)
         prompt = strict_json(read('prompt-request.json', 65536).decode())['request']
         extracted = extract_handoff_result(raw, submission=submission, run_id=prepared.run.name,
-            session_id=prepared.session_id, cwd=binding['cwd'], prompt=prompt, protocol=self.protocol)
+            session_id=prepared.session_id, cwd=binding['cwd'], prompt=prompt, protocol=self.protocol, **self.input_options())
         directory = collect_handoff_bundle(root=prepared.run, ssh_wrapper=context['ssh_wrapper'],
             deployment='/Users/mvpagent/CUAgent-p6-' + self.settings.guest_commit, client=prepared.control_client,
-            submission=submission, expected=extracted['document'])
+            submission=submission, expected=extracted['document'], **self.input_options())
         result = verify_handoff_execution(prepared.run, guest_directory=directory, home=self.settings.official_home,
-            submission=submission, session_id=prepared.session_id, binding=prepared.control_client.identity, protocol=self.protocol)
+            submission=submission, session_id=prepared.session_id, binding=prepared.control_client.identity, protocol=self.protocol, **self.input_options())
         require(result['sessionSha256'] == extracted['sessionSha256'])
         require(directory == prepared.run / 'guest' / prepared.run.name)
         review = dict(version=1,
@@ -102,6 +109,8 @@ class HandoffTaskAdapter(DesktopTaskAdapter):
             binding=prepared.control_client.identity, home=str(self.settings.official_home))
         if self.protocol == 'p7-tool-submit-v1':
             review.update(version=2, protocol=self.protocol)
+        if self.draft_input_mode == 'checked-draft-v1':
+            review.update(version=3, inputMode=self.draft_input_mode)
         save_exclusive(prepared.run / 'handoff-review-context.json', canonical(review))
         save_exclusive(prepared.run / 'handoff-execution-verification.json', canonical(result))
         # Saved-byte/session evidence permits a normal owned-app exit, not

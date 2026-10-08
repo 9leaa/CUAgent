@@ -151,7 +151,10 @@ class LiveGate:
 
 
 def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_approved=False, kind='desktop-textedit',
-                handoff_protocol='legacy-final-json'):
+                handoff_protocol='legacy-final-json', handoff_input_mode='literal-text'):
+    if (handoff_input_mode not in ('literal-text','checked-draft-v1') or handoff_input_mode == 'checked-draft-v1'
+            and (kind != 'project-handoff' or handoff_protocol != 'p7-tool-submit-v1')):
+        raise ValueError('UNSUPPORTED_HANDOFF_INPUT_MODE')
     if (handoff_protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
             or handoff_protocol != 'legacy-final-json' and kind != 'project-handoff'):
         raise ValueError('UNSUPPORTED_HANDOFF_PROTOCOL')
@@ -174,7 +177,8 @@ def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_ap
     gate = LiveGate(profile, quota, wrapper)
     if kind == 'project-handoff':
         from backend.handoff_adapter import HandoffTaskAdapter
-        adapter = HandoffTaskAdapter(service, settings, execution_gate=gate, protocol=handoff_protocol)
+        adapter = HandoffTaskAdapter(service, settings, execution_gate=gate, protocol=handoff_protocol,
+            **({'draft_input_mode':handoff_input_mode} if handoff_input_mode == 'checked-draft-v1' else {}))
     else:
         adapter = DesktopTaskAdapter(service, settings, execution_gate=gate)
     # Derived from the protected baseline, never from task text or a selectable alternate lock.
@@ -191,6 +195,7 @@ def worker_once(*, profile_path, execution_path, quota_path, task_id, cutover_ap
         save_exclusive(root / ('desktop-launch-' + task_id + '.json'), json.dumps({
             'taskId': task_id, 'kind': kind, 'profileSha256': quota.profile_sha, 'quotaSha256': quota.quota_sha,
             **({'protocol': handoff_protocol} if handoff_protocol != 'legacy-final-json' else {}),
+            **({'inputMode': handoff_input_mode} if handoff_input_mode == 'checked-draft-v1' else {}),
             'admission': str(admission), 'action': 'SINGLE_CLAIM_INTENT'}).encode())
         return True
     try:
@@ -217,11 +222,12 @@ def main():
     parser.add_argument('--cutover-approved', action='store_true')
     parser.add_argument('--kind', choices=['desktop-textedit', 'project-handoff'], default='desktop-textedit')
     parser.add_argument('--handoff-protocol', choices=['legacy-final-json', 'p7-tool-submit-v1'], default='legacy-final-json')
+    parser.add_argument('--handoff-input-mode', choices=['literal-text','checked-draft-v1'], default='literal-text')
     args = parser.parse_args()
     try:
         result = worker_once(profile_path=args.profile, execution_path=args.execution, quota_path=args.quota,
                              task_id=str(args.task), cutover_approved=args.cutover_approved, kind=args.kind,
-                             handoff_protocol=args.handoff_protocol)
+                             handoff_protocol=args.handoff_protocol, handoff_input_mode=args.handoff_input_mode)
         print(json.dumps(result))
     except Exception:
         print(json.dumps({'result': 'REFUSED_OR_UNCONFIRMED',

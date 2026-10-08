@@ -11,7 +11,10 @@ from backend.handoff_contract import HandoffSubmission
 from backend.handoff_result import canonical
 
 
-def collect_handoff_bundle(*, root, ssh_wrapper, deployment, client, submission, expected):
+def collect_handoff_bundle(*, root, ssh_wrapper, deployment, client, submission, expected, draft_input_mode='literal-text'):
+    if draft_input_mode not in ('literal-text','checked-draft-v1'):
+        raise ValueError('explicit input mode required')
+    metadata = {'inputMode':draft_input_mode} if draft_input_mode == 'checked-draft-v1' else {}
     root = private_path(root, directory=True)
     wrapper = private_path(ssh_wrapper, directory=False)
     submission = HandoffSubmission.model_validate(submission)
@@ -33,9 +36,10 @@ def collect_handoff_bundle(*, root, ssh_wrapper, deployment, client, submission,
     materials = canonical(submission.model_dump(mode='json'))
     payload = json.dumps(dict(materialsBase64=base64.b64encode(materials).decode(),
                               expectedBase64=base64.b64encode(expected).decode())).encode()
-    save_exclusive(root / 'handoff-collection-intent.json', canonical(identity))
+    save_exclusive(root / 'handoff-collection-intent.json', canonical(dict(identity,**metadata)))
     command = shlex.join([GUEST_PYTHON, deployment + '/handoff_export.py', '--run', identity['runId'],
-                          '--owner', identity['owner'], '--epoch', str(identity['epoch'])])
+                          '--owner', identity['owner'], '--epoch', str(identity['epoch']),
+                          *(['--draft-input-mode',draft_input_mode] if metadata else [])])
     args = [str(wrapper), '-F', '/dev/null', '-T', '-o', 'ClearAllForwardings=yes',
             '-o', 'ForwardAgent=no', '-o', 'ForwardX11=no', '-o', 'ControlMaster=no', '-o', 'ControlPath=none', command]
     raw = run_bounded(args, payload, input_limit=512*1024)
@@ -45,7 +49,7 @@ def collect_handoff_bundle(*, root, ssh_wrapper, deployment, client, submission,
             or type(after['rawCalls']) is not int or after['rawCalls'] != before['rawCalls']
             or client.inspect().get('lease') != lease):
         raise RuntimeError('HANDOFF_COLLECTION_STATE_CHANGED')
-    bundle = decode_handoff_bundle(raw, binding=identity, materials=materials, expected=expected)
+    bundle = decode_handoff_bundle(raw, binding=identity, materials=materials, expected=expected, draft_input_mode=draft_input_mode)
     if bundle['guest']['rawCalls'] != before['rawCalls']:
         raise ValueError('guest evidence budget differs from runtime')
     parent = root / 'guest'; parent.mkdir(mode=0o700)
@@ -55,5 +59,5 @@ def collect_handoff_bundle(*, root, ssh_wrapper, deployment, client, submission,
         save_exclusive(directory / name, data)
     save_exclusive(root / 'handoff-collection-receipt.json', canonical(dict(
         status='TRANSPORT_VERIFIED', binding=identity, files=bundle['guest']['files'],
-        sessionVerified=False, semanticVerified=False)))
+        sessionVerified=False, semanticVerified=False, **metadata)))
     return directory

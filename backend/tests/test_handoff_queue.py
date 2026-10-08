@@ -82,8 +82,8 @@ def test_invalid_worker_and_profile_kind_refused_before_io(kind):
     with pytest.raises(ValueError): load_profile('/unused', kind=kind)
 
 
-@pytest.mark.parametrize('protocol', ['legacy-final-json', 'p7-tool-submit-v1'])
-def test_operator_selects_handoff_adapter_and_original_target_only(operator_files, monkeypatch, protocol):
+@pytest.mark.parametrize('protocol,mode', [('legacy-final-json','literal-text'), ('p7-tool-submit-v1','literal-text'),('p7-tool-submit-v1','checked-draft-v1')])
+def test_operator_selects_handoff_adapter_and_original_target_only(operator_files, monkeypatch, protocol,mode):
     import hashlib
     import json
     from backend import desktop_operator as entry, handoff_adapter
@@ -100,18 +100,20 @@ def test_operator_selects_handoff_adapter_and_original_target_only(operator_file
     class PendingReview(Adapter):
         def verify(self, prepared):
             raise ValueError('HANDOFF_SEMANTIC_REVIEW_REQUIRED')
-    factory = Mock(side_effect=lambda svc, settings, execution_gate, protocol: PendingReview(svc))
+    factory = Mock(side_effect=lambda svc, settings, execution_gate, protocol, **kwargs: PendingReview(svc))
     monkeypatch.setattr(handoff_adapter, 'HandoffTaskAdapter', factory)
-    outcome = entry.worker_once(**args, kind='project-handoff', handoff_protocol=protocol)
+    outcome = entry.worker_once(**args, kind='project-handoff', handoff_protocol=protocol,handoff_input_mode=mode)
     assert outcome['outcome']['status'] == 'UNVERIFIED'
     assert outcome['outcome']['restoreConfirmed']
     assert service.view(first)['status'] == 'QUEUED'
     assert service.view(args['task_id'])['kind'] == 'project-handoff'
     p6.assert_not_called(); assert factory.call_count == 1
     assert factory.call_args.kwargs['protocol'] == protocol
+    assert factory.call_args.kwargs.get('draft_input_mode','literal-text') == mode
     intent = json.loads((args['profile_path'].parent / ('desktop-launch-' + args['task_id'] + '.json')).read_bytes())
     assert intent['kind'] == 'project-handoff'
     assert intent.get('protocol', 'legacy-final-json') == protocol
+    assert intent.get('inputMode','literal-text') == mode
     with pytest.raises(ValueError, match='UNATTEMPTED'): entry.worker_once(**args, kind='project-handoff')
 
 
