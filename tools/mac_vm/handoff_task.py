@@ -70,6 +70,9 @@ class HandoffDesktopTask(DesktopTask):
             raise ValueError('trusted draft session required')
         self.draft_session_id = draft_session_id
         self.validated_draft = None
+        self.submission_terminal = False
+        self.result_written = False
+        self.result_readback = None
         if document_opener is not None and not callable(document_opener):
             raise ValueError('trusted document opener required')
         self.document_opener = document_opener
@@ -79,6 +82,13 @@ class HandoffDesktopTask(DesktopTask):
         self.input_once = False
         self.close_args = None
         super().__init__(*args, **kwargs)
+
+    def _admit(self, tool):
+        if self.submission_terminal:
+            raise StopRun('BLOCKED', 'Handoff submission terminal; new dispatch denied')
+        if tool != 'submit_handoff':
+            self.result_readback = None
+        return super()._admit(tool)
 
     def type_text(self, args):
         with self.lock:
@@ -227,9 +237,71 @@ class HandoffDesktopTask(DesktopTask):
                 raise
 
     def write_result(self, args):
-        if not self.reopened or hashlib.sha256(self._saved_bytes()).hexdigest() != self.reopen_digest:
-            raise StopRun('UNVERIFIED', 'Unchanged reopened document required before result')
-        return super().write_result(args)
+        with self.lock:
+            if not self.reopened or hashlib.sha256(self._saved_bytes()).hexdigest() != self.reopen_digest:
+                raise StopRun('UNVERIFIED', 'Unchanged reopened document required before result')
+            value = super().write_result(args)
+            self.result_written = True
+            return value
+
+    def read_result(self):
+        with self.lock:
+            value = super().read_result()
+            if self.result_written:
+                self.result_readback = value['content']
+            return value
+
+    def submit_handoff(self, args):
+        """Unexposed v1 terminal submission; acceptance still needs host verification."""
+        from handoff_submit import candidate
+        with self.lock:
+            with self.dispatch_lock:
+                call_id = self.admit('submit_handoff')
+            try:
+                if (self.draft_session_id is None or not self.input_once or not self.saved_once
+                        or not self.reopened or self.reopen_phase != 'reopened'
+                        or not self.result_written or self.result_readback is None):
+                    raise StopRun('BLOCKED', 'Original completed GUI and result read-back required')
+                checked = candidate(self._read_frozen_input(), args, run_id=self.run_id,
+                                    session_id=self.draft_session_id, draft=self.validated_draft)
+                if checked['status'] != 'SUBMISSION_CANDIDATE_VALID':
+                    raise StopRun('UNVERIFIED', checked['code'])
+                document = self.validated_draft['document']
+                saved = self._saved_bytes()
+                fd = os.open(self.directory / 'result.txt', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(fd, 'rb') as stream:
+                    info = os.fstat(stream.fileno())
+                    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                            or info.st_nlink != 1 or not 0 < info.st_size <= 4097):
+                        raise StopRun('BLOCKED', 'Bounded original result file required')
+                    result_bytes = stream.read(4098)
+                if (saved != document.encode('utf8')
+                        or hashlib.sha256(saved).hexdigest() != self.reopen_digest
+                        or self.result_readback != document + '\n'
+                        or result_bytes != self.result_readback.encode('utf8')):
+                    raise StopRun('UNVERIFIED', 'Original document and read-back differ')
+                response = dict(checked, status='HANDOFF_SUBMITTED', inputSha256=self.input_sha256,
+                                runId=self.run_id, sessionId=self.draft_session_id, used=self.used)
+                with self.dispatch_lock:
+                    if self.stopped.is_set():
+                        raise StopRun('BLOCKED', 'Stopped before submission commit')
+                    self.lease.check()
+                    # Fail closed even when a write fails after partial durable output.
+                    self.submission_terminal = True
+                    self.record(dict(event='helper_arguments', tool='submit_handoff',
+                                     call_id=call_id, args=args))
+                    self.record(dict(event='result', tool='submit_handoff',
+                                     call_id=call_id, value=response))
+                return response
+            except Exception as error:
+                if self.submission_terminal:
+                    self.stopped.set()
+                self.record(dict(event='error', tool='submit_handoff', call_id=call_id,
+                                 error=type(error).__name__))
+                raise
+            finally:
+                with self.dispatch_lock:
+                    self.inflight.discard(call_id)
 
     def locate_quote(self, args):
         """Not exposed by HTTP yet: future protocol must verify this exchange."""
