@@ -44,7 +44,10 @@ class HandoffTraceTests(unittest.TestCase):
         state = self.task.observe()['state']; self.task.save(dict(snapshot_id=state['snapshot_id']))
         state = self.task.observe()['state']; self.task.reopen(dict(snapshot_id=state['snapshot_id']))
         state = self.task.observe()['state']; self.task.write_result(dict(snapshot_id=state['snapshot_id'], value=self.expected.decode()))
-        self.task.read_result(); self.task.stop()
+        self.task.read_result()
+        if hasattr(self, 'submit_report'):
+            self.task.submit_handoff({'report': self.submit_report})
+        self.task.stop()
         self.rows = [json.loads(line) for line in self.task.ledger.read_text().splitlines()]
 
     def open_document(self, pid, path):

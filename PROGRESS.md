@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-08：宿主独立结构化提交证据门槛
+
+- de6c0e5先写设计，新增handoff_submit_evidence.verify_submission_evidence：独立使用host Pydantic/草稿核验，不调用guest提交校验作为真值。唯一提交必须为末次raw且计连续预算，原run/session/input一致、紧邻成功read_result，原helper_arguments/result与官方唯一vm_submit_handoff的完整参数/成功响应逐项一致；停止先于提交完成、重复提交及后续工具调用均拒绝。
+- 原Task配模拟Driver完整链17raw产出提交，保留假截图/模拟官方会话的测试性质；返回SUBMISSION_EVIDENCE_MATCHED并明确session/gui/semanticVerified=False，不升级为业务通过。新增20项原生产者/篡改反例，与既有草稿证据和导出组合共50项通过。
+- 尚未将新门槛接正式联合入口；通用trace/exchange/export、模型工具注册与官方结束本轮仍待完成。没有部署、模型请求或旧证据修改。
+
 ## 2026-10-08：结构化提交执行端与终态门禁
 
 - 24372e0先细化设计。HandoffDesktopTask新增未开放submit_handoff：完整对象校验、可信session及原输入/保存/重开/写入标记、紧邻成功读回，原document必须等于预检正文并保持reopen摘要，result文件重新有界读取且拒绝链接/非普通文件/多硬链接，与原读回及正文+LF一致。

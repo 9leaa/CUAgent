@@ -51,6 +51,10 @@ class HandoffExchangeTests(unittest.TestCase):
         call('vm_write_result', dict(snapshot_id='4', value=f.expected.decode()),
              dict(created='result.txt', value=f.expected.decode(), used=14+shift))
         call('vm_read_result', {}, dict(content=f.expected.decode()+'\n', used=15+shift))
+        if hasattr(f, 'submit_report'):
+            response = next(r['value'] for r in f.rows if r['event'] == 'result'
+                            and r.get('tool') == 'submit_handoff')
+            call('vm_submit_handoff', {'report': f.submit_report}, response)
 
     def match(self):
         f = self.fixture
