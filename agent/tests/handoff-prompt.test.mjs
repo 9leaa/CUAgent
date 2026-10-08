@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { handoffPrompt, HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 
 test('explicit new protocol uses full report submission, no final-text contract or retries', () => {
   const binding = {runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)};
   const prompt = handoffPrompt({...binding, protocol:'p7-tool-submit-v1'});
+  assert.ok(prompt.startsWith('可信任务完成协议：p7-tool-submit-v1。'));
   for (const rule of ['唯一参数report传完整同一对象R', 'vm_submit_handoff({report:R})',
     '不得在两者之间插入其他工具', '普通文本不能代替提交', '不能重试、换会话',
     'read_result和submit_handoff预算', '原30次实际请求']) assert.ok(prompt.includes(rule), rule);
@@ -12,6 +14,15 @@ test('explicit new protocol uses full report submission, no final-text contract 
   assert.equal(handoffTools('p7-tool-submit-v1').length, 10);
   assert.equal(handoffTools().length, 9);
   assert.throws(() => handoffPrompt({...binding, protocol:'unknown'}));
+});
+
+test('preset completion instruction is conditional on bound protocol, never unconditionally final JSON', () => {
+  const template = readFileSync(new URL('../harness/cordis.desktop.handoff.patch.yml', import.meta.url), 'utf8');
+  assert.ok(template.includes('Follow the completion protocol explicitly bound in the task request'));
+  assert.ok(template.includes('For p7-tool-submit-v1, submit the complete unchanged report object using vm_submit_handoff'));
+  assert.ok(template.includes('For legacy-final-json (the default when no protocol is specified)'));
+  assert.ok(!template.includes('End with only the required source-bound HandoffResult JSON.'));
+  assert.ok(template.includes('no retry after uncertainty'));
 });
 
 test('handoff prompt keeps GUI body, result transport and final object distinct', () => {

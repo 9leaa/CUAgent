@@ -45,6 +45,7 @@ GUI输入之前必须调用vm_check_draft，唯一参数raw是完整结果对象
 GUI保存后必须vm_reopen并新观察核对完整正文，再写result.txt并读回。最终回复只输出同一个HandoffResult JSON，不加围栏或解释；整个最终消息必须能直接解析为一个JSON对象，前后不得添加进度、总结、致歉或成功声明。不得宣称已独立验收，结构、语义和GUI证据由外部验证器核对。
 JSON schema：${JSON.stringify(schema)}`;
   if (submit) {
+    text = '可信任务完成协议：p7-tool-submit-v1。不得切换为legacy-final-json。\n' + text;
     text = text.replace('最终助手消息才输出R的JSON。', '最后必须调用vm_submit_handoff，唯一参数report传完整同一对象R，不传JSON字符串、草稿引用或解释。')
       .replace('write_result和read_result预算', 'write_result、read_result和submit_handoff预算')
       .replace('最终回复只输出同一个HandoffResult JSON，不加围栏或解释；整个最终消息必须能直接解析为一个JSON对象，前后不得添加进度、总结、致歉或成功声明。',

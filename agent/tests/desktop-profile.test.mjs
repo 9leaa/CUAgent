@@ -48,6 +48,10 @@ test('P7 fixed compiler preparation creates only staged profile and keeps active
     assert.match(candidate, /default: project-handoff/u);
     assert.match(candidate, /preset-project-handoff/u);
     assert.match(candidate, /vm_reopen/u);
+    assert.match(candidate, /For p7-tool-submit-v1/u);
+    assert.match(candidate, /For legacy-final-json/u);
+    assert.doesNotMatch(candidate, /End with only the required source-bound HandoffResult JSON\./u);
+    assert.match(readFileSync(join(f.root, 'desktop-plugins/c0-vm-tools.mjs'), 'utf8'), /vm_submit_handoff/u);
     assert.doesNotMatch(candidate, /preset-real-app/u);
     assert.equal(readFileSync(f.target, 'utf8'), f.before);
 });

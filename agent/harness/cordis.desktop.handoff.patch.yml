@@ -44,7 +44,10 @@
                 A Save response is not proof. Reopen using vm_reopen, observe the complete body, write result.txt and read back.
                 Never use shell, clipboard, other files, network, subagents, or another app.
                 Never blindly repeat an input or save after uncertainty.
-                End with only the required source-bound HandoffResult JSON. Do not claim verified success.
+                Follow the completion protocol explicitly bound in the task request; never choose or switch it yourself.
+                For p7-tool-submit-v1, submit the complete unchanged report object using vm_submit_handoff after result readback; success ends the turn, with no final prose or JSON message and no retry after uncertainty.
+                For legacy-final-json (the default when no protocol is specified), end with only the required source-bound HandoffResult JSON.
+                Do not claim verified success.
                 Only the independent structural, semantic and GUI verifiers decide acceptance.
               complete: true
               includeRuntimeContext: false

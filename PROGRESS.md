@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：新协议guest部署与预设完成指令冲突修正
+
+- 只读就绪检查：基础任务空闲、resource无owner、配置恢复、P5冻结源码哈希不变；原worker99106存活，VM普通mvpagent/VirtualMac2,1、无隔离告警或TextEdit进程，但锁屏。旧002–005剩余各两项QUEUED/0raw保持原状，没有重跑或升级。
+- 固定454da530408b0200348812aad452bc9822d9e122，通过原SSH安装器独占新目录部署24个Python文件及许可证共25项；在VM重新计算每个SHA及manifest摘要与宿主包一致，私有p7-submit-deployment-006/verified.json保存结果。仅文件部署，servicesStarted/modelRequestsStarted均0，没有GUI、解锁、配置切换或quota授权。
+- 随后全链审查发现persona高优先级仍无条件要求最终JSON，与新增tool提交冲突。339458a先写修正方案，现persona按原任务显式协议区分新工具提交与旧JSON，新prompt明确p7-tool-submit-v1且不得切旧版；不从可用工具猜协议。增加静态提示一致性和真实固定编译后profile/插件测试。
+- 使用CUAGENT_TEST_BUILD_TOOLS指向既有固定esbuild依赖，node --test agent/tests/*.test.mjs共145项通过、0跳过；只在测试临时home构建，不修改实际App配置。git diff --check通过，tools/mac_vm对部署commit无差异。宿主提示变更需列入后续新候选冻结；真实三组业务仍待VM可用及新账户核对，P7未验收。
+
 ## 2026-10-08：生产单任务入口与新审核版本贯通
 
 - 71bc058先写方案。desktop_operator增加显式--handoff-protocol，默认legacy-final-json，仅project-handoff可选p7-tool-submit-v1，未知/错kind在IO前拒绝；原指定任务launch意图记录新协议，保留原额度、未尝试QUEUED、共享锁和实时门禁。新协议不是自动升级开关，既有005失败及剩余任务不使用它。
