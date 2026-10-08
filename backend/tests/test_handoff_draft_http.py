@@ -60,3 +60,9 @@ def test_input_gate_http_refusal_is_charged(http):
     t, _, _, request = http
     assert request({'text': 'not validated'}, op='type_text')[0] == 409
     assert t.used == 1 and not t.input_once
+
+
+def test_legacy_task_does_not_gain_checked_input_operation(http):
+    t, _, _, request = http
+    assert request({},op='type_checked_draft')[0] == 409
+    assert t.used == 1 and not t.input_once

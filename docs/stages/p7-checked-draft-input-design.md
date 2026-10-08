@@ -33,3 +33,5 @@
 会话/联合入口细化（代码前）：统一按可信protocol和draft_input_mode生成精确工具集，新模式必须使用专用提交协议并以vm_type_checked_draft替换vm_type（不是增加任意工具）。原创建意图及session绑定必须同时显式保存inputMode；每步原请求审计也须记录同一模式和工具集，旧模式拒绝新标记。联合入口读取并重验私有guest模式记录，将显式mode传至原会话提取、宿主草稿/提交、只读inspect子进程及请求审计；子进程显式CLI参数沿原文件与双日志检查，不能从证据推断。结果携带inputMode但语义仍待审核；本步只接离线组合，不生成生产创建/审计记录、不开放模型入口。
 
 审核发布细化（代码前）：新增严格v3私有review context，必须显式protocol=p7-tool-submit-v1和inputMode=checked-draft-v1；v1/v2保持原字段与literal-text语义，不推断或自动升级。record_review与prepare_publication均从原context取模式并调用完整联合核验，重算结果必须与原执行验证完全一致。新模式发布准备结果及持久publication intent保留inputMode；原语义FAIL/UNVERIFIED不能发布，审核后模式/原证据篡改拒绝。测试使用真实只读重验和模拟审核声明，不把回执/准备当已写数据库或真实用户采用。
+
+HTTP入口细化（代码前）：仅Task可信checked-draft-v1替换允许操作type_text为type_checked_draft，其他P7/P6工具集不变。仍由原HTTP鉴权/大小限制/串行锁/charge_rejection处理；拒绝计一次原raw，已经派发后失败不双计，停止/失权/30次/UNKNOWN后不发新GUI。参数不得包含text、路径、session或模式覆盖；新操作不获得大请求例外。实测loopback成功和反例，旧P7/P6必须拒绝该操作。本步仅执行HTTP接线，Harness未注册且生产创建未选模式，不运行真实模型。

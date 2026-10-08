@@ -33,6 +33,9 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
         operations.update({'read_materials', 'reopen', 'locate_quote', 'check_draft'})
         if task.submission_protocol == 'p7-tool-submit-v1':
             operations.add('submit_handoff')
+        if task.draft_input_mode == 'checked-draft-v1':
+            operations.remove('type_text')
+            operations.add('type_checked_draft')
     no_args = {'observe', 'read_result', 'read_materials'}
 
     class Handler(BaseHTTPRequestHandler):

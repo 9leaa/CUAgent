@@ -65,6 +65,11 @@ class DesktopToolsHttpTests(unittest.TestCase):
         self.assertFalse(self.task.stopped.is_set())
         self.assertEqual(self.task.used, 0)
 
+    def test_p6_does_not_gain_checked_draft_input(self):
+        self.assertEqual(self.request({'op': 'type_checked_draft', 'args': {}})[0], 409)
+        self.assertEqual(self.task.used, 1)
+        self.assertEqual(self.sent, [])
+
     def test_http_rejection_consumes_observation_before_save(self):
         self.task.snapshot = {'snapshot_id': 'old'}
         self.assertEqual(self.request({'op': 'type_text', 'args': {'snapshot_id': 'old'}})[0], 409)
