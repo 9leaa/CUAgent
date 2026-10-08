@@ -9,6 +9,8 @@ from driver_smoke import StopRun
 from handoff_task import HandoffDesktopTask
 from backend.tests.test_handoff_result import SESSION
 
+pytestmark = pytest.mark.parametrize('task', ['p7-tool-submit-v1'], indirect=True)
+
 
 def prepared(task):
     t, controller, report = task

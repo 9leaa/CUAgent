@@ -60,7 +60,8 @@ def close_target(state):
 
 
 class HandoffDesktopTask(DesktopTask):
-    def __init__(self, *args, input_sha256, document_opener=None, draft_session_id=None, **kwargs):
+    def __init__(self, *args, input_sha256, document_opener=None, draft_session_id=None,
+                 submission_protocol='legacy-final-json', **kwargs):
         # Trusted constructor binding, never accepted from model tool arguments.
         if not isinstance(input_sha256, str) or not re.fullmatch(r'[0-9a-f]{64}', input_sha256):
             raise ValueError('frozen input digest required')
@@ -69,6 +70,10 @@ class HandoffDesktopTask(DesktopTask):
                 r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',draft_session_id)):
             raise ValueError('trusted draft session required')
         self.draft_session_id = draft_session_id
+        if (submission_protocol not in ('legacy-final-json', 'p7-tool-submit-v1')
+                or submission_protocol == 'p7-tool-submit-v1' and draft_session_id is None):
+            raise ValueError('trusted submission protocol and session required')
+        self.submission_protocol = submission_protocol
         self.validated_draft = None
         self.submission_terminal = False
         self.result_written = False
@@ -258,7 +263,8 @@ class HandoffDesktopTask(DesktopTask):
             with self.dispatch_lock:
                 call_id = self.admit('submit_handoff')
             try:
-                if (self.draft_session_id is None or not self.input_once or not self.saved_once
+                if (self.submission_protocol != 'p7-tool-submit-v1'
+                        or self.draft_session_id is None or not self.input_once or not self.saved_once
                         or not self.reopened or self.reopen_phase != 'reopened'
                         or not self.result_written or self.result_readback is None):
                     raise StopRun('BLOCKED', 'Original completed GUI and result read-back required')

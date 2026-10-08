@@ -13,13 +13,14 @@ from backend.tests.test_handoff_result import fixture,RUN,SESSION
 
 
 @pytest.fixture
-def task(tmp_path):
+def task(tmp_path, request):
     source,report=fixture();raw=canonical(source.model_dump(mode='json'))
     controller=LeaseController(tmp_path/'lease.json',run_id=RUN,owner='worker',epoch=1,clock=lambda:100.)
     controller.renew(1)
     task=HandoffDesktopTask(tmp_path/RUN,lambda *_:pytest.fail('No GUI dispatch'),lambda _:None,
         lease=controller.gate,approved=True,environment=lambda:None,
-        input_sha256=hashlib.sha256(raw).hexdigest(),draft_session_id=SESSION)
+        input_sha256=hashlib.sha256(raw).hexdigest(),draft_session_id=SESSION,
+        submission_protocol=getattr(request, 'param', 'legacy-final-json'))
     p=task.directory/'handoff-input.json';p.write_bytes(raw);p.chmod(0o600)
     return task,controller,report
 

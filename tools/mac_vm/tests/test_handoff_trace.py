@@ -33,7 +33,8 @@ class HandoffTraceTests(unittest.TestCase):
         gate = LeaseGate(lease, run_id=self.run, owner=owner, epoch=1, clock=lambda: 100.)
         self.task = HandoffDesktopTask(self.root / self.run, self.transport, lambda _: None, lease=gate,
             approved=True, environment=lambda: None, input_sha256=hashlib.sha256(self.materials).hexdigest(),
-            document_opener=self.open_document, draft_session_id=getattr(self, 'draft_session_id', None))
+            document_opener=self.open_document, draft_session_id=getattr(self, 'draft_session_id', None),
+            submission_protocol='p7-tool-submit-v1' if hasattr(self, 'submit_report') else 'legacy-final-json')
         path = self.task.directory / 'handoff-input.json'; path.write_bytes(self.materials); path.chmod(0o600)
         for _ in range(getattr(self, 'extra_reads', 0)): self.task.read_materials()
         self.task.read_materials()

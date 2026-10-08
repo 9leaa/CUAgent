@@ -31,6 +31,8 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
     operations = {'observe', 'type_text', 'save', 'write_result', 'read_result'}
     if isinstance(task, HandoffDesktopTask):
         operations.update({'read_materials', 'reopen', 'locate_quote', 'check_draft'})
+        if task.submission_protocol == 'p7-tool-submit-v1':
+            operations.add('submit_handoff')
     no_args = {'observe', 'read_result', 'read_materials'}
 
     class Handler(BaseHTTPRequestHandler):
@@ -79,7 +81,7 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
                 if not isinstance(body, dict) or set(body) != {'op', 'args'}:
                     raise ValueError('envelope denied')
                 op, args = body['op'], body['args']
-                if size > 32768 and op != 'check_draft':
+                if size > 32768 and op not in ('check_draft', 'submit_handoff'):
                     raise ValueError('size denied')
                 if not isinstance(op, str) or not isinstance(args, dict):
                     raise ValueError('types denied')
