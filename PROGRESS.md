@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：候选冻结、完整回归与宿主锁屏阻塞
+
+- 本次实际尝试Screen Sharing显示名和com.apple.ScreenSharing均返回cgWindowNotFound；应用清单确认进程存在，不据此声称VM掉线。宿主ioreg只读核实hostConsoleLocked=true、console screenLocked=true；上一就绪检查VM也锁屏。没有输入宿主密码、绕过认证、修改睡眠或重启服务。
+- 运行全部backend/tests/test_handoff*.py及test_desktop_deploy.py，共664项通过，1条既有Starlette弃用警告；使用随机隔离测试DB，未派发真实模型或桌面动作。此次覆盖超过此前局部新协议回归，但仍不等于业务验收。
+- 私有p7-submit-candidate-006/manifest.json已独占0600冻结：host1d492b010567401adaa57c6ebe2204c9a54e6916、guest454da530408b0200348812aad452bc9822d9e122，355份源码哈希、三组原输入/rubric摘要和部署回执摘要；guest源码两版本无差异。状态FROZEN_NOT_QUEUED、taskIds为空、modelRequestsStarted=0，未开新API或重复创建旧任务。
+- 当前真实执行需要宿主及VM正常解锁、重新读取账户额度与实时准入，再创建新协议候选的原任务并跑三组。未授予未来quota许可；旧失败与旧剩余队列保持原样。README同步，P7及整体目标保持未完成。
+
 ## 2026-10-08：新协议guest部署与预设完成指令冲突修正
 
 - 只读就绪检查：基础任务空闲、resource无owner、配置恢复、P5冻结源码哈希不变；原worker99106存活，VM普通mvpagent/VirtualMac2,1、无隔离告警或TextEdit进程，但锁屏。旧002–005剩余各两项QUEUED/0raw保持原状，没有重跑或升级。
