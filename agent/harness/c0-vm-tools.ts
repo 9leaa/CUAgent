@@ -8,6 +8,7 @@ import { assertImageCapableRoute } from './image-probe.ts'
 import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
 import { handoffObservation } from './handoff-observation.ts'
+import { registerHandoffSubmit } from './handoff-submit.ts'
 
 export const name = 'cuagent-c0-vm-tools'
 export const inject = ['tools', 'attachments', 'llm']
@@ -22,6 +23,11 @@ export function apply(ctx: Context): void {
     throw new Error('Invalid fixed VM connection')
   }
   const handoff = connection.caseId === 'project_handoff'
+  const submit = connection.protocol === 'p7-tool-submit-v1'
+  if ('protocol' in connection && (!handoff || !submit || typeof connection.sessionId !== 'string'
+      || !/^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(connection.sessionId))) {
+    throw new Error('Explicit trusted P7 submission session required')
+  }
   if ((handoff || connection.stage === 'p7') && (!handoff || connection.stage !== 'p7'
       || typeof connection.inputSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(connection.inputSha256)
       || typeof connection.runId !== 'string' || !/^p2-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(connection.runId))) {
@@ -31,6 +37,7 @@ export function apply(ctx: Context): void {
   const allowed = [...BASE_TOOLS.filter(name => !realApp || name !== 'vm_click'),
     ...(realApp ? ['vm_type', 'vm_save'] : []),
     ...(handoff ? ['vm_read_materials', 'vm_reopen', 'vm_locate_quote', 'vm_check_draft'] : []),
+    ...(submit ? ['vm_submit_handoff'] : []),
     ...(['form', 'document'].includes(connection.caseId) ? ['vm_type'] : []),
     ...(connection.caseId === 'scroll' ? ['vm_scroll'] : []),
     ...(['cross_app','window_change','input_correction','long_workflow','reobserve_failure'].includes(connection.caseId) ? ['vm_type'] : []),
@@ -45,6 +52,7 @@ export function apply(ctx: Context): void {
     }), { mode: 0o600 })
   })
   let stopped = false
+  let submission: ReturnType<typeof registerHandoffSubmit> | undefined
   let epoch = connection.epoch ?? 0
   const c2 = connection.stage === 'c2'
   if (c2 && (!Number.isInteger(epoch) || epoch < 0)) throw new Error('C2 current control epoch required')
@@ -72,8 +80,8 @@ export function apply(ctx: Context): void {
     if (signal.aborted) void stop().catch(() => {})
   }
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
-    if (owner === undefined) owner = agent.session.id
-    if (owner !== agent.session.id || stopped) throw new Error('C0 run already owned or stopped')
+    if (owner === undefined) owner = submit ? connection.sessionId : agent.session.id
+    if (owner !== agent.session.id || stopped || submission?.blocked()) throw new Error('C0 run already owned or stopped')
     watch(signal)
     return next()
   }, { global: true })
@@ -82,6 +90,7 @@ export function apply(ctx: Context): void {
     : !owner || !exec.agent || exec.agent.session.id !== owner ? 'C0 session not authorized' : undefined)
   ctx.on('agent/error', () => { void stop().catch(() => {}) }, { global: true })
   ctx.on('llm/stream', async function* (options, next) {
+    if (submission?.blocked()) throw new Error('P7 submission terminal or pending')
     const toolNames = (options.tools ?? []).map(tool => tool.name).sort()
     if (toolNames.some(tool => !allowed.includes(tool))) throw new Error('Unreviewed tool in C0 model request')
     if (realApp && (toolNames.length !== allowed.length || allowed.some(tool => !toolNames.includes(tool)))) {
@@ -109,7 +118,7 @@ export function apply(ctx: Context): void {
   })
   async function request(op: string, args: unknown, signal: AbortSignal): Promise<any> {
     watch(signal)
-    if (stopped || signal.aborted) throw new Error('C0 stopped')
+    if (stopped || signal.aborted || (submission?.blocked() && op !== 'submit_handoff')) throw new Error('C0 stopped')
     const response = await fetch(URL, { method: 'POST',
       headers: { Authorization: `Bearer ${connection.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ op, args, ...(c2 ? { session_id: owner, epoch } : {}) }), signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]) })
@@ -122,6 +131,8 @@ export function apply(ctx: Context): void {
     if (!response.ok) throw new Error(value.error ?? 'VM request denied')
     return value
   }
+  if (submit) submission = registerHandoffSubmit(ctx, connection,
+    (args, signal) => request('submit_handoff', args, signal), stop)
   ctx.tools.register(defineTool({
     name: 'vm_observe', description: 'Observe the approved VM task window. Returns its fresh screenshot and AX elements; use element_index and element_token for exactly one action, then observe again.',
     parameters: {}, output: { schema: { type: 'object', additionalProperties: false, properties: {
@@ -190,7 +201,9 @@ export function apply(ctx: Context): void {
   }))
   if (handoff) ctx.tools.register(defineTool({
     name: 'vm_check_draft',
-    description: 'Before GUI input, validate your complete report JSON against frozen task sources and trusted session identity. Pass raw JSON text only. Returns DRAFT_REJECTED or DRAFT_STRUCTURE_VALID with canonicalJson and document. Does not repair or verify meaning. Use exactly returned document for GUI input and result; final message must be the same report JSON. Counts one original raw request including rejection and invalidates old observations. No calls after input; no budget reset.',
+    description: 'Before GUI input, validate your complete report JSON against frozen task sources and trusted session identity. Pass raw JSON text only. Returns DRAFT_REJECTED or DRAFT_STRUCTURE_VALID with canonicalJson and document. Does not repair or verify meaning. Use exactly returned document for GUI input and result. '
+      + (submit ? 'After complete GUI save/reopen/result readback, submit that same full report with vm_submit_handoff. ' : 'Final message must be the same report JSON. ')
+      + 'Counts one original raw request including rejection and invalidates old observations. No calls after input; no budget reset.',
     parameters: { raw: { type: 'string', required: true } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { result: { type: 'string' } } },
       render: (_args, value) => [{ type: 'text', text: value.result }] },
@@ -239,5 +252,6 @@ export function apply(ctx: Context): void {
   }))
   if (realApp && connection.runId?.startsWith('p2-')) writeFileSync(join(dirname(configPath), 'vm-tools-ready.json'),
     JSON.stringify({ runId: connection.runId, toolNames: [...allowed].sort(),
-      ...(handoff ? { kind: 'project-handoff', inputSha256: connection.inputSha256 } : {}) }), { mode: 0o600, flag: 'wx' })
+      ...(handoff ? { kind: 'project-handoff', inputSha256: connection.inputSha256 } : {}),
+      ...(submit ? { protocol: connection.protocol, sessionId: connection.sessionId } : {}) }), { mode: 0o600, flag: 'wx' })
 }

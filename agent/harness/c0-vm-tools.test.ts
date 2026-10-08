@@ -10,6 +10,59 @@ import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
 import { handoffObservation } from './handoff-observation.ts'
 
+test('P7 explicit submission connection pins owner, ten tools, terminal HTTP and next model step', async t => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-p7-submit-')))
+  const prior = { connection: process.env.CUAGENT_C0_CONNECTION, audit: process.env.CUAGENT_C0_AUDIT_PATH, fetch: globalThis.fetch }
+  t.after(() => {
+    globalThis.fetch = prior.fetch
+    if (prior.connection === undefined) delete process.env.CUAGENT_C0_CONNECTION; else process.env.CUAGENT_C0_CONNECTION = prior.connection
+    if (prior.audit === undefined) delete process.env.CUAGENT_C0_AUDIT_PATH; else process.env.CUAGENT_C0_AUDIT_PATH = prior.audit
+    rmSync(dir, { recursive: true, force: true })
+  })
+  const config = { url: 'http://192.168.64.3:8766', token: 'x'.repeat(43), caseId: 'project_handoff', stage: 'p7',
+    protocol: 'p7-tool-submit-v1', sessionId: 'session-22222222-2222-2222-2222-222222222222',
+    runId: 'p2-11111111-1111-1111-1111-111111111111', inputSha256: 'a'.repeat(64) }
+  process.env.CUAGENT_C0_CONNECTION = join(dir, 'connection.json'); process.env.CUAGENT_C0_AUDIT_PATH = join(dir, 'audit.jsonl')
+  const registered: any[] = [], guards: any[] = [], handlers = new Map(), calls: any[] = []
+  const ctx: any = { inject() {}, on: (name: string, fn: any) => handlers.set(name, fn), logger: { error() {} },
+    tools: { register: (tool: any) => registered.push(tool), guard: (fn: any) => guards.push(fn) } }
+  for (const change of [{ protocol: 'other' }, { sessionId: 'wrong' }, { caseId: 'real_textedit' }]) {
+    writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify({ ...config, ...change }), { mode: 0o600 })
+    assert.throws(() => apply(ctx)); assert.equal(registered.length, 0)
+  }
+  writeFileSync(process.env.CUAGENT_C0_CONNECTION, JSON.stringify(config), { mode: 0o600 })
+  globalThis.fetch = (async (_url: any, options: any) => {
+    const body = JSON.parse(options.body); calls.push(body)
+    return { ok: true, json: async () => ({ status: 'HANDOFF_SUBMITTED', protocol: config.protocol,
+      runId: config.runId, sessionId: config.sessionId, inputSha256: config.inputSha256,
+      reportSha256: 'b'.repeat(64), documentSha256: 'c'.repeat(64), used: 18, semanticVerified: false, guiVerified: false }) }
+  }) as any
+  apply(ctx)
+  const names = registered.map(x => x.name).sort()
+  assert.equal(names.length, 10); assert.ok(names.includes('vm_submit_handoff'))
+  const ready = JSON.parse(readFileSync(join(dir, 'vm-tools-ready.json'), 'utf8'))
+  assert.equal(ready.protocol, config.protocol); assert.equal(ready.sessionId, config.sessionId)
+  const signal = new AbortController().signal, agent = { session: { id: config.sessionId } }
+  await assert.rejects(handlers.get('agent/pre-step')({ agent: { session: { id: 'other' } }, signal }, async () => {}))
+  await handlers.get('agent/pre-step')({ agent, signal }, async () => {})
+  let concluded = false
+  const exec = { name: 'vm_submit_handoff', signal, agent, concludeTurn() { concluded = true } }
+  assert.ok(guards.every(g => g(exec) === undefined))
+  const submit = registered.find(x => x.name === exec.name)
+  assert.deepEqual(submit.parameters.required, ['report'])
+  assert.ok(submit.parameters.$defs.Citation)
+  const args = { report: { original: '完整对象🙂' } }
+  const value = await submit.execute(args, exec)
+  assert.deepEqual(calls, [{ op: 'submit_handoff', args }]); assert.equal(concluded, true)
+  assert.ok(guards.some(g => typeof g(exec) === 'string'))
+  handlers.get('tools/result')(exec, { isError: false, value, content: [{ type: 'text', text: value.result }] })
+  await assert.rejects(registered.find(x => x.name === 'vm_read_result').execute({}, exec), /stopped/)
+  await assert.rejects(handlers.get('agent/pre-step')({ agent, signal }, async () => {}))
+  const stream = handlers.get('llm/stream')({ tools: names.map(name => ({ name })), messages: [] }, async function* () {})
+  await assert.rejects(async () => { for await (const _ of stream) {} }, /terminal/)
+  assert.equal(calls.length, 1)
+})
+
 test('P7 bounded AX projection preserves complete original body and identities, not menus', () => {
   const title = 'handoff-p2-11111111-1111-1111-1111-111111111111.txt'
   const state = { snapshot_id: 's', pid: 10, window_id: 20, app_name: 'TextEdit', window_title: title,

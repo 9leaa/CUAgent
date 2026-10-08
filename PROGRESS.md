@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：Harness提交工具与官方终态接口
+
+- d90f862先写设计。新增handoff-submit.ts，完整report schema保留现有$defs并注册vm_submit_handoff；c0-vm-tools仅可信新协议+固定session连接开放第10工具，新ready记录包含协议/session，旧P7/P6工具集不变。首次owner必须等于可信session，模型不能传参切版本。
+- 提交HTTP前即pending，官方单调guard阻止并发/后续工具；传输门禁、agent/pre-step及llm/stream阻止绕过工具体或继续请求模型。核对VM响应身份/协议/摘要形式/原预算后调用官方concludeTurn；不可变tools/result核对同一execution的原value/content，只有最终成功才committed。HTTP失败、丢失、取消或外层管线改错均锁止并stop，不重试、不清预算、不修改官方循环或启用子Agent/PTC。host仍负责完整报告/摘要/来源独立验收，局部终态不证明业务成功。
+- 用安装App的同版ToolRuntime运行14项集成测试（VM响应模拟），涵盖成功终态、并发、后续工具、丢失、错身份/协议/预算/摘要、错误语义标志、取消、外层失败与后置输出替换。首次fixture遗漏辅助测试工具的必需output声明导致14项失败；补齐fixture后完整重跑14通过。c0适配器12项通过，含新连接/十工具/固定owner/后续工具体及新模型请求拒绝。Node agent/tests回归132通过、2原跳过，git diff --check通过。
+- 仅本地构建与安装版无模型registry测试，没有真实GUI或账户推理；生产adapter/desktop-session/prompt仍旧协议，下一步显式贯通新创建记录和审核上下文后再冻结部署。旧失败与P5不变，README已同步；完整P7/后续路线未完成。
+
 ## 2026-10-08：控制端首次激活协议与原始证据贯通
 
 - 0fcb2ff先写方案。bind_draft_session在首次激活前一次绑定session/protocol，默认旧协议；只有显式新协议才发送protocol字段。VM独占激活意图之后、Task创建之前，独占写入0600 handoff-submission-protocol.json，绑定version/protocol/run/session/input，原记录冲突不覆盖、失败撤权且禁止重放。
