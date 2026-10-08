@@ -23,6 +23,8 @@
 
 ## 验证与交付
 
+工具入口细化（2026-10-08，代码前）：Task构造增加可信submission_protocol，默认legacy-final-json；只有显式p7-tool-submit-v1且绑定session才允许submit_handoff方法及HTTP操作。旧P7/P6不扩权。原HTTP单次提交走task锁/计费/stop/lease，完整report信封可用既有P7预检的512KiB上限，但规范report仍限制64KiB。先验证真实loopback请求、无权限/错误协议/拒绝/重复提交，再接控制端激活与模型注册；不靠模型参数切换协议。
+
 审核/发布细化（2026-10-08，代码前）：审核上下文v1固定旧协议；新上下文v2必须显式protocol=p7-tool-submit-v1，字段集合严格校验，未知/缺失版本不回退。记录独立审核和准备发布都按此版本重新核验原任务请求/会话/guest/图像证据，必须与原execution完全一致；独立审核的executionSha256同时绑定协议结果。保留原审核失败/未通过/未知状态及禁止重放，不改变发布授权、数据库锁和产物字节门槛。
 
 联合入口绑定细化（2026-10-08，代码前）：verify_handoff_execution增加可信protocol参数，默认旧协议。新协议必须在原私有desktop-request.json及desktop-session-binding.json同时存在相同protocol字段且身份/输入/cwd完全一致；不得从模型日志自动推断。提取、请求审计白名单、原guest双日志与host提交门槛使用同一版本，最终返回显式protocol与提交证据摘要；收尾重新读取创建记录/绑定和其他证据防变化。新模拟组合覆盖全套只读子进程与原文件，不开放模型入口；生产创建和后续人工审核入口稍后同步版本。
