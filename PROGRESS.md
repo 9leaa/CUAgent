@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文候选008全链回归、部署与冻结
+
+- 回收原pytest进程而非重跑：`backend/tests/test_handoff*.py`及`test_desktop_deploy.py`共865项通过，1条既有Starlette/httpx弃用告警。Node开启`CUAGENT_TEST_BUILD_TOOLS`指向既有固定编译器，`agent/tests/*.test.mjs`共158项通过、零跳过；两项先前跳过的真实编译器测试此次执行成功。仍为本地/隔离数据库/模拟外部环境验证，不是模型业务通过。
+- host/guest固定`d4e566392350a9699a7fe2161d566b46187b2d24`。沿原审查部署流程在VM新目录安装25文件，不覆盖旧部署、不启动服务；独立SSH逐文件及manifest SHA读回一致。私有候选008冻结365份源码哈希、`p7-tool-submit-v1`＋`checked-draft-v1`、normal/conflict/dependencies原材料和独立rubric摘要，状态FROZEN_NOT_QUEUED；0新模型请求，没有任务身份或未来许可。
+- 11:50北京时间检查原P5下次12:10，基础Worker22845存在、桌面资源空闲、基础队列空、配置恢复、冻结源码哈希未变、无隔离/TextEdit；旧未运行任务仍QUEUED/0raw。因临近P5窗口，本轮未切换Worker或运行P7模型。私有部署与冻结回执分别位于`.runtime/p7-checked-deployment-008`和`.runtime/p7-checked-candidate-008`，不上传。
+- 对原Virtualization测试VM尝试正常账户解锁，未确认成功；11:54独立查询仍锁屏，随后屏幕共享AX/截图均报cgWindowNotFound，宿主ioreg确认IOConsoleLocked/CGSSessionScreenIsLocked均为Yes。没有改宿主认证、锁屏/睡眠设置或重启VM。此人工操作单独记录，不能算业务或自动解锁成功。
+- 待宿主桌面恢复后，由代理正常解锁原VM，再重新核对即时环境/额度并避开P5窗口，按冻结候选创建新一轮三类完整任务。旧失败、输入与审核门槛不改，007其余任务不升级/补跑；真实保存重开读回、完整提交、独立语义审核和下载验收仍未完成。README同步，本阶段及完整后续目标保持未完成。
+
 ## 2026-10-08：已预检正文模式贯通后台单任务及采集
 
 - 在方案补后台细则后，实现operator显式handoff-input-mode；新模式仅project-handoff＋p7-tool-submit-v1合法，原launch intent保存inputMode。adapter将同一模式传至prepare、原request核对、connection、控制绑定、会话提取、采集和联合核验，再独占生成v3审核context；旧默认调用和字段保持兼容。
