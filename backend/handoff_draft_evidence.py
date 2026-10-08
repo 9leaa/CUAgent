@@ -11,9 +11,14 @@ def require(condition):
 
 
 def verify_draft_evidence(trace, official, *, submission, run_id, session_id,
-                          binding, report, document):
+                          binding, report, document, draft_input_mode='literal-text'):
+    require(draft_input_mode in ('literal-text', 'checked-draft-v1'))
     require(type(trace) is list and 0 < len(trace) <= 512)
     require(type(official) is list)
+    if draft_input_mode == 'literal-text':
+        require(not any(r.get('event') == 'checked_draft_input_intent' for r in trace)
+                and not any(r.get('type') == 'tool/call' and r.get('data', {}).get('name') ==
+                            'vm_type_checked_draft' for r in official))
     digest = input_digest(submission)
     require(binding == dict(runId=run_id, sessionId=session_id, inputSha256=digest))
     draft_rows = [(i, r) for i, r in enumerate(trace) if r.get('tool') == 'check_draft']
@@ -88,6 +93,63 @@ def verify_draft_evidence(trace, official, *, submission, run_id, session_id,
                 and set(content[0]) == {'type', 'text'} and content[0]['type'] == 'text'
                 and type(content[0]['text']) is str)
         require(canonical(strict_json(content[0]['text'])) == canonical(response))
+    if draft_input_mode == 'checked-draft-v1':
+        verify_checked_input(trace, official, run_id=run_id, document=document,
+                             input_at=inputs[0], draft_end=previous)
     return dict(status='DRAFT_EVIDENCE_MATCHED', calls=len(calls),
                 canonicalSha256=hashlib.sha256(last['canonicalJson'].encode()).hexdigest(),
-                documentSha256=last['documentSha256'], semanticVerified=False, guiVerified=False)
+                documentSha256=last['documentSha256'], semanticVerified=False, guiVerified=False,
+                **({'inputMode': draft_input_mode} if draft_input_mode == 'checked-draft-v1' else {}))
+
+
+def verify_checked_input(trace, official, *, run_id, document, input_at, draft_end):
+    """Host comparison against independently projected bytes, not a GUI verifier."""
+    selections = [(i, r) for i, r in enumerate(trace) if r.get('event') == 'checked_draft_input_intent']
+    require(len(selections) == 1)
+    index, selection = selections[0]
+    require(set(selection) == {'event','run_id','at','mode','args','used','resolvedText'}
+            and selection['run_id'] == run_id and selection['mode'] == 'checked-draft-v1'
+            and selection['resolvedText'] == document.decode() and index + 1 == input_at)
+    call = trace[input_at]
+    require(type(selection['used']) is int and selection['used'] == call['used'] - 1)
+    args = selection['args']
+    require(type(args) is dict and set(args) == {'snapshot_id','element_index','element_token','documentSha256'}
+            and type(args['element_index']) is int and args['element_index'] >= 0
+            and type(args['snapshot_id']) is str and bool(args['snapshot_id'])
+            and type(args['element_token']) is str and bool(args['element_token'])
+            and args['documentSha256'] == hashlib.sha256(document).hexdigest())
+    results = [(i, r) for i, r in enumerate(trace) if r.get('call_id') == call['call_id']]
+    require([r.get('event') for _, r in results] == ['dispatch','result'])
+    require(all(r.get('run_id') == run_id and r.get('tool') == 'type_text' for _, r in results))
+    result_at, result = results[-1]
+    require(input_at < result_at and type(result.get('value')) is dict)
+    value = result['value']
+    require(value.get('status') not in ('refused','error','failed') and 'error' not in value
+            and value.get('effect') != 'refused' and value.get('isError') is not True)
+    attempts = [(i, r) for i, r in enumerate(trace) if r.get('event') == 'attempted_input']
+    require(len(attempts) == 1)
+    attempt_at, attempt = attempts[0]
+    require(result_at < attempt_at and attempt.get('run_id') == run_id
+            and attempt.get('snapshot_id') == args['snapshot_id']
+            and type(attempt.get('element_index')) is int and attempt['element_index'] == args['element_index']
+            and type(attempt.get('bytes')) is int and attempt['bytes'] == len(document)
+            and attempt.get('sha256') == args['documentSha256'])
+    calls = [(i, r) for i, r in enumerate(official) if r.get('type') == 'tool/call']
+    require(not any(r.get('data', {}).get('name') == 'vm_type' for _, r in calls))
+    inputs = [(i, r) for i, r in calls if r.get('data', {}).get('name') == 'vm_type_checked_draft']
+    require(len(inputs) == 1)
+    start, chosen = inputs[0]; data = chosen['data']; key = data.get('callId')
+    require(draft_end < start and type(key) is str and bool(key)
+            and sum(r.get('data', {}).get('callId') == key for _, r in calls) == 1)
+    require(type(data.get('arguments')) is str and canonical(strict_json(data['arguments'])) == canonical(args))
+    responses = [(i, r) for i, r in enumerate(official) if r.get('type') == 'tool/result'
+                 and r.get('data', {}).get('message', {}).get('toolCallId') == key]
+    require(len(responses) == 1)
+    end, response = responses[0]
+    require(start < end and type(chosen.get('seq')) is int and type(response.get('seq')) is int
+            and chosen['seq'] < response['seq'])
+    message = response['data']['message']; content = message.get('content')
+    require(message.get('isError', False) is False and type(content) is list and len(content) == 1
+            and type(content[0]) is dict and set(content[0]) == {'type','text'}
+            and content[0]['type'] == 'text' and type(content[0]['text']) is str)
+    require(canonical(strict_json(content[0]['text'])) == canonical(value))

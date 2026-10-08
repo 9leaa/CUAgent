@@ -27,3 +27,5 @@
 文件/传输细化（代码前）：新模式要求激活时独占保存的私有handoff-input-mode.json，严格字段version=1/inputMode/runId/sessionId/inputSha256，绑定原材料与草稿session；采集、导出CLI及host包解码均由调用者显式传mode，不从记录推断。新文件进入白名单并沿原两次读回/权限/链接/大小限制；旧模式拒绝新绑定，不能降级。新bundle manifest和guest/trace摘要显式记录inputMode，host核对同一mode、原绑定文件、原文档及result字节；包校验仍不冒充完整执行/语义认证。此步只接只读链，真实激活记录写入留待控制端接线，测试中的绑定是合成测试数据而非生产授权。
 
 控制激活细化（代码前）：可信client在首次绑定原session时一次性选择draft_input_mode，仅checked-draft-v1新增inputMode字段，且必须配套p7-tool-submit-v1；默认旧请求字段不变。控制端只接受完整四字段新请求，拒绝缺session/protocol、未知模式、额外字段及模型凭据。原激活意图和租约检查后、构造Task和监听前，用O_EXCL/0600保存模式记录并fsync文件/目录；已有文件、部分写入或返回未知不覆盖、不重试，沿原撤权路径停止。旧模式遇新绑定文件也拒绝。Task获得可信模式，自动清理的只读核验传递Task原模式；本步不注册新模型HTTP操作或Harness工具、不切换生产创建入口。真实loopback控制测试必须证明0 GUI/0 raw、绑定持久化、重放拒绝和失败撤权。
+
+宿主独立草稿/提交核验细化（代码前）：两入口增加显式draft_input_mode，默认旧模式拒绝新选择事件或工具。新模式在宿主原Pydantic/正文投影重算通过后，独立比较唯一选择resolvedText、documentSha256、目标四参数、派发前used、原type_text成功结果及attempted_input字节/摘要；官方唯一vm_type_checked_draft须在全部原预检响应之后，其参数及成功响应分别等于原选择和raw结果，拒绝混用vm_type、重号/重复响应及前置选择。最终提交核验传同一模式重验原草稿并显式返回inputMode；仍不声称完整会话/GUI/图像/语义通过，不直接开放生产联合验收或模型入口。

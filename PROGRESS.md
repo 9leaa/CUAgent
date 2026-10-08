@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：宿主独立重算已预检正文选择
+
+- 先在方案补宿主核验细则，再为verify_draft_evidence/verify_submission_evidence增加可信draft_input_mode。默认literal-text拒绝checked_draft_input_intent和vm_type_checked_draft；新模式在原宿主Pydantic/check_draft及正文投影通过后，核对唯一选择全文和SHA、四参数、原used整数、紧邻唯一type_text、成功结果及attempted_input字节/摘要/目标。
+- 官方唯一输入选择必须晚于全部原预检响应；精确核对参数和原raw结果，拒绝混用vm_type、重复callId/响应、错误响应、前置选择和顺序错误。最终完整report提交核验传同一mode并重验原草稿；仅新模式输出inputMode，仍保留guiVerified/semanticVerified等未完成声明，完整窗口/新鲜观察/图片/文件与会话认证仍由联合各门槛负责。
+- 新增27项原Task＋模拟Driver/官方日志测试，独立比较原投影且不修改证据；26项反例同时要求草稿和最终提交入口拒绝。checked_input_host、draft_evidence、submit_evidence、submit_verify、handoff_verify五组pytest105项通过，git diff --check通过。未调用模型、GUI或修改历史任务。
+- 正式创建/连接、会话与请求工具白名单、联合入口和HTTP/Harness尚未接齐，不启用新候选、不宣称P7验收通过。README同步，继续原P7及后续工作流/P8目标。
+
 ## 2026-10-08：已预检正文模式的可信激活绑定
 
 - 技术方案先补控制激活细则，再实现client首次session绑定的draft_input_mode选择；新模式仅与p7-tool-submit-v1组合，原默认请求不增加字段。guest控制端要求完整inputSha256/sessionId/protocol/inputMode，并沿原控制凭据检查，模型token不能激活。

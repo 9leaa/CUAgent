@@ -13,7 +13,7 @@ def require(condition):
 
 
 def verify_submission_evidence(trace, official, *, submission, run_id, session_id,
-                               binding, document):
+                               binding, document, draft_input_mode='literal-text'):
     require(type(trace) is list and 0 < len(trace) <= 512 and type(official) is list)
     selected = [(i, r) for i, r in enumerate(trace) if r.get('tool') == 'submit_handoff']
     require([r.get('event') for _, r in selected] == ['dispatch', 'helper_arguments', 'result'])
@@ -39,7 +39,8 @@ def verify_submission_evidence(trace, official, *, submission, run_id, session_i
     checked = check_draft(submission, raw.decode(), run_id=run_id, session_id=session_id)
     require(checked['status'] == 'DRAFT_STRUCTURE_VALID' and checked['document'].encode() == document)
     draft = verify_draft_evidence(trace, official, submission=submission, run_id=run_id,
-        session_id=session_id, binding=binding, report=args['report'], document=document)
+        session_id=session_id, binding=binding, report=args['report'], document=document,
+        draft_input_mode=draft_input_mode)
     response = dict(status='HANDOFF_SUBMITTED', protocol='p7-tool-submit-v1',
                     reportSha256=hashlib.sha256(checked['canonicalJson'].encode()).hexdigest(),
                     documentSha256=checked['documentSha256'], semanticVerified=False, guiVerified=False,
@@ -69,4 +70,5 @@ def verify_submission_evidence(trace, official, *, submission, run_id, session_i
     return dict(status='SUBMISSION_EVIDENCE_MATCHED', protocol='p7-tool-submit-v1',
                 report=args['report'], reportSha256=response['reportSha256'],
                 documentSha256=response['documentSha256'], draft=draft,
-                rawCalls=len(calls), sessionVerified=False, guiVerified=False, semanticVerified=False)
+                rawCalls=len(calls), sessionVerified=False, guiVerified=False, semanticVerified=False,
+                **({'inputMode': draft_input_mode} if draft_input_mode == 'checked-draft-v1' else {}))
