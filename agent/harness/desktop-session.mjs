@@ -59,8 +59,10 @@ export async function startDesktopSession(root, binding, rpc) {
 export async function startHandoffSession(root, binding, rpc) {
   privateRoot(root);
   const submit = Object.hasOwn(binding, 'protocol');
+  const checkedInput = Object.hasOwn(binding, 'inputMode');
+  if (checkedInput) { assert.equal(binding.inputMode,'checked-draft-v1'); assert.ok(submit); }
   if (submit) assert.equal(binding.protocol, 'p7-tool-submit-v1');
-  assert.deepEqual(Object.keys(binding).sort(), ['cwd', 'inputSha256', 'kind', ...(submit ? ['protocol'] : []), 'runId', 'sessionId']);
+  assert.deepEqual(Object.keys(binding).sort(), ['cwd', ...(checkedInput ? ['inputMode'] : []), 'inputSha256', 'kind', ...(submit ? ['protocol'] : []), 'runId', 'sessionId']);
   assert.equal(binding.kind, 'project-handoff');
   assert.match(binding.runId, /^p2-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
   assert.match(binding.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
@@ -71,8 +73,9 @@ export async function startHandoffSession(root, binding, rpc) {
   const info = lstatSync(path);
   assert.ok(info.isFile() && info.uid === process.getuid() && !(info.mode & 0o077) && info.size <= 4096);
   assert.deepEqual(load(path), { runId: binding.runId, kind: binding.kind,
-    inputSha256: binding.inputSha256, toolNames: handoffTools(binding.protocol),
-    ...(submit ? { protocol: binding.protocol, sessionId: binding.sessionId } : {}) });
+    inputSha256: binding.inputSha256, toolNames: handoffTools(binding.protocol, binding.inputMode),
+    ...(submit ? { protocol: binding.protocol, sessionId: binding.sessionId } : {}),
+    ...(checkedInput ? { inputMode: binding.inputMode } : {}) });
   return startBoundSession(root, binding, rpc, 'project-handoff', handoffPrompt(binding));
 }
 

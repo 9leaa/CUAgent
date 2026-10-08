@@ -74,6 +74,28 @@ test('P7 explicit launch verifies original input identity and eight tools then r
   assert.deepEqual(f.state.presets, ['p1-daily-report']);
 });
 
+for (const fault of ['none','missing_mode','old_tools','unknown_mode','missing_protocol']) test(`P7 checked input App readiness ${fault}`, async t => {
+  const f = fixture(t,true); f.state.running=false;
+  const connection={...JSON.parse(readFileSync(f.connection,'utf8')),protocol:'p7-tool-submit-v1',
+    sessionId:'session-22222222-2222-2222-2222-222222222222',inputMode:'checked-draft-v1'};
+  const path=join(f.root,'vm-tools-ready.json');
+  const ready={...JSON.parse(readFileSync(path,'utf8')),protocol:connection.protocol,sessionId:connection.sessionId,inputMode:connection.inputMode};
+  ready.toolNames=[...ready.toolNames.map(n=>n==='vm_type'?'vm_type_checked_draft':n),'vm_submit_handoff'].sort();
+  if (fault==='missing_mode') delete ready.inputMode;
+  if (fault==='old_tools') ready.toolNames=ready.toolNames.map(n=>n==='vm_type_checked_draft'?'vm_type':n);
+  if (fault==='unknown_mode') connection.inputMode='auto';
+  if (fault==='missing_protocol') delete connection.protocol;
+  writeFileSync(f.connection,JSON.stringify(connection)); writeFileSync(path,JSON.stringify(ready));
+  if (fault==='none') {
+    await startDesktop(f.root,f.home,'unused','p7',f.connection,f.dependencies);
+    assert.ok(existsSync(join(f.root,'app-p7-start-receipt.json')));
+  } else {
+    await assert.rejects(startDesktop(f.root,f.home,'unused','p7',f.connection,f.dependencies));
+    assert.ok(!existsSync(join(f.root,'app-p7-start-receipt.json')));
+    if (['unknown_mode','missing_protocol'].includes(fault)) assert.ok(!f.state.commands.some(([p])=>p==='/usr/bin/open'));
+  }
+});
+
 for (const fault of ['none', 'wrong_session', 'legacy_tools', 'unknown_protocol']) test(`P7 new protocol App readiness ${fault}`, async t => {
   const f = fixture(t, true); f.state.running = false;
   const protocol = 'p7-tool-submit-v1', sessionId = 'session-22222222-2222-2222-2222-222222222222';

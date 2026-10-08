@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { handoffPrompt, HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 
+test('checked input selects original draft without literal typing or relaxed completion', () => {
+  const binding = {runId:'run',sessionId:'session',inputSha256:'a'.repeat(64),protocol:'p7-tool-submit-v1',inputMode:'checked-draft-v1'};
+  const prompt = handoffPrompt(binding);
+  for (const text of ['vm_type_checked_draft','documentSha256','不要重抄正文','不直接写文件',
+    '提交完整同一对象R','原30次实际请求','剩余至少12次raw','必须vm_reopen']) assert.ok(prompt.includes(text),text);
+  assert.ok(!prompt.includes('vm_type.text')); assert.ok(!prompt.includes('最终助手消息才输出R的JSON'));
+  assert.deepEqual(handoffTools(binding.protocol,binding.inputMode),handoffTools(binding.protocol).map(t=>t==='vm_type'?'vm_type_checked_draft':t).sort());
+  assert.throws(()=>handoffPrompt({...binding,protocol:'legacy-final-json'}));
+  assert.throws(()=>handoffPrompt({...binding,inputMode:'unknown'}));
+});
+
 test('new protocol plans raw costs without removing evidence requirements', () => {
   const binding = {runId:'run', sessionId:'session', inputSha256:'a'.repeat(64)};
   const prompt = handoffPrompt({...binding, protocol:'p7-tool-submit-v1'});

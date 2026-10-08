@@ -103,6 +103,31 @@ function handoffFixture(t, fault) {
   return f;
 }
 
+for (const fault of ['none','tools','missing_mode','wrong_mode','no_protocol','binding_mode']) {
+  test(`checked input creation ${fault} binds mode before any RPC`, async t => {
+    const f = handoffFixture(t);
+    Object.assign(f.binding,{protocol:'p7-tool-submit-v1',inputMode:'checked-draft-v1'});
+    Object.assign(f.ready,{protocol:f.binding.protocol,inputMode:f.binding.inputMode,sessionId:f.binding.sessionId,
+      toolNames:handoffTools(f.binding.protocol,f.binding.inputMode)});
+    if (fault==='tools') f.ready.toolNames=handoffTools(f.binding.protocol);
+    if (fault==='missing_mode') delete f.ready.inputMode;
+    if (fault==='wrong_mode') f.ready.inputMode='literal-text';
+    if (fault==='no_protocol') delete f.binding.protocol;
+    if (fault==='binding_mode') f.binding.inputMode='literal-text';
+    writeFileSync(join(f.root,'vm-tools-ready.json'),JSON.stringify(f.ready));
+    if (fault!=='none') {
+      await assert.rejects(startHandoffSession(f.root,f.binding,f.rpc));
+      assert.equal(f.calls.length,0); assert.equal(existsSync(join(f.root,'desktop-session-binding.json')),false);
+      return;
+    }
+    assert.equal((await startHandoffSession(f.root,f.binding,f.rpc)).accepted,true);
+    assert.deepEqual(JSON.parse(readFileSync(join(f.root,'desktop-session-binding.json'),'utf8')),f.binding);
+    assert.ok(f.calls.find(c=>c.method==='session/prompt').args.request.content[0].text.includes('不要重抄正文'));
+    await assert.rejects(startHandoffSession(f.root,f.binding,f.rpc));
+    assert.equal(f.calls.filter(c=>c.method==='session/prompt').length,1);
+  });
+}
+
 for (const fault of ['none', 'legacy_tools', 'wrong_session', 'missing_protocol', 'unknown_protocol']) {
   test(`new submission creation binding ${fault} stays explicit and one-shot`, async t => {
     const f = handoffFixture(t);

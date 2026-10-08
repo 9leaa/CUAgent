@@ -6,8 +6,10 @@ from backend.handoff_session_client import HandoffSessionClient
 from backend.tests.test_handoff_result import fixture, RUN, SESSION
 
 
-@pytest.mark.parametrize('protocol', ['legacy-final-json', 'p7-tool-submit-v1', 'unknown'])
-def test_explicit_creation_protocol_preserves_original_request(tmp_path, protocol):
+@pytest.mark.parametrize('protocol,mode', [('legacy-final-json','literal-text'), ('p7-tool-submit-v1','literal-text'),
+    ('unknown','literal-text'),('p7-tool-submit-v1','checked-draft-v1'),('legacy-final-json','checked-draft-v1'),
+    ('p7-tool-submit-v1','unknown')])
+def test_explicit_creation_protocol_preserves_original_request(tmp_path, protocol,mode):
     root = tmp_path / RUN; root.mkdir(mode=0o700)
     (root / 'workspace').mkdir(mode=0o700)
     home = tmp_path / 'home'; home.mkdir(mode=0o700)
@@ -16,15 +18,17 @@ def test_explicit_creation_protocol_preserves_original_request(tmp_path, protoco
         official_home=home, cookie=cookie)
     source, _ = fixture()
     path = root / 'desktop-request.json'
-    if protocol == 'unknown':
-        with pytest.raises(ValueError): client.prepare(source, protocol=protocol)
+    if protocol == 'unknown' or mode == 'unknown' or mode == 'checked-draft-v1' and protocol != 'p7-tool-submit-v1':
+        with pytest.raises(ValueError): client.prepare(source, protocol=protocol,draft_input_mode=mode)
         assert not path.exists()
         return
-    client.prepare(source, protocol=protocol)
+    client.prepare(source, protocol=protocol,draft_input_mode=mode)
     original = path.read_bytes(); value = json.loads(original)
     assert value['sessionId'] == SESSION
     assert path.stat().st_mode & 0o777 == 0o600
     if protocol == 'p7-tool-submit-v1': assert value['protocol'] == protocol
     else: assert 'protocol' not in value
+    if mode == 'checked-draft-v1': assert value['inputMode'] == mode
+    else: assert 'inputMode' not in value
     with pytest.raises(FileExistsError): client.prepare(source, protocol='p7-tool-submit-v1')
     assert path.read_bytes() == original

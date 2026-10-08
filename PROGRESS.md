@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-08：已预检正文模式的创建、就绪与提示词
+
+- 按先行补充方案实现HandoffSessionClient.prepare显式mode，合法新模式独占写原desktop-request.inputMode；旧协议配新模式或未知值在写入前拒绝，已创建请求不可覆盖。默认旧字段不变。
+- App启动与startHandoffSession校验原connection/request/ready模式与提交协议/session及精确替换工具集；错误会话就绪不发创建RPC，未知App模式在启动前拒绝，创建/提示仍一次性。新prompt使用原预检documentSha256加新观察的目标三字段，移除旧vm_type.text指令；保留正文D/完整R、30raw、12raw预留、完整材料分析和保存重开读回要求，不把草稿引用当最终report。
+- 新增12项Node测试（提示1、会话6、App5），并扩展Python创建模式3项；App/RPC均模拟，没有启动真实App或请求模型。Node158项中156通过/2跳过，Python创建、会话client及完整联合验收三组36项通过；git diff --check通过。
+- 后台operator/adapter、连接/采集及v3审核上下文生成仍须贯通，不能据此运行新候选。未部署、未修改P5或旧失败任务。README同步，P7与后续完整目标未完成。
+
 ## 2026-10-08：Harness已预检正文工具注册与请求审计
 
 - 先补注册方案，再按可信connection.inputMode、原P7提交协议/session开放vm_type_checked_draft替代vm_type；schema固定snapshot_id/element_index/element_token/documentSha256且additionalProperties=false，原样转发type_checked_draft，不生成或修补正文。ready及每步请求审计写同一inputMode，原工具总数10、session/停止/提交终态guard保留。
