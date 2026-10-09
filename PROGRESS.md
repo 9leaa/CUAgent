@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-09：Calc混合大小写输入失败，保存待权限选择
+
+- 操作前补固定两单元格方案：A1文字AbZ、A2数值12.30。真实屏幕共享typeText后A1显示abz，A2显示12.3；原错误保留，不更改期望或修正后宣称首次输入通过。这是当前人工探测通道的结果，不能直接归因于尚未接入的DSH工具。
+- 保存前只读确认VM Documents内唯一测试目标不存在。首次保存按钮点击受全屏工具栏伸缩影响落在字体框，重新观察后点击正确保存按钮；填写cuagent-calc-probe-20261009-001.ods、ODF Spreadsheet格式，点击保存后出现LibreOffice请求Documents访问提示。未点击Allow，已请求用户选择允许或专用测试目录替代。
+- 独立固定文件只读脚本第一次返回GUEST_COLLECTION_UNCONFIRMED，后续GUI确认权限提示；不将保存请求或数值显示当作文件已存在/类型已验证。尚未关闭重开，当前保留原未保存文档与权限提示。私有截图`.runtime/calc-probe-001-permission-pending.png`为0600，未公开。
+- 表格技能的ODS操作标记参数不受支持，未生成虚假XLSX交付；按项目明确GUI要求操作，未使用程序生成工作簿替代实机证据。截图缩放辅助模块不可用，使用原始截图继续观察。无新DSH模型调用，无生产代码或P5变更；README同步失败和剩余门槛。
+
 ## 2026-10-09：恢复远程菜单操作并打开Calc
 
 - 原屏幕共享窗口切换全屏后重新观察，坐标点击可打开VM Finder的Go菜单和Go to Folder；输入已安装应用路径，Finder实际定位LibreOffice后双击启动，再点击Calc Spreadsheet。首次欢迎页直接关闭，未更改应用偏好；现在真实界面显示Untitled 1、Sheet1和空白A1工作区。
