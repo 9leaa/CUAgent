@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-09：授权安装VM表格应用，GUI能力仍待验证
+
+- 先补安装方案，再执行私有安装脚本。核实原mvpagent/VirtualMac2,1/arm64身份，从官方列出的镜像下载固定26.2.6 Apple Silicon包；297798926字节、SHA256 `94bb3248df074c225490a8a6d1d9dc87c7d6783dbb7a8e9f0d0c3d94348552af`与官方清单一致。安装到VM用户Applications/LibreOffice.app，版本26.2.6.3。
+- DMG验证、只读挂载、签名深度严格验证、Gatekeeper accepted/Notarized Developer ID、The Document Foundation签署身份及ARM64均通过；复制后再次独立核对签名和版本，本次挂载已卸载。没有sudo、宿主安装或关闭安全检查，安装包与原回执保留在VM专用CUAgentInstall目录。
+- 保留两次复制前停止记录：首次脚本错误地在Gatekeeper输出中寻找开发者名称；第二次lipo探测因缺开发者工具失败并弹出安装提示。改用codesign身份及file架构核对后安装成功；开发者工具提示已通过GUI取消，没有安装命令行工具。最终回执receipt-install-002.json状态INSTALLED_SIGNATURE_VERIFIED，guiVerified=false。
+- 使用已有原VM登录凭据，经屏幕共享逐键正常登录；08:44北京时间独立ioreg检查unlocked=true。私有回执`.runtime/expense-app-inventory-20fd07d80d744ca7a474f5cf9c87d611/inventory.json`同时确认已安装应用。凭据不写公开记录。
+- 后续界面验证被屏幕共享输入异常阻塞：坐标点击返回windowNotFoundAtPosition，重新聚焦后组合快捷键仍未打开Finder路径导航。未打开Calc、未生成工作簿；AX、单元格类型、保存重开均待验，不把安装成功冒充业务成功。没有新模型调用，也未动交接候选008、P5运行时或原失败样本。
+- README同步实际状态；本轮改动是安装准备与文档，不改变既有215项离线测试结论。下一步解决界面输入通道，再做最小GUI保存重开和独立文件核验。
+
 ## 2026-10-08：原VM表格应用只读盘点
 
 - 22:42北京时间经原SSH通道核实目标为mvpagent/VirtualMac2,1，仅枚举`/Applications`、`/System/Applications`和该测试用户的`Applications`直属app并读取Info.plist；未发现Numbers、Excel或LibreOffice。可见Safari18.6、TextEdit1.20、CuaDriver0.28.2等，但均不当作已审查表格应用。未扫描任意用户数据或猜其他位置绝无安装。
