@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-09：独立ODS值解析及GUI复制故障
+
+- 用户明确允许通过VM Finder复制原探测文件，保留Documents原件、不授予SSH全盘访问。已建立0700专用导出目录；GUI菜单尝试后窗口控制连续返回`noWindowsAvailable`。新观察、重新绑定、重建CUA会话及Raise后仍失败；SSH只读确认目标目录为空。私有回执`calc-copy-attempt-20261009T063158Z.json`保留失败，复制和原文件字节核验未完成，不再描述为等待用户授权。
+- 按原阶段方案先补独立ODS解码细则，再新增`backend/expense_workbook.py`。纯函数只接收可信采集后的bytes，ZIP/XML长度与成员数有界，拒绝重复/非法路径、DTD/实体、公式、外链及未知表格结构；保留sheet/坐标/重复行列/文字大小写、数值原词法与显示文本，不经float，不执行公式或写文件。大量重复空白仅推进坐标，非空展开总量有界。
+- 返回CELL_VALUES_DECODED和字节SHA；guiVerified/semanticVerified/fileSafetyVerified均false，不宣称整个ODS安全、格式完全符合、来源可信或金额对账通过。初版明确拒绝合并、日期/布尔/货币及行组等未支持结构；真实Calc包仍未读到，兼容性须独立实测，不能用合成包替代原失败样本。
+- 验证命令：`.runtime/backend-venv/bin/python -m pytest backend/tests/test_expense_workbook.py backend/tests/test_expense_sources.py backend/tests/test_expense_contract.py backend/tests/test_expense_result.py backend/tests/test_expense_fixtures.py backend/tests/test_handoff_contract.py backend/tests/test_handoff_result.py -q`（解释器取主CUAgent工作区）。264项通过，其中新解析器49项；全部为离线测试，不涉及DSH请求、VM业务生成、API/工具注册或P5修改。README同步，下一步仍是恢复GUI复制并取得原Calc文件读回证据，再推进受限适配。
+
 ## 2026-10-09：已授权Documents，原探测文件保存与GUI重开
 
 - 用户明确回复“允许”后，重新截图确认原提示并点击Allow，仅授予VM中LibreOffice对测试账号Documents的访问。窗口标题变为原固定测试文件名，SSH ls确认文件存在、7737字节；没有再次派发保存、修改原失败值或生成替代成功样本。
