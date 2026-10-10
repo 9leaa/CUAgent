@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-10：区分正式Driver与屏幕共享输入，补传输回归
+
+- 源码核对正式路径：HandoffDesktopTask→DesktopTask→RealAppTask.type_text→Task.raw→Calls.cli。正文原样进入JSON，绑定PID/window/session/element_index/element_token；不经宿主屏幕共享，不把文字转换为Shift组合键。checked-draft也汇入同一输入路径。Driver内部采用何种系统输入机制及其Calc实际效果仍未验证。
+- 先补阶段测试方案，再新增4项离线回归：混合大小写/中文/组合Unicode/括号/换行的逐字传输与摘要；模拟CLI单次JSON参数、不使用shell；输入超时留下UNKNOWN且新快照也不能重发；停止后不派发。保留既有30raw、窗口身份及新观察限制，不改生产代码或应用白名单。
+- 测试：主工作区虚拟环境Python执行`-m pytest tools/mac_vm/tests/test_real_app.py tools/mac_vm/tests/test_desktop_lease.py tools/mac_vm/tests/test_handoff_trace.py backend/tests/test_expense_workbook.py -q`，104项及55个subtests通过。均为模拟/离线证据，没有新VM操作、DSH推理、P5修改或旧样本修正。
+- 现有正式适配仅允许TextEdit AXTextArea，不适用于Calc，不能替换PID/应用身份绕过。下一步取得Calc真实AX与窗口能力，单独设计受限适配后验证正式输入、保存重开和原文件读回；当前不宣称输入问题已修复或P7业务通过。README同步。
+
 ## 2026-10-10：真实ODS副本独立读回完成，显式Shift仍失败
 
 - 原SSH可用且导出目录为空；恢复原57593 VNC连接，使用既有测试账号正常解锁，不保存密码、不改安全设置。初始画面短暂显示旧帧，后续新截图和只读锁屏状态核对后继续。单独Shift键被CUA拒绝，Escape唤醒后再观察，不把旧画面当当前状态。

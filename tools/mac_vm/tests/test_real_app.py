@@ -10,7 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from real_app_bridge import RealAppTask, body_from_state, require_unlocked
 import plistlib
-from driver_smoke import StopRun
+from driver_smoke import Calls, DRIVER, StopRun
 
 
 class RealApp(unittest.TestCase):
@@ -41,6 +41,61 @@ class RealApp(unittest.TestCase):
         for text in ('', '\0', 'x' * 4097, 123):
             with self.assertRaises(StopRun): self.task.type_text({**self.snapshot(), 'text': text})
         with self.assertRaises(StopRun): self.task.type_text({**self.snapshot(), 'text': 'ok', 'path': '/private'})
+        self.assertEqual(self.task.used, 0)
+    def test_input_preserves_case_unicode_and_punctuation_without_key_emulation(self):
+        for text in ('AbZ', '中文AbZ[待确认]\n12.30', 'é e\u0301 Ａ 👩\u200d💻'):
+            with self.subTest(text=text):
+                before = self.task.used
+                self.task.type_text({**self.snapshot(), 'text': text})
+                self.assertEqual(self.sent[-1], ('type_text', {
+                    'pid': 10, 'window_id': 20, 'session': self.task.run_id,
+                    'element_index': 1, 'element_token': 'token', 'text': text}))
+                self.assertEqual(self.task.used, before + 1)
+                self.assertIsNone(self.task.snapshot)
+        self.assertEqual([tool for tool, _ in self.sent], ['type_text'] * 3)
+        rows = [json.loads(line) for line in self.task.ledger.read_text().splitlines()]
+        attempts = [row for row in rows if row['event'] == 'attempted_input']
+        self.assertEqual(attempts[-1]['sha256'], hashlib.sha256(text.encode('utf8')).hexdigest())
+        self.assertEqual(attempts[-1]['bytes'], len(text.encode('utf8')))
+
+    def test_cli_json_preserves_text_without_shell_or_clipboard(self):
+        payload = {'pid': 10, 'window_id': 20, 'session': self.task.run_id,
+                   'element_index': 1, 'element_token': 'token',
+                   'text': 'AbZ 中文 [确认]\né e\u0301 $() `literal`'}
+        with patch('driver_smoke.subprocess.run') as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = '{"ok": true}'
+            self.assertEqual(Calls.cli('type_text', payload), {'ok': True})
+        run.assert_called_once()
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[:2], [DRIVER, 'type_text'])
+        self.assertEqual(len(argv), 3)
+        self.assertEqual(json.loads(argv[2]), payload)
+        self.assertFalse(run.call_args.kwargs.get('shell', False))
+        self.assertEqual(run.call_args.kwargs['timeout'], 35)
+
+    def test_input_timeout_is_unknown_and_not_replayed_even_with_new_snapshot(self):
+        def timeout(tool, args):
+            self.sent.append((tool, args))
+            raise TimeoutError('simulated uncertain delivery')
+        self.task.transport = timeout
+        with self.assertRaises(TimeoutError):
+            self.task.type_text({**self.snapshot(), 'text': 'AbZ'})
+        self.assertTrue(self.task.uncertain)
+        self.assertIsNone(self.task.snapshot)
+        with self.assertRaises(StopRun):
+            self.task.type_text({**self.snapshot(), 'text': 'AbZ'})
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(self.task.used, 1)
+        rows = [json.loads(line) for line in self.task.ledger.read_text().splitlines()]
+        self.assertTrue(any(row['event'] == 'UNKNOWN' and row['tool'] == 'type_text' for row in rows))
+        self.assertFalse(any(row['event'] == 'attempted_input' for row in rows))
+
+    def test_stopped_task_does_not_dispatch_text(self):
+        self.task.stop()
+        with self.assertRaises(StopRun):
+            self.task.type_text({**self.snapshot(), 'text': 'AbZ'})
+        self.assertEqual(self.sent, [])
         self.assertEqual(self.task.used, 0)
     def test_other_window_stale_and_wrong_role(self):
         args = self.snapshot()
