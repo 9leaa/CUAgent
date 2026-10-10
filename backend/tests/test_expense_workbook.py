@@ -154,3 +154,59 @@ def test_all_sheets_decoded_and_duplicate_names_rejected():
     assert [(s['name'], s['cells'][0]['value']) for s in decoded['sheets']] == [('Sheet1', 'first'), ('Second', 'second')]
     with pytest.raises(ValueError):
         decode_expense_workbook(package(xml=xml.replace(b'name="Second"', b'name="Sheet1"')))
+
+
+def with_metadata(before='', after=''):
+    with zipfile.ZipFile(io.BytesIO(package(row(string('abz'))))) as archive:
+        xml = archive.read('content.xml')
+    return package(xml=xml.replace(b'<office:spreadsheet>', b'<office:spreadsheet>' + before.encode())
+                   .replace(b'</office:spreadsheet>', after.encode() + b'</office:spreadsheet>'))
+
+
+def test_observed_calc_metadata_preserved_without_execution():
+    raw = with_metadata('<table:calculation-settings table:automatic-find-labels="false" '
+                        'table:use-regular-expressions="false" table:use-wildcards="true" table:null-year="1950"/>',
+                        '<table:named-expressions/>')
+    result = decode_expense_workbook(raw)
+    assert result['sheets'][0]['cells'][0]['value'] == 'abz'
+    assert result['declaredCalculationSettings'] == {'automatic-find-labels': 'false',
+            'use-regular-expressions': 'false', 'use-wildcards': 'true', 'null-year': '1950'}
+    assert result['calculationSettingsApplied'] is False
+    assert not any(result[k] for k in ('guiVerified', 'semanticVerified', 'fileSafetyVerified'))
+
+
+@pytest.mark.parametrize('metadata', [
+    '<table:named-expressions><table:named-expression/></table:named-expressions>',
+    '<table:named-expressions table:name="x"/>',
+    '<table:named-expressions>hidden</table:named-expressions>',
+    '<table:named-expressions/><table:named-expressions/>',
+    '<table:calculation-settings/><table:calculation-settings/>',
+    '<table:calculation-settings table:unknown="false"/>',
+    '<table:calculation-settings table:use-wildcards="1"/>',
+    '<table:calculation-settings table:null-year="1e3"/>',
+    '<table:calculation-settings table:null-year="19500"/>',
+    '<table:calculation-settings><table:iteration/></table:calculation-settings>',
+    '<table:calculation-settings>hidden</table:calculation-settings>',
+    '<table:calculation-settings/>hidden',
+    '<table:unknown/>',
+    '<table:calculation-settings table:formula="of:=1+1"/>',
+    '<table:calculation-settings xlink:href="https://example.invalid"/>',
+])
+def test_metadata_does_not_hide_unsupported_content(metadata):
+    with pytest.raises(ValueError, match='EXPENSE_WORKBOOK_UNVERIFIED'):
+        decode_expense_workbook(with_metadata(metadata))
+
+
+@pytest.mark.parametrize('count', [0, 8, 9])
+def test_sheet_limit_counts_tables_not_metadata(count):
+    with zipfile.ZipFile(io.BytesIO(with_metadata('<table:calculation-settings/>', '<table:named-expressions/>'))) as archive:
+        xml = archive.read('content.xml')
+    start = xml.index(b'<table:table table:name=')
+    end = xml.index(b'</table:table>') + len(b'</table:table>')
+    tables = ''.join(f'<table:table table:name="Sheet{i}"/>' for i in range(count)).encode()
+    raw = package(xml=xml[:start] + tables + xml[end:])
+    if count == 8:
+        assert len(decode_expense_workbook(raw)['sheets']) == 8
+    else:
+        with pytest.raises(ValueError):
+            decode_expense_workbook(raw)

@@ -118,9 +118,31 @@ def decode_expense_workbook(raw):
         bodies = root.findall(O + 'body')
         _require(len(bodies) == 1 and len(bodies[0]) == 1)
         book = bodies[0][0]
-        _require(book.tag == O + 'spreadsheet' and 1 <= len(book) <= 8)
+        _require(book.tag == O + 'spreadsheet' and 1 <= len(book) <= 10)
+        tables, metadata, seen_metadata = [], {}, set()
+        for child in book:
+            if child.tag == T + 'table':
+                tables.append(child)
+                continue
+            _require(child.tag in (T + 'calculation-settings', T + 'named-expressions')
+                     and child.tag not in seen_metadata)
+            seen_metadata.add(child.tag)
+            _require(not list(child) and not (child.text or '').strip()
+                     and not (child.tail or '').strip())
+            if child.tag == T + 'named-expressions':
+                _require(not child.attrib)
+            else:
+                for key, value in child.attrib.items():
+                    if key in {T + 'automatic-find-labels', T + 'use-regular-expressions', T + 'use-wildcards'}:
+                        _require(value in ('true', 'false'))
+                    elif key == T + 'null-year':
+                        _require(re.fullmatch(r'[0-9]{4}', value) is not None)
+                    else:
+                        raise ValueError(ERROR)
+                metadata = {key[len(T):]: value for key, value in child.attrib.items()}
+        _require(1 <= len(tables) <= 8)
         sheets, names, total = [], set(), 0
-        for table in book:
+        for table in tables:
             _require(table.tag == T + 'table')
             name = table.get(T + 'name')
             _require(name and len(name.encode('utf-8')) <= 256 and name not in names)
@@ -149,6 +171,7 @@ def decode_expense_workbook(raw):
             sheets.append(dict(name=name, cells=cells))
         return dict(status='CELL_VALUES_DECODED', sha256=hashlib.sha256(raw).hexdigest(),
                     sizeBytes=len(raw), sheets=sheets, guiVerified=False,
-                    semanticVerified=False, fileSafetyVerified=False)
+                    semanticVerified=False, fileSafetyVerified=False,
+                    declaredCalculationSettings=metadata, calculationSettingsApplied=False)
     except (ValueError, TypeError, KeyError, OverflowError, RuntimeError, OSError, ET.ParseError, zipfile.BadZipFile, NotImplementedError, zlib.error):
         raise ValueError(ERROR) from None
