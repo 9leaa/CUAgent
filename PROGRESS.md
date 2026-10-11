@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：Calc截图回退接入选择执行器（未部署）
+
+- 先补执行方案，再新增CalcSelectionTask，只接受可信现有窗口/单元格/网格绑定，独立Calc注册表且不改变TextEdit权限。复用Task原持久账本、30raw、stop和UNKNOWN逻辑及LeaseGate；持有原guest bridge.lock，quarantine拒绝、重启原计数保留并停止。构造不启动应用，公开raw与继承的输入/滚动/结果/验证入口拒绝。
+- 观察保存独占0600 JSON/PNG和摘要，核对绑定、截图scale与窗口尺寸及PNG头部CRC/像素尺寸；不把头部检查当完整图片安全校验。完整AX唯一单元格走AX；否则返回同截图坐标请求，坐标通过网格校验才允许一次点击。点击后内部重新观察、必须不同snapshot；名称框与子输入框均匹配后只记SELECTION_OBSERVED，始终不授予输入许可。
+- 原Task＋模拟Driver完整选择链3raw。19项执行器测试覆盖两路选择、禁止继承业务能力/任意raw、停止、点击中失权、UNKNOWN不重发、错误选中位置、29raw时预留不足、重启、共享锁冲突、在途停止保留锁，以及坏PNG/尺寸/证据路径碰撞。停止在途时立即返回，原动作结束后不得再观察；close在途拒绝释放锁，不假称取消副作用。
+- 本轮命令：主CUAgent虚拟环境Python执行`-m pytest tools/mac_vm/tests/test_calc_selection.py tools/mac_vm/tests/test_calc_targeting.py tools/mac_vm/tests/test_real_app.py tools/mac_vm/tests/test_desktop_lease.py tools/mac_vm/tests/test_handoff_trace.py -q`，113项及55个subtests通过；git diff --check通过。全部本地模拟/离线，未调用真实Driver/模型或修改VM/P5。
+- 当前尚无生产HTTP/Harness注册、可信窗口/网格准入或部署入口，未实际点击或验证输入保真；下一步接明确批准的Calc诊断入口与原模型图片/坐标交互，再做真实选择验收。输入/保存另行实现，不将选择确认记为费用业务成功。README同步。
+
 ## 2026-10-11：Calc截图回退定位策略（未开放执行）
 
 - 用户要求调整AX不足时不切截图的问题。先写阶段细则，再新增tools/mac_vm/calc_targeting.py纯策略模块：严格绑定窗口/新鲜观察/截图尺寸与scale，完整AX唯一单元格匹配则选AX，否则返回NEEDS_SCREENSHOT_POINT；调用方将同一截图交给原模型定位，收到网格内像素坐标后生成计划，不猜坐标或增加第二套模型循环。
