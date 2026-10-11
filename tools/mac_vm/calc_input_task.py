@@ -1,7 +1,7 @@
 """Opt-in single input attempt on the original Calc ledger; no model endpoint."""
 import json
 
-from calc_input import plan_cell_input, validate_cell_payload, inspect_committed_cell
+from calc_input import plan_cell_input, plan_formula_focus, validate_cell_payload, inspect_committed_cell
 from calc_edit import inspect_edit
 from calc_targeting import confirm_selected_cell
 from calc_selection import CalcSelectionTask, _save
@@ -46,11 +46,48 @@ class CalcInputTask(CalcSelectionTask):
             self.close()
             raise
 
+    def focus_input_once(self, *, snapshot_id, name_box_index, point, controls_region, editor_regions):
+        """Trusted adapter regions; one screenshot click and independent edit check."""
+        with self.lock:
+            try:
+                if (self.phase!='CONFIRMED' or self.stopped.is_set() or self.uncertain
+                        or self.lock_fd is None or not self.snapshot
+                        or snapshot_id!=self.snapshot['snapshot_id']):
+                    raise StopRun('BLOCKED','Confirmed fresh selection required before focus')
+                self.environment();self.lease.check();self.identity(self.pid)
+                if self.used>24:
+                    raise StopRun('BLOCKED','Reserve focus, input and commit observations')
+                plan=plan_formula_focus(self.snapshot,point=point,**self._context(),grid=self.grid,
+                    previous_snapshot_id=self.before_click,name_box_index=name_box_index,
+                    approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
+                    approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region)
+                _save(self.directory/'input-focus-attempt.json',json.dumps(plan,ensure_ascii=False).encode())
+                self.record(dict(event='input_focus_intent',plan=plan,used=self.used))
+                self.phase='INPUT_FOCUS_ATTEMPTED';self.snapshot=None
+                self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,
+                    **plan['target'],delivery_mode='foreground'))
+                result=self.observe()
+                context=self._context()
+                confirm_selected_cell(self.snapshot,**context,
+                    previous_snapshot_id=snapshot_id,name_box_index=name_box_index)
+                context.pop('cell')
+                evidence=inspect_edit(self.snapshot,**context,approved=True,
+                    expected_text=plan['previousText'],controls_region=controls_region,editor_regions=editor_regions)
+                self.record(dict(event='input_focus_observed',evidence=evidence,used=self.used))
+                self.confirmed_focus=json.loads(json.dumps(dict(snapshot_id=self.snapshot['snapshot_id'],
+                    expected_text=plan['previousText'],controls_region=controls_region,editor_regions=editor_regions)))
+                self.phase='INPUT_FOCUS_OBSERVED'
+                return dict(result,status='INPUT_FOCUS_OBSERVED',inputEffectVerified=False,
+                    inputPermitted=False,commitPermitted=False,businessStatus='UNVERIFIED')
+            except Exception:
+                self.stop()
+                raise
+
     def input_once(self, *, snapshot_id, name_box_index, text, kind):
         """name_box_index is selected by trusted adapter, never by the model."""
         with self.lock:
             try:
-                if (self.phase!='CONFIRMED' or self.stopped.is_set() or self.uncertain
+                if (self.phase not in ('CONFIRMED','INPUT_FOCUS_OBSERVED') or self.stopped.is_set() or self.uncertain
                         or self.lock_fd is None or not self.snapshot
                         or snapshot_id!=self.snapshot['snapshot_id']):
                     raise StopRun('BLOCKED','Confirmed fresh selection required before input')
@@ -61,7 +98,8 @@ class CalcInputTask(CalcSelectionTask):
                     previous_snapshot_id=self.before_click,name_box_index=name_box_index,
                     approved=True,overwrite_disposable=True,text=text,kind=kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,
-                    formula_region=self.formula_region)
+                    formula_region=self.formula_region,
+                    focused_edit=self.confirmed_focus if self.phase=='INPUT_FOCUS_OBSERVED' else None)
                 # Exclusive intent survives even an exception before raw dispatch.
                 _save(self.directory/'input-attempt.json',json.dumps(plan,ensure_ascii=False).encode())
                 self.phase='INPUT_ATTEMPTED'

@@ -28,7 +28,7 @@ def validate_cell_payload(text, kind):
 def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
                     previous_snapshot_id, name_box_index, grid,
                     approved, overwrite_disposable, text, kind, approved_text, approved_kind,
-                    formula_region=None):
+                    formula_region=None, focused_edit=None):
     """Caller owns approval, name-box identity, region, and prior snapshot.
 
     Absence of AX value is NOT emptiness. Explicit disposable overwrite approval
@@ -50,9 +50,17 @@ def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
     indexed=_elements(state)
     if indexed is None:
         raise ValueError('malformed AX evidence')
-    if any(e.get('role')=='AXButton' and e.get('label') in ('Cancel','Accept')
+    pending=any(e.get('role')=='AXButton' and e.get('label') in ('Cancel','Accept')
            and e.get('enabled') is True and _in_window(e,indexed,title)
-           for e in indexed.values()):
+           for e in indexed.values())
+    if focused_edit is not None:
+        from calc_edit import inspect_edit
+        if (formula_region is None or not isinstance(focused_edit,dict)
+                or set(focused_edit)!={'snapshot_id','expected_text','controls_region','editor_regions'}
+                or focused_edit['snapshot_id']!=state['snapshot_id']):
+            raise ValueError('original current focus proof required')
+        inspect_edit(state,**context,approved=True,**{k:v for k,v in focused_edit.items() if k!='snapshot_id'})
+    elif pending:
         raise ValueError('pending edit must be resolved first')
     # Fail ambiguous duplicate labels, even when one duplicate has a bad token.
     candidates=[e for e in indexed.values() if e.get('role')=='AXTextField'
@@ -89,6 +97,28 @@ def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
                 target=dict(element_token=target['element_token']),text=text,kind=kind,
                 delivery_mode='foreground',requiresPostActionObservation=True,
                 inputPermitted=False,inputEffectVerified=False,businessStatus='UNVERIFIED')
+
+
+def plan_formula_focus(state, *, point, **context):
+    """Explicit disposable editor focus, not typing or implicit point selection."""
+    if context.get('formula_region') is None:
+        raise ValueError('explicit formula input target required')
+    plan=plan_cell_input(state,**context)
+    if (not isinstance(point,dict) or set(point)!={'snapshot_id','x','y'}
+            or point['snapshot_id']!=state['snapshot_id']
+            or not _number(point['x']) or not _number(point['y'])):
+        raise ValueError('current finite screenshot point required')
+    editor=next(e for e in state['elements'] if e.get('element_token')==plan['target']['element_token'])
+    value=editor.get('value')
+    if not isinstance(value,str) or not value or len(value.encode())>256:
+        raise ValueError('bounded existing editor text required for focus verification')
+    f=editor['frame'];b=state['window_bounds'];scale=state['screenshot_scale']
+    x=(f['x']-b['x'])*scale;y=(f['y']-b['y'])*scale
+    if not x<point['x']<x+f['w']*scale or not y<point['y']<y+f['h']*scale:
+        raise ValueError('point must be inside current formula editor')
+    return dict(status='INPUT_FOCUS_PLANNED',snapshot_id=state['snapshot_id'],
+        target=dict(x=point['x'],y=point['y']),previousText=value,
+        requiresPostActionObservation=True,inputPermitted=False,businessStatus='UNVERIFIED')
 
 
 def inspect_committed_cell(state, **context):
