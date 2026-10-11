@@ -1,5 +1,15 @@
 # P7 费用核对：实施前方案
 
+## Driver 投递候选与回退门槛（2026-10-11，未安装）
+
+上游 [f0da502](https://github.com/trycua/cua/commit/f0da502ac3f477253dd08e87976a39cca274fd16) 将窗口前台像素点击从 PID 投递改为精确激活窗口、移动硬件指针并通过 HID 投递；[49e924c](https://github.com/trycua/cua/commit/49e924c4632882134b204b2e8a0ce8fae44418df) 另明确记录 LibreOffice VCL 忽略 PID 鼠标事件、单元格 AX press 可能空操作。这与004正确点位但名称框不变一致，是待实机验证的原因，不是已修复证明。
+
+固定候选调研为 `cua-driver-rs-v0.34.1`，不是 latest：其 `pixel_route.rs` 实际包含 ForegroundHid/精确窗口/HID 路线；对49e924c的GitHub compare为diverged（ahead9/behind65），pointer_toolkit未包含Vcl识别，故不能声称两项修复都已发布。当前任务只使用显式foreground，不以背景路线兼容作为既成事实。
+
+实施顺序：先核对0.28.2完整App发布包和现用签名/哈希，再固定候选完整App包的摘要、签名、源码以及CLI请求/返回契约；禁止仅覆盖签名App里的单个可执行文件。切换前备份旧完整App、启动定义与校验清单，确认无会话/在途/桌面owner并说明VM Driver短时不可用及回退影响。不得改变TCC/SIP/SSH、宿主Driver、模型或30raw边界。经明确切换授权后才停止已核实的旧daemon并安装候选；若需要新增权限则停止询问，不自动扩大权限。
+
+新候选先验证版本、签名、观察与契约，再通过官方DSH原工具进行一次新截图定位/单次前台点击/新观察，由独立名称框确认A2；不提前给模型答案坐标，不重跑001–004。身份、焦点、投递或结果不明确即停止，不追加输入保存。失败时保留证据，撤销许可、结束候选daemon并恢复完整旧App与原启动方式；重新核对版本/哈希/健康状态后才恢复Worker，不自动恢复P5。选择成功后仍需输入大小写、GUI保存重开、ODS独立核对和三项费用业务验收，不能缩小P7完成条件。
+
 2026-10-11正确定位后的投递诊断（实施前）：004放大图后点位在A2内，编辑已结束但单次foreground点击后仍A1。只读核对固定0.28.2标签[click.rs](https://github.com/trycua/cua/blob/fc188250b4ca8549b8e61f937fdb1fb560770e86/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs)、[mouse.rs](https://github.com/trycua/cua/blob/fc188250b4ca8549b8e61f937fdb1fb560770e86/libs/cua-driver/rust/crates/platform-macos/src/input/mouse.rs)及px_frame.rs：坐标仍为窗口截图像素，不能再次除scale；无修饰键foreground经PublicOnly PID投递，不应仅依route标签推断HID。下一步先确认安装二进制来源/构建与标签是否一致，记录前台窗口、投递路径和输入效果的证据缺口；任何后续投递修订必须独立固定版本、原窗口/VM独占、原30raw和单次动作、新图独立验证。不得为触发另一分支而伪造modifier、绕过原区域、用宿主点击替代DSH、改系统权限或在004原失败上补点；升级/替换Driver前需单独说明影响和回退方案，不能静默更新。
 
 局部图接口细化（代码前）：不新增模型工具，vm_calc_observe可选detail={left,top,width,height}，仍先通过原VM observe取得新截图并计1raw；坐标矩形由模型请求，禁止文件路径或旧图。插件使用官方安装包已有sharp裁剪并固定2倍最近邻放大，原图和局部图同时作为图片内容进入下一模型请求。返回原snapshot、矩形、scale=2及源/局部SHA；模型可用detail_x/detail_y选择，插件只做x=left+detail_x/2、y=top+detail_y/2的确定换算，再由guest原区域和名称框验证。无当前局部图、混传原图坐标、越界/非数值/旧图拒绝；每次新观察清除前一映射。图片处理失败停止，不能隐式降级为无图或复用旧图。此方案不改模型、30raw、单次动作和停止规则。
