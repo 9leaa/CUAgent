@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：可信guest输入启动配置与受控激活接线
+
+- 先补方案，再为calc_model_guest添加显式输入/覆盖批准、文字/类型、控制区及双编辑区参数，提交独立批准。残缺批准、危险文本、错误/重叠区域在VM检查前拒绝；默认仍selection-v1。非受控入口与受控入口均记录原输入绑定和正确协议，不自发观察或续租。
+- CalcGuestRuntime单独冻结input_binding并在原短租约激活时选择CalcInputModelTask；输入配置写入独占activation意图，原模型/run/session/预算/停止链不变，失败不重放。原受控启动可以无初始租约，只开放可信控制入口，不能由模型激活自己。
+- 新增11项启动/运行时测试，覆盖残缺参数、公式样文本、重叠/缺失区域、无覆盖批准、默认选择，以及输入嵌套配置冻结/原租约激活/零自动GUI派发。运行时factory在该测试中模拟，不能当实机输入证据。原backend-venv运行`python -m pytest -q tools/mac_vm/tests backend/tests/test_desktop_deploy.py`：653通过、256个subtests通过；git diff --check通过。
+- README同步，未部署、未调用DSH或VM。下一步官方插件显式支持calc-input-v1及输入/提交工具，再进行固定候选完整链验证；P5继续跳过，P7全部业务与保存读回尚未验收。
+
 ## 2026-10-11：输入HTTP白名单与部署包依赖闭环
 
 - 实现前补方案；原desktop_tools_http仅对实际CalcInputModelTask增加input_cell/commit_cell，沿原独立凭据、run/session、请求结构、停止和原账本。不能由模型字段或协议字符串升级旧selection-v1权限，不开放raw输入/保存。

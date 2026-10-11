@@ -95,6 +95,29 @@ def test_bad_tokens_and_test_injection_are_rejected(runtime):
         with pytest.raises(ValueError): CalcGuestRuntime(value.directory,value.controller,**args)
 
 
+def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,monkeypatch):
+    import json
+    value,_,_,task=runtime
+    factory=Mock(return_value=task)
+    monkeypatch.setattr('calc_runtime.CalcInputModelTask',factory)
+    binding=dict(input_approved=True,overwrite_disposable=True,approved_text='AbZ',approved_kind='text',
+        commit_approved=True,controls_region=[200,90,320,130],
+        editor_regions=[[0,190,80,240],[370,90,420,130]])
+    candidate=CalcGuestRuntime(value.directory,value.controller,model_token='m'*43,control_token='c'*43,
+        selection=value.selection,input_binding=binding,port=0,loopback_test=True)
+    binding['approved_text']='changed';binding['editor_regions'][0][0]=99
+    factory.assert_not_called()
+    assert value.controller.existing() is None
+    value.controller.renew(1)
+    try:
+        assert candidate.activate()['active']
+        kwargs=factory.call_args.kwargs
+        assert kwargs['approved_text']=='AbZ' and kwargs['editor_regions'][0][0]==0
+        intent=json.loads((value.directory/'calc-activation-intent.json').read_text())
+        assert intent['inputBinding']['commit_approved'] is True and task.used==0
+    finally:candidate.close()
+
+
 @pytest.mark.parametrize('failure',[False,True])
 def test_controlled_launcher_has_no_initial_grant_and_closes(runtime,monkeypatch,failure):
     from calc_model_guest import controlled

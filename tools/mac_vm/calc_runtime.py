@@ -6,6 +6,7 @@ import re
 import threading
 
 from calc_model_task import CalcModelTask
+from calc_input_model_task import CalcInputModelTask
 from calc_selection import SHARED_LOCK, _save
 from desktop_lease import LeaseGate
 from desktop_tools_http import tools_server
@@ -13,7 +14,7 @@ from desktop_tools_http import tools_server
 
 class CalcGuestRuntime:
     def __init__(self, directory, controller, *, model_token, control_token, selection,
-                 port=8766, loopback_test=False, task_factory=CalcModelTask):
+                 port=8766, loopback_test=False, task_factory=CalcModelTask, input_binding=None):
         self.directory = Path(directory).absolute()
         if self.directory.resolve(strict=True) != self.directory or self.directory.name != controller.gate.run_id:
             raise ValueError('original canonical run required')
@@ -32,6 +33,17 @@ class CalcGuestRuntime:
         self.model_token, self.control_token = model_token, control_token
         # Freeze caller-owned nested arrays as well as the outer dictionary.
         self.selection = json.loads(json.dumps(selection,allow_nan=False))
+        if input_binding is not None:
+            if (not isinstance(input_binding,dict) or set(input_binding)!={
+                    'input_approved','overwrite_disposable','approved_text','approved_kind',
+                    'commit_approved','controls_region','editor_regions'}
+                    or input_binding['input_approved'] is not True
+                    or input_binding['overwrite_disposable'] is not True):
+                raise ValueError('explicit trusted input binding required')
+            if task_factory is not CalcModelTask:
+                raise ValueError('input mode uses original input factory')
+            task_factory=CalcInputModelTask
+        self.input_binding=json.loads(json.dumps(input_binding,allow_nan=False))
         self.port, self.loopback_test, self.factory = port, loopback_test, task_factory
         self.task = self.server = self.thread = None
         self.closed = False
@@ -58,9 +70,11 @@ class CalcGuestRuntime:
                 raise ValueError('Calc activation cannot replay')
             try:
                 _save(self.directory/'calc-activation-intent.json',
-                      json.dumps(dict(binding=self.status()['binding'],selection=self.selection)).encode())
+                      json.dumps(dict(binding=self.status()['binding'],selection=self.selection,
+                                      inputBinding=self.input_binding)).encode())
                 self.controller.gate.check()
-                self.task = self.factory(self.directory,lease=self.controller.gate,approved=True,**self.selection)
+                self.task = self.factory(self.directory,lease=self.controller.gate,approved=True,
+                                         **self.selection,**(self.input_binding or {}))
                 if not isinstance(self.task,CalcModelTask):
                     raise ValueError('original Calc task required')
                 self.controller.gate.check()

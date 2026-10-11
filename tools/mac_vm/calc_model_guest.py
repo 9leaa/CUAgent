@@ -9,6 +9,9 @@ import threading
 import time
 
 from calc_model_task import CalcModelTask, PROTOCOL
+from calc_input_model_task import CalcInputModelTask
+from calc_input import validate_cell_payload
+from calc_targeting import _number
 from calc_selection import SHARED_LOCK, _save
 from desktop_control import LeaseController
 from desktop_lease import LeaseGate
@@ -23,6 +26,27 @@ def edit_binding(args):
     if not getattr(args,'approve_cancel_edit',False):return {}
     return dict(edit_cancel=dict(approved=True,expected_text=args.pending_edit_text,
         controls_region=args.edit_controls_region,editor_regions=[args.edit_body_region,args.edit_formula_region]))
+
+
+def input_binding(args):
+    fields=[getattr(args,key,None) for key in ('input_text','input_kind','input_controls_region',
+                                              'input_body_region','input_formula_region')]
+    approved=getattr(args,'approve_input',False)
+    overwrite=getattr(args,'overwrite_disposable',False)
+    commit=getattr(args,'approve_commit',False)
+    if not approved and not overwrite and not commit and all(v is None for v in fields):return None
+    if not approved or not overwrite or any(v is None for v in fields):
+        raise ValueError('explicit input approval, disposable overwrite, payload and regions required')
+    text,kind,controls,body,formula=fields
+    validate_cell_payload(text,kind)
+    for region in (controls,body,formula):
+        if (len(region)!=4 or not all(_number(v) for v in region)
+                or not 0<=region[0]<region[2] or not 0<=region[1]<region[3]):
+            raise ValueError('valid input verification regions required')
+    if not (body[2]<=formula[0] or formula[2]<=body[0] or body[3]<=formula[1] or formula[3]<=body[1]):
+        raise ValueError('independent input editor regions required')
+    return dict(input_approved=True,overwrite_disposable=True,approved_text=text,approved_kind=kind,
+                commit_approved=commit,controls_region=controls,editor_regions=[body,formula])
 
 
 def credential(path):
@@ -70,6 +94,13 @@ def main(argv=None):
     for name in ('grid', 'name-box-grid'):
         parser.add_argument('--'+name, required=True, type=float, nargs=4)
     parser.add_argument('--approve-selection', action='store_true')
+    parser.add_argument('--approve-input',action='store_true')
+    parser.add_argument('--overwrite-disposable',action='store_true')
+    parser.add_argument('--approve-commit',action='store_true')
+    parser.add_argument('--input-text')
+    parser.add_argument('--input-kind',choices=('text','decimal'))
+    for name in ('input-controls-region','input-body-region','input-formula-region'):
+        parser.add_argument('--'+name,type=float,nargs=4)
     parser.add_argument('--approve-cancel-edit', action='store_true')
     parser.add_argument('--pending-edit-text')
     parser.add_argument('--edit-controls-region',type=float,nargs=4)
@@ -78,6 +109,9 @@ def main(argv=None):
     parser.add_argument('--controlled', action='store_true',
                         help='Wait for trusted host control; do not require or grant an initial lease')
     args = parser.parse_args(argv)
+    try:inputs=input_binding(args)
+    except ValueError as error:parser.error(str(error))
+    protocol=CalcInputModelTask.protocol if inputs is not None else PROTOCOL
     edit_fields=(args.pending_edit_text,args.edit_controls_region,args.edit_body_region,args.edit_formula_region)
     if any(v is not None for v in edit_fields) or args.approve_cancel_edit:
         if not args.approve_cancel_edit or any(v is None for v in edit_fields):
@@ -101,7 +135,7 @@ def main(argv=None):
         return controlled(directory, controller, model_token, control_token, args)
     controller.gate.check()
     # One launch attempt per original run, including failures. Never overwrite.
-    _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=PROTOCOL,
+    _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=protocol,inputBinding=inputs,
           runId=args.run, sessionId=args.session, owner=args.owner, epoch=args.epoch,
           pid=args.pid, window=args.window, title=args.title, cell=args.cell,
           grid=args.grid, nameBoxGrid=args.name_box_grid,**edit_binding(args))).encode())
@@ -115,12 +149,14 @@ def main(argv=None):
     try:
         for sig in (signal.SIGINT, signal.SIGTERM):
             previous[sig] = signal.signal(sig, interrupted)
-        task = CalcModelTask(directory, lease=controller.gate, pid=args.pid,
+        factory=CalcInputModelTask if inputs is not None else CalcModelTask
+        task = factory(directory, lease=controller.gate, pid=args.pid,
             window_id=args.window, title=args.title, cell=args.cell, grid=args.grid,
-            session_id=args.session, name_box_grid=args.name_box_grid, approved=True,**edit_binding(args))
+            session_id=args.session, name_box_grid=args.name_box_grid, approved=True,
+            **edit_binding(args),**(inputs or {}))
         server = tools_server(task, model_token, control_token=control_token)
         server.daemon_threads = False
-        _save(directory/'calc-ready.json', json.dumps(dict(protocol=PROTOCOL,
+        _save(directory/'calc-ready.json', json.dumps(dict(protocol=protocol,
               runId=args.run, sessionId=args.session, pid=os.getpid(),
               modelUrl='http://192.168.64.3:8766', inputPermitted=False)).encode())
         serve(task, server, controller, stopping)
@@ -149,14 +185,16 @@ def main(argv=None):
 
 
 def controlled(directory, controller, model_token, control_token, args):
+    inputs=input_binding(args)
+    protocol=CalcInputModelTask.protocol if inputs is not None else PROTOCOL
     if controller.existing() is not None:
         raise ValueError('controlled launch requires an unused original lease')
     selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
                      grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid,**edit_binding(args))
     _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
-          sessionId=args.session,selection=selection)).encode())
+          sessionId=args.session,selection=selection,inputBinding=inputs)).encode())
     runtime = CalcGuestRuntime(directory,controller,model_token=model_token,
-                               control_token=control_token,selection=selection)
+                               control_token=control_token,selection=selection,input_binding=inputs)
     server = None
     previous = {}
     stopping = threading.Event()
@@ -170,7 +208,7 @@ def controlled(directory, controller, model_token, control_token, args):
         server.timeout = .1
         server.daemon_threads = False
         _save(directory/'calc-control-ready.json',json.dumps(dict(
-            binding=runtime.status()['binding'],protocol=PROTOCOL,sessionId=args.session,
+            binding=runtime.status()['binding'],protocol=protocol,sessionId=args.session,
             controlHost='127.0.0.1',controlPort=server.server_port,pid=os.getpid(),
             modelUrl='http://192.168.64.3:8766',activated=False)).encode())
         deadline = time.monotonic()+180

@@ -71,6 +71,8 @@ def test_no_approval_never_checks_vm(monkeypatch):
     ['--approve-cancel-edit'],['--pending-edit-text','a'],
     ['--edit-controls-region','1','2','3','4'],
     ['--approve-cancel-edit','--pending-edit-text','a'],
+    ['--approve-input'],['--approve-commit'],['--input-text','AbZ'],
+    ['--overwrite-disposable'],
 ])
 def test_partial_edit_approval_rejected_before_vm(monkeypatch,extra):
     check=Mock();monkeypatch.setattr('calc_model_guest.require_unlocked',check)
@@ -126,3 +128,23 @@ def test_main_original_binding_and_failed_start_never_replays(tmp_path, monkeypa
     assert (directory/'calc-start-intent.json').read_bytes() == intent
     factory.assert_called_once()
     task.observe.assert_not_called()
+
+
+@pytest.mark.parametrize('fault',[None,'formula','overlap','missing','no_approval','no_overwrite'])
+def test_input_launch_binding_validation(fault):
+    from types import SimpleNamespace
+    from calc_model_guest import input_binding
+    args=SimpleNamespace(approve_input=True,overwrite_disposable=True,approve_commit=True,
+        input_text='AbZ中文',input_kind='text',input_controls_region=[200,90,320,130],
+        input_body_region=[0,190,80,240],input_formula_region=[370,90,420,130])
+    if fault=='formula':args.input_text='=1+2'
+    elif fault=='overlap':args.input_formula_region=args.input_body_region
+    elif fault=='missing':args.input_kind=None
+    elif fault=='no_approval':args.approve_input=False
+    elif fault=='no_overwrite':args.overwrite_disposable=False
+    if fault:
+        with pytest.raises(ValueError):input_binding(args)
+    else:
+        value=input_binding(args)
+        assert value['approved_text']=='AbZ中文' and value['commit_approved'] is True
+        assert input_binding(SimpleNamespace()) is None
