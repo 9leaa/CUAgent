@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-11：控制版本部署及共享运行冲突
+
+- 原候选001新增control-revision-001，固定ec0e1d38088034382723ef436fa60d9d382511ec；30个VM文件独立读回/权限/哈希通过，旧d5c5f20回执保留，原run/session不变。原guest运行目录和独立连接凭据已准备，无lease、激活、模型或GUI派发。
+- 已编写私有一次性官方生命周期编排：原App/profile切换、宿主短租约/一次激活、原官方session/prompt、期限撤权/取消/清理。前置检查与每次授权复核原共享互斥、旧停止锁、数据库队列/owner/到期计划及Worker，不以私有脚本绕过准入；编排尚未执行，不能称其真实验证通过。
+- 当前只读检查：基线任务均为终态、desktop owner为空、三个原停止/隔离标记均不存在，但Worker PID22845仍存活，P5计划1ab2e3a4-8426-48e8-bf1b-3452efa1fdfe仍ACTIVE，next_at为2026-10-09 12:10北京时间，触发切换拒绝。按用户暂不处理P5要求，不暂停该计划、不停止Worker、不切换正式profile。需确认临时切换授权后才执行；本轮不是模型失败样本。
+
 ## 2026-10-11：复用原控制协议完成Calc运行期接线
 
 - 先写方案，再增加CalcGuestRuntime并接入既有guest CLI显式`--controlled`。启动只开放loopback控制服务，不授权、不创建模型任务；原DesktopControlClient短租约检查后才一次激活CalcModelTask及模型HTTP服务，窗口和session绑定来自可信启动参数。
