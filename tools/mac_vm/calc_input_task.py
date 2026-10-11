@@ -2,6 +2,8 @@
 import json
 
 from calc_input import plan_cell_input, validate_cell_payload
+from calc_edit import inspect_edit
+from calc_targeting import confirm_selected_cell
 from calc_selection import CalcSelectionTask, _save
 from driver_smoke import StopRun
 
@@ -51,6 +53,7 @@ class CalcInputTask(CalcSelectionTask):
                 _save(self.directory/'input-attempt.json',json.dumps(plan,ensure_ascii=False).encode())
                 self.phase='INPUT_ATTEMPTED'
                 before=self.snapshot['snapshot_id']
+                self.before_input=before
                 self.snapshot=None
                 self.record(dict(event='input_intent',plan=plan,used=self.used))
                 self._call('type_text',dict(pid=self.pid,window_id=self.window,session=self.run_id,
@@ -61,6 +64,33 @@ class CalcInputTask(CalcSelectionTask):
                 self.phase='AWAITING_INPUT_CONFIRMATION'
                 return dict(result,status='INPUT_ATTEMPT_OBSERVED',inputEffectVerified=False,
                             inputPermitted=False,commitPermitted=False,businessStatus='UNVERIFIED')
+            except Exception:
+                self.stop()
+                raise
+
+    def confirm_input(self, *, snapshot_id, name_box_index, controls_region, editor_regions):
+        """Trusted adapter supplies verification regions; no GUI action or commit."""
+        with self.lock:
+            try:
+                if (self.phase!='AWAITING_INPUT_CONFIRMATION' or self.stopped.is_set()
+                        or self.uncertain or self.lock_fd is None or not self.snapshot
+                        or snapshot_id!=self.snapshot['snapshot_id']):
+                    raise StopRun('BLOCKED','Fresh post-input evidence required')
+                self.environment();self.lease.check();self.identity(self.pid)
+                context=self._context()
+                confirm_selected_cell(self.snapshot,**context,
+                    previous_snapshot_id=self.before_input,name_box_index=name_box_index)
+                context.pop('cell')
+                evidence=inspect_edit(self.snapshot,**context,approved=True,
+                    expected_text=self.input_text,controls_region=controls_region,
+                    editor_regions=editor_regions)
+                result=dict(status='INPUT_OBSERVED',snapshot_id=snapshot_id,cell=self.cell,
+                    text=self.input_text,kind=self.input_kind,editorEvidence=evidence,
+                    inputEffectVerified=True,storageTypeVerified=False,commitPermitted=False,
+                    inputPermitted=False,businessStatus='UNVERIFIED')
+                self.record(dict(event='input_observed',result=result,used=self.used))
+                self.phase='INPUT_OBSERVED'
+                return result
             except Exception:
                 self.stop()
                 raise

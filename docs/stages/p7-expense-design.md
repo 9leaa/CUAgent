@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+输入后核对细化（实现前）：抽取取消规划器已有的双编辑区证据校验，保留其原取消接口。新输入确认要求输入前后snapshot不同、原名称框仍为目标单元格、两处独立AXTextArea逐字匹配批准文字、当前Cancel/Accept身份明确。可信执行调用方提供审核区域与名称框索引，模型不得指定；确认不增加Driver请求，只审计已有新观察并转为INPUT_OBSERVED，仍不提供提交、保存或存储类型成功结论。任何不符停止，后续显式提交另行接线。
+
 执行层细化（代码前）：新增独立CalcInputTask继承原选择执行器，只有可信构造参数绑定approved_text/kind/overwrite_disposable时可用，不修改selection-v1和原默认工具集。输入方法要求同run已CONFIRMED、当前snapshot匹配、可信name_box_index重新核对，并预留2raw；独占保存单次输入意图后才调用一次带原pid/window/session/新element_token的foreground type_text，再取得新观察。原文字逐字传参，不增加坐标焦点点击或Enter；任何异常停止，副作用超时沿原UNKNOWN保留。返回INPUT_ATTEMPT_OBSERVED及inputEffectVerified=false，不自动提交、保存或提升成功。HTTP/模型接入和双编辑区确认随后实施，旧候选不可复活。
 
 005已证明选择，不证明输入或焦点保持。下一步沿原任务/租约/30raw扩展独立受限输入能力；旧selection-v1默认行为仍只选择并停止，不能把已结束005复活。可信任务绑定单一目标单元格、批准文字/类型和允许覆盖的专用测试单元格；模型不得传目标PID、验证控件或自行授权覆盖。现有AX空value/null不能证明空单元格，因此首个输入探测必须明确允许覆盖专用测试目标，不能以缺值当空值。

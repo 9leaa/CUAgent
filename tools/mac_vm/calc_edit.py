@@ -6,7 +6,7 @@ Reviewed regions and expected text must come from the trusted task binding.
 from calc_targeting import _state, _elements, _in_window, _number
 
 
-def plan_edit_cancel(state, *, pid, window_id, title, observed_at, now,
+def inspect_edit(state, *, pid, window_id, title, observed_at, now,
                      approved, expected_text, controls_region, editor_regions):
     width,height,scale,bounds=_state(state,pid=pid,window_id=window_id,
                                    title=title,observed_at=observed_at,now=now)
@@ -49,6 +49,13 @@ def plan_edit_cancel(state, *, pid, window_id, title, observed_at, now,
             raise ValueError('pending input differs from approved disposable text')
         editors.append(found[0]['element_index'])
     if len(set(editors))!=2:raise ValueError('two independent editor observations required')
-    return dict(status='EDIT_CANCEL_PLANNED',snapshot_id=state['snapshot_id'],
-                target=dict(element_index=buttons[0]['element_index'],element_token=buttons[0]['element_token']),
+    return dict(snapshot_id=state['snapshot_id'], editors=editors,
+                cancel=dict(element_index=buttons[0]['element_index'],element_token=buttons[0]['element_token']),
+                accept=dict(element_index=buttons[1]['element_index'],element_token=buttons[1]['element_token']))
+
+
+def plan_edit_cancel(state, **kwargs):
+    evidence=inspect_edit(state, **kwargs)
+    return dict(status='EDIT_CANCEL_PLANNED',snapshot_id=evidence['snapshot_id'],
+                target=evidence['cancel'],
                 requiresPostActionObservation=True,inputPermitted=False,businessStatus='UNVERIFIED')

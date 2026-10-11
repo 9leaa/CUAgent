@@ -160,3 +160,55 @@ def test_stop_during_input_prevents_followup_observation(input_setup,monkeypatch
     assert not worker.is_alive() and len(errors)==1 and isinstance(errors[0],StopRun)
     assert t.used==4 and [tool for tool,_ in calls][-1]=='type_text'
     assert len(calls)==4 and t.stopped.is_set()
+
+
+def edited(task,monkeypatch):
+    from test_calc_edit import fixture
+    selected(task)
+    source,args=fixture();original=task.transport
+    def transport(tool,arguments):
+        result=original(tool,arguments)
+        if tool=='get_window_state':
+            for element in source['elements'][1:]:
+                element=copy.deepcopy(element)
+                element['element_index']+=10
+                element['element_token']=result['snapshot_id']+':'+str(element['element_index'])
+                if element['role']=='AXTextArea':element['value']='AbZ中文'
+                result['elements'].append(element)
+        return result
+    monkeypatch.setattr(task,'transport',transport)
+    write(task)
+    return dict(snapshot_id=task.snapshot['snapshot_id'],name_box_index=2,
+                controls_region=args['controls_region'],editor_regions=args['editor_regions'])
+
+
+def test_confirm_input_uses_two_exact_editors_without_dispatch(input_setup,monkeypatch):
+    t,calls,*_=input_setup;args=edited(t,monkeypatch)
+    result=t.confirm_input(**args)
+    assert result['status']=='INPUT_OBSERVED' and result['inputEffectVerified']
+    assert not result['storageTypeVerified'] and not result['commitPermitted']
+    assert result['businessStatus']=='UNVERIFIED' and t.used==5 and len(calls)==5
+    assert result['editorEvidence']['editors']==[13,14]
+    with pytest.raises(StopRun):t.confirm_input(**args)
+    assert len(calls)==5
+
+
+@pytest.mark.parametrize('fault',['case','missing','duplicate','old','same','cell',
+    'disabled','token','overlap','stopped','unknown','lease','stale'])
+def test_uncertain_input_evidence_stops_without_dispatch(input_setup,monkeypatch,fault):
+    t,calls,s,control,lease,*_=input_setup;args=edited(t,monkeypatch)
+    if fault=='case':t.snapshot['elements'][-1]['value']='abz中文'
+    elif fault=='missing':t.snapshot['elements'].pop()
+    elif fault=='duplicate':t.snapshot['elements'].append(dict(t.snapshot['elements'][-1],element_index=99))
+    elif fault=='old':args['snapshot_id']='old'
+    elif fault=='same':t.before_input=t.snapshot['snapshot_id']
+    elif fault=='cell':t.snapshot['elements'][2]['value']='A2'
+    elif fault=='disabled':t.snapshot['elements'][5]['enabled']=False
+    elif fault=='token':t.snapshot['elements'][5]['element_token']='old:12'
+    elif fault=='overlap':args['editor_regions'][1]=args['editor_regions'][0]
+    elif fault=='stopped':t.stop()
+    elif fault=='unknown':t.uncertain=True
+    elif fault=='lease':control.write_text(json.dumps(dict(lease,stopped=True)))
+    elif fault=='stale':t.observed_at-=31
+    with pytest.raises((ValueError,StopRun)):t.confirm_input(**args)
+    assert t.stopped.is_set() and t.used==5 and len(calls)==5

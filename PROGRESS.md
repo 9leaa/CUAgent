@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入后双编辑区核对，尚未接DSH实测
+
+- 实施前补方案；从原取消规划器抽取inspect_edit，保留原取消接口及行为。新增CalcInputTask.confirm_input，可信适配方提供审核区域/名称框身份，不给模型任意选择验证控件的入口。
+- 要求原输入后的不同新snapshot、原单元格名称框一致、两处独立编辑区值逐字等于批准文字、当前Cancel/Accept可操作身份明确；重新检查环境、进程、租约、停止/UNKNOWN及新鲜度，失败停止。不派发Driver动作，不自动提交/保存，结果仅INPUT_OBSERVED，storageTypeVerified=false/businessStatus=UNVERIFIED。
+- 新增14项模拟测试，包括大小写、缺失/歧义编辑区、旧/同snapshot、错误单元格、禁用/旧按钮token、区域重叠、停止/UNKNOWN/失权/过期及重复确认。执行原backend-venv的`python -m pytest -q tools/mac_vm/tests/test_calc*.py backend/tests/test_desktop_deploy.py`：274通过。原取消回归保留，未以模拟替代真实图片与ODS核验。
+- README同步；未部署、未真实输入、未修改VM或P5。下一步将输入与受限提交显式接到官方DSH工具，冻结新候选后做真实验证；完整费用工作簿/保存重开/独立读回仍待完成。
+
 ## 2026-10-11：受控单次输入执行层，未接DSH或实机派发
 
 - 先补方案，再新增CalcInputTask；可信构造绑定批准文字、类型及专用测试覆盖许可，原selection-v1及默认工具集不变。已确认的新snapshot再次核对目标，预留输入与新观察共2raw，独占落盘输入意图后只派发一次foreground/element_token type_text；不增加隐式坐标点击、Enter、提交或保存。
