@@ -1,5 +1,15 @@
 # CUAgent 实际进度
 
+## 2026-10-11：修复版本官方DSH截图回退实跑，选中结果失败
+
+- 修复资格验证候选002固定2b2b9c3e7b939ba50f2b02bfe9d3d764aa43cbc0：469份源码冻结，30个VM部署文件独立读回一致。私有revision-lineage明确关联001的首步拒绝；001仍失败终态0raw，未恢复其prompt或预算、未用002覆盖001成绩。
+- 准备时VM重新锁屏，执行端拒绝且未创建guest任务/租约；通过原屏幕共享、既有测试账号正常解锁后继续同一002准备，没有改睡眠/权限。实跑前新查Codex剩13%，普通额度可用、积分未变、两张重置卡仍可用。
+- 原002运行calc-select-928ab7e4-e97a-43b3-951e-0b8f4803ed34、会话session-6b8f378f-fe66-43f4-a9a5-80800dc98d71实际发出3次Flash/off模型请求。模型先observe获1536×1082原图附件，再只传snapshot尝试AX，返回NEEDS_SCREENSHOT_POINT后自己给出x=133/y=339；后两次请求审计均包含同一真实图片附件。无操作者预填坐标或新模型循环。
+- VM真实轨迹为get_window_state→click→get_window_state，共3raw；点击明确foreground/global_input，Driver只报effect=unverifiable。新snapshot与前图不同，但截图及名称框AXComboBox/唯一子文本仍为A1，独立重验返回selected cell mismatch or missing。因此工具失败、会话停止，未输入/保存/重试。模型点位落在原图A2范围，不能直接认定模型定位错误。
+- 原始前后JSON/PNG、trace、lease及绑定以独占私有文件收集，逐文件SHA独立核对；新观察仍有Cancel/Accept启用，编辑状态是待排查线索，不是已证实根因。只读Driver permissions status显示其daemon Accessibility和Screen Recording均true；不改权限、不更新Driver。
+- 清理确认lease stopped、pendingCalls=0、control shutdown closed、guest exit=0、profile恢复；同源码/环境Worker恢复为PID52566，官方DSH无运行中会话，P5保持PAUSED。仅证明真实模型截图/回退/动作/拒绝闭环运行，不证明成功选择或费用业务完成。
+- 下一步依据原失败截图定位现有编辑状态与Driver坐标/投递行为；先只读核实，不盲目加第二次点击、扩大网格或放松确认。费用输入/保存/独立ODS读回仍待通过前置选择能力。
+
 ## 2026-10-11：原Calc候选首次官方会话拒绝与生命周期修复
 
 - 新查Codex普通窗口剩14%，余额未变、两张重置卡仍可用；按用户3%停止线准入。VM执行端确认解锁，原队列空/P5 PAUSED；临时停止原空闲Worker后取得共享锁，应用原候选profile，激活VM控制并启动原官方DSH会话。
