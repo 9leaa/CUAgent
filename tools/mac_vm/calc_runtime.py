@@ -19,8 +19,9 @@ class CalcGuestRuntime:
             raise ValueError('original canonical run required')
         LeaseGate.private(self.directory.stat(), directory=True)
         if (type(loopback_test) is not bool or not loopback_test and task_factory is not CalcModelTask
-                or not isinstance(selection,dict) or set(selection) !=
-                {'pid','window_id','title','cell','grid','session_id','name_box_grid'}):
+                or not isinstance(selection,dict) or set(selection) not in (
+                {'pid','window_id','title','cell','grid','session_id','name_box_grid'},
+                {'pid','window_id','title','cell','grid','session_id','name_box_grid','edit_cancel'})):
             raise ValueError('trusted Calc selection required')
         for token in (model_token,control_token):
             if not isinstance(token,str) or not re.fullmatch(r'[A-Za-z0-9_-]{43,128}',token):

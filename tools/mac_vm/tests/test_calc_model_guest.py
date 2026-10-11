@@ -67,6 +67,22 @@ def test_no_approval_never_checks_vm(monkeypatch):
     check.assert_not_called()
 
 
+@pytest.mark.parametrize('extra',[
+    ['--approve-cancel-edit'],['--pending-edit-text','a'],
+    ['--edit-controls-region','1','2','3','4'],
+    ['--approve-cancel-edit','--pending-edit-text','a'],
+])
+def test_partial_edit_approval_rejected_before_vm(monkeypatch,extra):
+    check=Mock();monkeypatch.setattr('calc_model_guest.require_unlocked',check)
+    args=['--run','calc-select-11111111-1111-1111-1111-111111111111',
+          '--owner','22222222-2222-2222-2222-222222222222',
+          '--session','session-33333333-3333-3333-3333-333333333333',
+          '--epoch','1','--pid','10','--window','20','--title','probe','--cell','A1',
+          '--grid','0','80','700','550','--name-box-grid','0','0','300','80','--approve-selection']
+    with pytest.raises(SystemExit):main(args+extra)
+    check.assert_not_called()
+
+
 @pytest.mark.parametrize('failure', [None, 'factory', 'listener'])
 def test_main_original_binding_and_failed_start_never_replays(tmp_path, monkeypatch, failure):
     import json

@@ -43,11 +43,64 @@ function fixture(t: any, change: any = {}) {
     else if(body.args.x===undefined)value={...common,used:1,status:'NEEDS_SCREENSHOT_POINT',snapshot_id:'s00000001'}
     else value={...common,used:3,status:'SELECTION_OBSERVED',state:state('s00000002'),png:png.toString('base64'),
       confirmation:{status:'SELECTION_OBSERVED',cell:'A2',snapshot_id:'s00000002',inputPermitted:false}}
+    if(control.reply)value=control.reply(body,{common,state,png},value)
     if(control.corrupt)value=control.corrupt(value)
     return {ok:true,json:async()=>value}
   }) as any
   return {root,binding,registered,guards,handlers,calls,ctx,exec,abort,control,route,image,init:()=>apply(ctx),
     tool:(name:string)=>registered.find(x=>x.name===name)}
+}
+
+test('offered edit cancellation returns fresh image before a separate model selection',async t=>{
+  const f=fixture(t);f.init()
+  let cancelled=false
+  f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
+    if(body.op==='observe')return value
+    if(body.args.cancel_edit){cancelled=true;return {...common,used:3,status:'EDIT_CANCEL_ATTEMPT_OBSERVED',state:state('s00000002'),png:png.toString('base64')}}
+    if(body.args.x===undefined)return {...common,used:cancelled?3:1,status:cancelled?'NEEDS_SCREENSHOT_POINT':'NEEDS_EDIT_CANCEL',snapshot_id:cancelled?'s00000002':'s00000001'}
+    return {...common,used:5,status:'SELECTION_OBSERVED',state:state('s00000003'),png:png.toString('base64'),
+      confirmation:{status:'SELECTION_OBSERVED',cell:'A2',snapshot_id:'s00000003',inputPermitted:false}}
+  }
+  const select=(args:any)=>f.tool('vm_calc_select').execute(args,f.exec)
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  assert.equal(JSON.parse((await select({snapshot_id:'s00000001'})).result).status,'NEEDS_EDIT_CANCEL')
+  const cancelledResult=await select({snapshot_id:'s00000001',cancel_edit:true})
+  assert.equal(JSON.parse(cancelledResult.result).status,'EDIT_CANCEL_ATTEMPT_OBSERVED')
+  assert.ok(cancelledResult.image);assert.equal(f.control.concluded,undefined)
+  await select({snapshot_id:'s00000002'})
+  const result=await select({snapshot_id:'s00000002',x:25,y:30})
+  assert.equal(JSON.parse(result.result).used,5);assert.equal(f.control.concluded,true)
+  assert.equal(f.control.images,3)
+})
+
+for(const fault of ['unoffered','false','mixed','fallback','raw','stale','repeat','newObservation']) {
+  test('cancellation boundary stops without replay '+fault,async t=>{
+    const f=fixture(t);f.init()
+    await f.tool('vm_calc_observe').execute({},f.exec)
+    if(fault!=='unoffered'){
+      f.control.reply=(_b:any,{common}:any)=>({...common,used:1,status:'NEEDS_EDIT_CANCEL',snapshot_id:'s00000001'})
+      await f.tool('vm_calc_select').execute({snapshot_id:'s00000001'},f.exec)
+    }
+    f.control.reply=(_b:any,{common,state,png}:any)=>({...common,used:fault==='raw'?2:3,status:'EDIT_CANCEL_ATTEMPT_OBSERVED',
+      state:state(fault==='stale'?'s00000001':'s00000002'),png:png.toString('base64')})
+    if(fault==='fallback')f.control.reply=(_b:any,{common}:any)=>({...common,used:1,status:'NEEDS_SCREENSHOT_POINT',snapshot_id:'s00000001'})
+    let args:any={snapshot_id:'s00000001',cancel_edit:true}
+    if(fault==='false')args.cancel_edit=false
+    if(fault==='mixed')args={...args,x:25,y:30}
+    if(fault==='repeat'){
+      await f.tool('vm_calc_select').execute(args,f.exec)
+      args.snapshot_id='s00000002'
+    }
+    if(fault==='newObservation'){
+      f.control.reply=(_b:any,{common,state,png}:any)=>({...common,used:2,state:state('s00000002'),png:png.toString('base64')})
+      await f.tool('vm_calc_observe').execute({},f.exec);args.snapshot_id='s00000002'
+    }
+    await assert.rejects(f.tool('vm_calc_select').execute(args,f.exec))
+    assert.equal(f.calls.at(-1).op,'stop')
+    const count=f.calls.length
+    await assert.rejects(f.tool('vm_calc_select').execute(args,f.exec))
+    assert.equal(f.calls.length,count)
+  })
 }
 
 test('official entry registers only Calc tools and emits images through fallback and confirmation',async t=>{

@@ -64,8 +64,8 @@ def test_builder_reads_explicit_commit_not_working_tree(tmp_path):
     assert 'handoff_quote.py' in SOURCES
     assert 'handoff_draft.py' in SOURCES
     assert 'handoff_submit.py' in SOURCES
-    assert {'calc_model_task.py','calc_selection.py','calc_targeting.py'} <= set(SOURCES)
-    assert read.call_count == 31  # 29 Python modules, license and installer.
+    assert {'calc_model_task.py','calc_selection.py','calc_targeting.py','calc_edit.py'} <= set(SOURCES)
+    assert read.call_count == 32  # 30 Python modules, license and installer.
     assert len(digest) == 64
 
 

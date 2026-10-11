@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：DSH受限取消编辑接线与本地验证
+
+- 先补充P7费用方案，再接入原vm_calc_select/select_cell；可信启动绑定approved、expected_text及三个审核区域，控制激活与model-binding保留批准内容。部署白名单同步新增calc_edit.py，不添加通用键盘或raw工具。
+- 取消必须由当前服务端观察提出，模型同snapshot明确确认；执行端独立核对目标，单次AX点击+新观察计2raw，随后模型在新图上单独选择并独立核对，模拟完整链5raw。新图撤销旧取消请求；重复、旧图、混传坐标、未批准、变化文本、预算不足、停止、UNKNOWN和原编辑仍存在均覆盖。仅报告EDIT_CANCEL_ATTEMPT_OBSERVED，不冒充实际取消或业务成功。
+- 使用既有backend-venv运行`python -m pytest -q tools/mac_vm/tests/test_calc*.py backend/tests/test_desktop_deploy.py`：194通过。官方App测试入口`node agent/harness/test-calc-tools.mjs`配既有固定esbuild和官方App：42通过、零跳过。首次命令引用不存在的tools/mac_vm/tests/test_desktop_install.py而未执行测试，改为实际backend部署测试；未掩盖失败或创建替代文件。git diff --check通过。
+- 本轮未调用DSH模型、未部署guest、未执行真实取消、输入或保存。候选001/002保留原终态，P5不恢复；下一步冻结新提交并独立实测取消后重新截图定位，费用工作流最终产物仍待验收。
+
 ## 2026-10-11：原失败编辑状态证据与受限恢复规划
 
 - 新查Codex剩12%，余额及重置卡未变。仅只读核实原Driver daemon PID602存活、0.28.2坐标协议为窗口截图像素且自行还原Retina比例；未发现需要助手手工除scale的依据，不修改坐标。没有重启、升级、改权限或重发002动作。

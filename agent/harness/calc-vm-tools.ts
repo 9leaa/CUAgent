@@ -39,6 +39,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   let stopped = false, busy = false, lastUsed = 0
   let snapshot: string | undefined
   let latestImage: string | undefined
+  let cancelRequested = false, cancelAttempted = false
   const images = new Set<string>()
   const watches = new WeakSet<AbortSignal>()
   async function stop() {
@@ -90,8 +91,11 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (stopped) throw new Error('Calc stopped')
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
-      if (op === 'observe' ? keys !== '' : !['snapshot_id','snapshot_id,x,y'].includes(keys)
+      if (op === 'observe' ? keys !== '' : !['snapshot_id','snapshot_id,x,y','cancel_edit,snapshot_id'].includes(keys)
           || typeof args.snapshot_id !== 'string' || args.snapshot_id !== snapshot || ('x' in args && (!Number.isFinite(args.x) || !Number.isFinite(args.y)))) throw new Error('Calc same-snapshot arguments required')
+      if ('cancel_edit' in args && (args.cancel_edit !== true || !cancelRequested || cancelAttempted)) throw new Error('Calc cancellation not offered or already attempted')
+      if (op === 'select_cell' && cancelRequested && args.cancel_edit !== true) throw new Error('Calc edit requires explicit cancellation')
+      if (args.cancel_edit === true) { cancelAttempted=true; cancelRequested=false }
       const response = await fetch(binding.url, {method:'POST',headers:{Authorization:`Bearer ${binding.token}`,'Content-Type':'application/json'},
         body:JSON.stringify({op,args,runId:binding.runId,sessionId:binding.sessionId}), signal:AbortSignal.any([exec.signal,AbortSignal.timeout(40000)])})
       const value = await response.json()
@@ -99,12 +103,18 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || value.sessionId !== binding.sessionId || value.cell !== binding.cell || value.inputPermitted !== false
           || value.businessStatus !== 'UNVERIFIED' || !Number.isInteger(value.used) || value.used < lastUsed || value.used > 30) throw new Error('Calc response unconfirmed')
       const status = op === 'observe' ? 'OBSERVED' : value.status
-      if (!['OBSERVED','NEEDS_SCREENSHOT_POINT','SELECTION_OBSERVED'].includes(status)) throw new Error('Calc status denied')
-      if (status === 'NEEDS_SCREENSHOT_POINT') {
+      if (!['OBSERVED','NEEDS_SCREENSHOT_POINT','NEEDS_EDIT_CANCEL','EDIT_CANCEL_ATTEMPT_OBSERVED','SELECTION_OBSERVED'].includes(status)) throw new Error('Calc status denied')
+      if (status === 'NEEDS_SCREENSHOT_POINT' || status === 'NEEDS_EDIT_CANCEL') {
+        if (args.cancel_edit === true) throw new Error('Calc cancellation response mismatch')
         if (value.used !== lastUsed || value.snapshot_id !== snapshot || value.png !== undefined || value.state !== undefined) throw new Error('Calc fallback binding denied')
+        if (status === 'NEEDS_EDIT_CANCEL') {
+          if (cancelAttempted || 'x' in args || args.cancel_edit === true) throw new Error('Calc repeated edit cancellation denied')
+          cancelRequested=true
+        }
         return {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,inputPermitted:false})}
       }
-      if (value.used <= lastUsed || (status === 'SELECTION_OBSERVED' && value.used !== lastUsed+2)) throw new Error('Calc raw accounting mismatch')
+      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+2)) throw new Error('Calc raw accounting mismatch')
+      if ((status === 'EDIT_CANCEL_ATTEMPT_OBSERVED') !== (args.cancel_edit === true)) throw new Error('Calc cancellation response mismatch')
       const state = value.state
       if (!state || typeof state.snapshot_id !== 'string' || !/^s[0-9a-f]{8}$/.test(state.snapshot_id)
           || state.snapshot_id === snapshot || state.app_name !== 'LibreOffice' || state.screenshot_frame_valid !== true
@@ -125,6 +135,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       record(join(root,`calc-image-${value.used}.json`), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,
         snapshotId:state.snapshot_id,used:value.used,sourceSha256:createHash('sha256').update(png).digest('hex'),attachment:ref}, true)
       images.add(image.attachmentId); latestImage=image.attachmentId; snapshot=state.snapshot_id; lastUsed=value.used
+      cancelRequested=false // Any new image invalidates the previous cancellation offer.
       const result = {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,
         screenshot_width:state.screenshot_width,screenshot_height:state.screenshot_height,elements_complete:state.elements_complete,
         inputPermitted:false,businessStatus:'UNVERIFIED'}),image:ref}
@@ -138,8 +149,8 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   ctx.tools.register({name:'vm_calc_observe',description:'Observe the approved VM Calc target. Returns the fresh screenshot as an image. Read its pixels; do not infer coordinates from old images. No typing or saving.',
     parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,
     execute:(args,exec)=>execute('observe',args,exec)})
-  ctx.tools.register({name:'vm_calc_select',description:'Select the bound target cell once. First pass only snapshot_id: the VM uses unique reliable AX or returns NEEDS_SCREENSHOT_POINT. In that case inspect the returned observation image yourself and pass its snapshot_id and x,y in original screenshot pixels. The VM clicks once, observes again and independently checks the selected address. Do not retry failed/unknown clicks. Confirmation ends this diagnostic turn; it is not business completion.',
-    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'}}},
+  ctx.tools.register({name:'vm_calc_select',description:'Select the bound target cell once. First pass only snapshot_id: the VM uses reliable AX or returns NEEDS_SCREENSHOT_POINT. Then inspect that image yourself and pass its snapshot_id and x,y in original pixels. If the VM instead returns NEEDS_EDIT_CANCEL, and only then, pass the same snapshot_id and cancel_edit:true (no coordinates) to cancel the explicitly approved disposable test input once. Inspect the new EDIT_CANCEL_ATTEMPT_OBSERVED image, then start selection again with only its new snapshot_id. Cancellation observation is not proof of success. The VM clicks once per distinct approved action, observes again and independently checks the selected address. Never retry failed/unknown actions. Selection confirmation ends this diagnostic turn; it is not business completion.',
+    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'},cancel_edit:{type:'boolean',enum:[true]}}},
     output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('select_cell',args,exec)})
   ctx.tools.register({name:'vm_calc_stop',description:'Stop this original VM selection task without further actions.',
     parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,

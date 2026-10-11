@@ -19,6 +19,11 @@ from real_app_bridge import require_unlocked
 
 UUID = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 
+def edit_binding(args):
+    if not getattr(args,'approve_cancel_edit',False):return {}
+    return dict(edit_cancel=dict(approved=True,expected_text=args.pending_edit_text,
+        controls_region=args.edit_controls_region,editor_regions=[args.edit_body_region,args.edit_formula_region]))
+
 
 def credential(path):
     if path.parent.resolve(strict=True) != path.parent:
@@ -65,9 +70,18 @@ def main(argv=None):
     for name in ('grid', 'name-box-grid'):
         parser.add_argument('--'+name, required=True, type=float, nargs=4)
     parser.add_argument('--approve-selection', action='store_true')
+    parser.add_argument('--approve-cancel-edit', action='store_true')
+    parser.add_argument('--pending-edit-text')
+    parser.add_argument('--edit-controls-region',type=float,nargs=4)
+    parser.add_argument('--edit-body-region',type=float,nargs=4)
+    parser.add_argument('--edit-formula-region',type=float,nargs=4)
     parser.add_argument('--controlled', action='store_true',
                         help='Wait for trusted host control; do not require or grant an initial lease')
     args = parser.parse_args(argv)
+    edit_fields=(args.pending_edit_text,args.edit_controls_region,args.edit_body_region,args.edit_formula_region)
+    if any(v is not None for v in edit_fields) or args.approve_cancel_edit:
+        if not args.approve_cancel_edit or any(v is None for v in edit_fields):
+            parser.error('explicit disposable edit text and all reviewed regions required')
     if (not args.approve_selection or not re.fullmatch('calc-select-'+UUID, args.run)
             or not re.fullmatch(UUID, args.owner) or not re.fullmatch('session-'+UUID, args.session)
             or args.epoch < 1):
@@ -90,7 +104,7 @@ def main(argv=None):
     _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=PROTOCOL,
           runId=args.run, sessionId=args.session, owner=args.owner, epoch=args.epoch,
           pid=args.pid, window=args.window, title=args.title, cell=args.cell,
-          grid=args.grid, nameBoxGrid=args.name_box_grid)).encode())
+          grid=args.grid, nameBoxGrid=args.name_box_grid,**edit_binding(args))).encode())
     task = server = None
     stopping = threading.Event()
     previous = {}
@@ -103,7 +117,7 @@ def main(argv=None):
             previous[sig] = signal.signal(sig, interrupted)
         task = CalcModelTask(directory, lease=controller.gate, pid=args.pid,
             window_id=args.window, title=args.title, cell=args.cell, grid=args.grid,
-            session_id=args.session, name_box_grid=args.name_box_grid, approved=True)
+            session_id=args.session, name_box_grid=args.name_box_grid, approved=True,**edit_binding(args))
         server = tools_server(task, model_token, control_token=control_token)
         server.daemon_threads = False
         _save(directory/'calc-ready.json', json.dumps(dict(protocol=PROTOCOL,
@@ -138,7 +152,7 @@ def controlled(directory, controller, model_token, control_token, args):
     if controller.existing() is not None:
         raise ValueError('controlled launch requires an unused original lease')
     selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
-                     grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid)
+                     grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid,**edit_binding(args))
     _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
           sessionId=args.session,selection=selection)).encode())
     runtime = CalcGuestRuntime(directory,controller,model_token=model_token,
