@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+HTTP接线细化（实现前）：仅实际CalcInputModelTask实例在原鉴权/run/session协议上增加input_cell、commit_cell，禁止仅凭客户端字段或协议字符串升级；旧CalcModelTask仍仅observe/select_cell。新输入相关三模块同时加入宿主打包和guest安装固定名单，隔离导入测试确认部署包自足。真实loopback HTTP测试覆盖输入/提交、目标注入及旧模式拒绝，不代表官方模型/VM通过。guest启动与官方插件仍须后续显式启用。
+
 模型适配细化（实现前）：新增显式calc-input-v1适配器，复用原选择模型适配和输入执行器的同一Task实例；selection-v1仍选中即停止。新模式可信绑定双编辑区域、批准文字/类型及提交批准；模型只能提交snapshot_id/text/kind或仅snapshot_id，不能指定验证索引、区域、PID或原始Driver参数。输入后由适配器定位名称框并自动独立核对，提交后停止，仍返回未验证业务状态。先测适配器，不隐式把新模式注册到原HTTP或guest启动；后续HTTP、官方插件及部署须一并显式选择新协议。
 
 提交执行细化（实现前）：可信构造参数须另行commit_approved=true并持久绑定，缺省没有提交权限。模型未来仅确认当前已核对snapshot；执行端重验原确认区域、名称框、双编辑区原文字与新鲜Accept token，独占记录提交意图，预留2raw后单次AX点击Accept并获取不同新snapshot。停止/失权/UNKNOWN/预算不足或证据变化即拒绝，失败不重试。当前返回COMMIT_ATTEMPT_OBSERVED而非已保存/类型验证/业务成功；提交后独立文件验证及DSH协议仍须继续实现。

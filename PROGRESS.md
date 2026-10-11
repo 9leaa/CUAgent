@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入HTTP白名单与部署包依赖闭环
+
+- 实现前补方案；原desktop_tools_http仅对实际CalcInputModelTask增加input_cell/commit_cell，沿原独立凭据、run/session、请求结构、停止和原账本。不能由模型字段或协议字符串升级旧selection-v1权限，不开放raw输入/保存。
+- calc_input、calc_input_task、calc_input_model_task同时进入宿主SOURCES和guest FILES固定名单；显式提交打包测试更新为33个Python模块、许可证和installer共35次读取。隔离解释器从新临时部署包导入HTTP及启动模块通过，不依赖仓库路径，不执行GUI或服务激活。
+- 新增6项真实loopback HTTP测试（Driver模拟）：输入/独立确认/提交原7raw、停止后拒绝、错误run/session、验证目标注入、raw输入/保存拒绝；另补旧选择模式拒绝两项新操作。Calc及部署297通过；全部`tools/mac_vm/tests backend/tests/test_desktop_deploy.py`为642通过、256个subtests通过。git diff --check通过。
+- README同步；未部署到VM、未启动新模式或调用模型。下一步可信guest启动显式输入配置及官方插件工具接线，再固定新候选实测；P5继续跳过，完整P7业务仍未验收。
+
 ## 2026-10-11：显式输入协议适配器，未注册HTTP/插件
 
 - 先补方案再新增CalcInputModelTask，以calc-input-v1复用原CalcModelTask及CalcInputTask同一实例、锁、租约和30raw账本。可信启动绑定并持久保存双编辑区域；模型不能传名称框索引、审核区域、PID或任意Driver参数。
