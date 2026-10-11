@@ -13,7 +13,10 @@ class CalcInputTask(CalcSelectionTask):
     SIDE_EFFECT_TOOLS = CalcSelectionTask.SIDE_EFFECT_TOOLS | {'type_text'}
 
     def __init__(self, *args, input_approved=False, overwrite_disposable=False,
-                 approved_text=None, approved_kind=None, **kwargs):
+                 approved_text=None, approved_kind=None, commit_approved=False, **kwargs):
+        if type(commit_approved) is not bool:
+            raise ValueError('explicit boolean commit approval required')
+        self.commit_approved=commit_approved
         if input_approved is not True or overwrite_disposable is not True:
             raise ValueError('explicit disposable input approval required')
         validate_cell_payload(approved_text, approved_kind)
@@ -22,6 +25,7 @@ class CalcInputTask(CalcSelectionTask):
         try:
             binding=dict(cell=self.cell,approvedText=approved_text,approvedKind=approved_kind,
                          inputApproved=True,overwriteDisposable=True)
+            if commit_approved:binding['commitApproved']=True
             path=self.directory/'input-binding.json'
             if path.exists() or path.is_symlink():
                 if path.is_symlink() or json.loads(path.read_bytes())!=binding:
@@ -89,8 +93,48 @@ class CalcInputTask(CalcSelectionTask):
                     inputEffectVerified=True,storageTypeVerified=False,commitPermitted=False,
                     inputPermitted=False,businessStatus='UNVERIFIED')
                 self.record(dict(event='input_observed',result=result,used=self.used))
+                self.confirmed_input=json.loads(json.dumps(dict(snapshot_id=snapshot_id,
+                    name_box_index=name_box_index,controls_region=controls_region,
+                    editor_regions=editor_regions)))
                 self.phase='INPUT_OBSERVED'
                 return result
+            except Exception:
+                self.stop()
+                raise
+
+    def commit_once(self, *, snapshot_id):
+        """Single Accept on revalidated input evidence; no keyboard/save fallback."""
+        with self.lock:
+            try:
+                if (not self.commit_approved or self.phase!='INPUT_OBSERVED'
+                        or self.stopped.is_set() or self.uncertain or self.lock_fd is None
+                        or not self.snapshot or snapshot_id!=self.snapshot['snapshot_id']
+                        or snapshot_id!=self.confirmed_input['snapshot_id']):
+                    raise StopRun('BLOCKED','Approved current input confirmation required')
+                self.environment();self.lease.check();self.identity(self.pid)
+                if self.used>28:
+                    raise StopRun('BLOCKED','Reserve commit and post-commit observation')
+                context=self._context()
+                confirm_selected_cell(self.snapshot,**context,
+                    previous_snapshot_id=self.before_input,
+                    name_box_index=self.confirmed_input['name_box_index'])
+                context.pop('cell')
+                evidence=inspect_edit(self.snapshot,**context,approved=True,
+                    expected_text=self.input_text,
+                    controls_region=self.confirmed_input['controls_region'],
+                    editor_regions=self.confirmed_input['editor_regions'])
+                _save(self.directory/'commit-attempt.json',json.dumps(evidence).encode())
+                self.record(dict(event='commit_intent',evidence=evidence,used=self.used))
+                self.phase='COMMIT_ATTEMPTED';self.snapshot=None
+                self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,
+                    **evidence['accept']))
+                result=self.observe()
+                if result['state']['snapshot_id']==snapshot_id:
+                    raise ValueError('new post-commit observation required')
+                self.phase='AWAITING_COMMIT_CONFIRMATION'
+                return dict(result,status='COMMIT_ATTEMPT_OBSERVED',commitEffectVerified=False,
+                    storageTypeVerified=False,inputPermitted=False,commitPermitted=False,
+                    businessStatus='UNVERIFIED')
             except Exception:
                 self.stop()
                 raise

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：受限Accept单次提交执行，未接DSH
+
+- 先补方案，再为CalcInputTask增加默认关闭且持久绑定的commit_approved及commit_once。输入确认保存可信审核区域副本，提交前重新核对同snapshot、名称框、双编辑区原文字、Accept身份和时效；预留2raw，独占落盘提交意图，单次点击Accept后取得新观察。不开放Enter、任意点击或保存。
+- 复用原身份、环境、租约、30raw、停止/UNKNOWN及重开不可重试约束；新结果为COMMIT_ATTEMPT_OBSERVED/commitEffectVerified=false/storageTypeVerified=false。新图不等于提交或文件已验证，完整费用业务仍未完成。
+- 新增9项模拟测试：原预算完整选择/输入/提交链7raw、准确Accept参数、重复拒绝、无单独批准、文字变化/旧snapshot/停止/UNKNOWN/失权/预算不足及点击超时不重试。原backend-venv运行`python -m pytest -q tools/mac_vm/tests/test_calc*.py backend/tests/test_desktop_deploy.py`，283通过；git diff --check通过。
+- README同步，未部署或派发真实Driver/模型动作，P5保持跳过。下一步显式DSH输入/提交工具接线、冻结新候选及实机验证，不重跑005或替换失败样本。
+
 ## 2026-10-11：输入后双编辑区核对，尚未接DSH实测
 
 - 实施前补方案；从原取消规划器抽取inspect_edit，保留原取消接口及行为。新增CalcInputTask.confirm_input，可信适配方提供审核区域/名称框身份，不给模型任意选择验证控件的入口。

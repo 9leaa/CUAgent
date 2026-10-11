@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+提交执行细化（实现前）：可信构造参数须另行commit_approved=true并持久绑定，缺省没有提交权限。模型未来仅确认当前已核对snapshot；执行端重验原确认区域、名称框、双编辑区原文字与新鲜Accept token，独占记录提交意图，预留2raw后单次AX点击Accept并获取不同新snapshot。停止/失权/UNKNOWN/预算不足或证据变化即拒绝，失败不重试。当前返回COMMIT_ATTEMPT_OBSERVED而非已保存/类型验证/业务成功；提交后独立文件验证及DSH协议仍须继续实现。
+
 输入后核对细化（实现前）：抽取取消规划器已有的双编辑区证据校验，保留其原取消接口。新输入确认要求输入前后snapshot不同、原名称框仍为目标单元格、两处独立AXTextArea逐字匹配批准文字、当前Cancel/Accept身份明确。可信执行调用方提供审核区域与名称框索引，模型不得指定；确认不增加Driver请求，只审计已有新观察并转为INPUT_OBSERVED，仍不提供提交、保存或存储类型成功结论。任何不符停止，后续显式提交另行接线。
 
 执行层细化（代码前）：新增独立CalcInputTask继承原选择执行器，只有可信构造参数绑定approved_text/kind/overwrite_disposable时可用，不修改selection-v1和原默认工具集。输入方法要求同run已CONFIRMED、当前snapshot匹配、可信name_box_index重新核对，并预留2raw；独占保存单次输入意图后才调用一次带原pid/window/session/新element_token的foreground type_text，再取得新观察。原文字逐字传参，不增加坐标焦点点击或Enter；任何异常停止，副作用超时沿原UNKNOWN保留。返回INPUT_ATTEMPT_OBSERVED及inputEffectVerified=false，不自动提交、保存或提升成功。HTTP/模型接入和双编辑区确认随后实施，旧候选不可复活。

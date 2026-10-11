@@ -16,7 +16,7 @@ from test_calc_targeting import state
 
 
 @pytest.fixture
-def input_setup(tmp_path,state):
+def input_setup(tmp_path,state,request):
     tmp_path.chmod(0o700)
     control=tmp_path/'lease.json'
     lease=dict(version=1,runId='input',owner='worker',epoch=1,stopped=False,expiresAt=120000)
@@ -36,7 +36,8 @@ def input_setup(tmp_path,state):
             return s
         return {'effect':'unverifiable'}
     def factory(**updates):
-        options=dict(input_approved=True,overwrite_disposable=True,approved_text='AbZ中文',approved_kind='text')
+        options=dict(input_approved=True,overwrite_disposable=True,approved_text='AbZ中文',approved_kind='text',
+                     commit_approved=getattr(request,'param',False))
         options.update(updates)
         return CalcInputTask(tmp_path/'input',lease=LeaseGate(control,run_id='input',owner='worker',epoch=1,clock=lambda:100),
             pid=10,window_id=20,title='probe',cell='A1',grid=[0,80,700,550],approved=True,
@@ -212,3 +213,46 @@ def test_uncertain_input_evidence_stops_without_dispatch(input_setup,monkeypatch
     elif fault=='stale':t.observed_at-=31
     with pytest.raises((ValueError,StopRun)):t.confirm_input(**args)
     assert t.stopped.is_set() and t.used==5 and len(calls)==5
+
+
+@pytest.mark.parametrize('input_setup',[True],indirect=True)
+def test_single_accept_with_original_budget(input_setup,monkeypatch):
+    t,calls,*_=input_setup;args=edited(t,monkeypatch);t.confirm_input(**args)
+    result=t.commit_once(snapshot_id=args['snapshot_id'])
+    assert t.used==7 and len(calls)==7
+    assert calls[5]==('click',dict(pid=10,window_id=20,session='input',
+        element_index=12,element_token=args['snapshot_id']+':12'))
+    assert result['status']=='COMMIT_ATTEMPT_OBSERVED'
+    assert not result['commitEffectVerified'] and not result['storageTypeVerified']
+    with pytest.raises(StopRun):t.commit_once(snapshot_id=result['state']['snapshot_id'])
+    assert len(calls)==7
+
+
+def test_commit_requires_separate_approval(input_setup,monkeypatch):
+    t,calls,*_=input_setup;args=edited(t,monkeypatch);t.confirm_input(**args)
+    with pytest.raises(StopRun):t.commit_once(snapshot_id=args['snapshot_id'])
+    assert len(calls)==5 and t.stopped.is_set()
+
+
+@pytest.mark.parametrize('input_setup',[True],indirect=True)
+@pytest.mark.parametrize('fault',['text','old','stopped','unknown','lease','budget','timeout'])
+def test_commit_rechecks_evidence_and_never_retries(input_setup,monkeypatch,fault):
+    t,calls,s,control,lease,*_=input_setup;args=edited(t,monkeypatch);t.confirm_input(**args)
+    snapshot=args['snapshot_id']
+    if fault=='text':t.snapshot['elements'][-1]['value']='other'
+    elif fault=='old':snapshot='old'
+    elif fault=='stopped':t.stop()
+    elif fault=='unknown':t.uncertain=True
+    elif fault=='lease':control.write_text(json.dumps(dict(lease,stopped=True)))
+    elif fault=='budget':t.used=29
+    elif fault=='timeout':
+        original=t.transport
+        def timeout(tool,arguments):
+            if tool=='click':raise TimeoutError('commit UNKNOWN')
+            return original(tool,arguments)
+        monkeypatch.setattr(t,'transport',timeout)
+    with pytest.raises((StopRun,ValueError,TimeoutError)):t.commit_once(snapshot_id=snapshot)
+    assert len(calls)==5 and t.stopped.is_set()
+    if fault=='timeout':assert t.uncertain and t.used==6
+    with pytest.raises(StopRun):t.commit_once(snapshot_id=snapshot)
+    assert len(calls)==5
