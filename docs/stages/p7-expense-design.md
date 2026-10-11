@@ -2,6 +2,8 @@
 
 ## Driver 投递候选与回退门槛（2026-10-11，未安装）
 
+来源门槛已核对：0.28.2完整App归档SHA为e273181b26709c88b1d809474deb3c592b4efae3530b11d76318f1887fc3fbb1，App可执行文件SHA为9a7731f7e961a57963f0deb132878367fdf7354e7327a4d558fe4a68e4686b81，与本轮VM现用文件相同且codesign严格验证通过。此项解除旧版来源疑问，不解除新版包校验、切换授权及实机验证门槛。
+
 上游 [f0da502](https://github.com/trycua/cua/commit/f0da502ac3f477253dd08e87976a39cca274fd16) 将窗口前台像素点击从 PID 投递改为精确激活窗口、移动硬件指针并通过 HID 投递；[49e924c](https://github.com/trycua/cua/commit/49e924c4632882134b204b2e8a0ce8fae44418df) 另明确记录 LibreOffice VCL 忽略 PID 鼠标事件、单元格 AX press 可能空操作。这与004正确点位但名称框不变一致，是待实机验证的原因，不是已修复证明。
 
 固定候选调研为 `cua-driver-rs-v0.34.1`，不是 latest：其 `pixel_route.rs` 实际包含 ForegroundHid/精确窗口/HID 路线；对49e924c的GitHub compare为diverged（ahead9/behind65），pointer_toolkit未包含Vcl识别，故不能声称两项修复都已发布。当前任务只使用显式foreground，不以背景路线兼容作为既成事实。
