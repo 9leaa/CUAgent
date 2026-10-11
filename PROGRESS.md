@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-11：定位Driver CLI丢失具体错误说明
+
+- 确认上轮b2d22d9已推送，工作区干净后只读核对固定cua-driver-rs-v0.34.1官方源码。pixel_route::foreground_unavailable把cause写入ToolResult的content文本，同时structuredContent仅含code；protocol::ToolResult::error确实保留该文本。cli::run_call打印structuredContent并设置printed=true，只有!printed才输出content文本，最后以isError退出1。
+- 这解释原004为何只有foreground_unavailable而无详细原因；本地Calls.cli的capture_output和DriverCallError已保存原stdout/stderr，不是4096字节截断导致（原错误远小于上限）。不能据源码反推原cause，也不能断言点击未发生或只是焦点超时。
+- 方案补入P7费用设计：下一候选先保留完整错误响应，测试退出码/成功响应/文本上限/不重试/UNKNOWN与预算不变。不能在失败后补发同一动作来获取详情，不能把换传输当作免审查的实现步骤。此次只做源码诊断和文档，无模型、VM动作、Driver升级/重启；原004及P5状态保持不变。
+
 ## 2026-10-11：保存候选004点位通过，Driver前台投递失败
 
 - 固定e074243，494份源码冻结、VM37文件独立读回哈希一致，原VM就绪无需再次解锁；正式profile先仅暂存。真实额度剩78%、原余额和两卡未变，原空闲Worker70582按身份/cwd/队列检查后短时切换；官方Flash/off沿新原run/session运行，不恢复003。

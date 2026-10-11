@@ -191,6 +191,8 @@ HTTP接线细化（实现前）：仅实际CalcInputModelTask实例在原鉴权/
 
 ## 最小测试矩阵
 
+2026-10-11前台错误诊断方案（实现前）：保存004已保留为UNKNOWN，禁止恢复或重放。固定Driver 0.34.1的[pixel_route.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/platform-macos/src/tools/pixel_route.rs)把具体cause放入错误content文本，structuredContent只有code；[cli.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/cua-driver/src/cli.rs)的run_call优先打印structuredContent，printed=true后不再输出content。CUAgent现有stdout/stderr捕获无法恢复上游已经丢弃的信息。下一步先评估保留原完整错误文本的最小兼容方案：优先保持官方CLI/daemon授权、会话命名空间及一次派发不变，错误文本只进入有界私有审计，不交给模型当指令。不得直接改成私有socket或新MCP传输绕过原身份/权限，不未经审查升级/替换Driver。离线验证至少覆盖同时含code与cause、成功响应不变、缺文本、超长文本、非零退出、超时UNKNOWN、失败零重试及原预算；冻结部署兼容性确认后才允许新候选。具体前台失败分支仍未知，不能先改激活时限、强制前置窗口或放宽焦点检查。此方案不新增动作授权、不修改004证据，也不把诊断完成当保存业务完成。
+
 2026-10-11用户纠偏后的DSH主链接线方案（代码前）：不再将操作者手填坐标视为CUAgent能力。沿原c0-vm-tools官方插件入口，新增显式calc-selection-v1分支，仅在可信连接同时绑定caseId/stage/run/session/cell时注册vm_calc_observe、vm_calc_select、vm_calc_stop；原TextEdit/交接工具不混入。截图通过官方附件服务返回真实image block，记录原PNG摘要与附件ID；模型从截图自行给出同snapshot像素坐标，禁止由操作者预填。模型请求固定Flash/off，取消/错误立即本地封闭并请求原任务stop，不重试动作。
 
 VM端CalcModelTask复用CalcSelectionTask和原tools_server授权/来源/大小边界；模型HTTP额外校验原run/session，不能提供PID、窗口、单元格、名称框index或派发模式。可信启动绑定名称框截图区域，点击后从新AX中仅选择该区域唯一ComboBox并核对其唯一子文本值；模型不能自选验证控件。成功只返回SELECTION_OBSERVED并停止，正式工具结果concludeTurn，不提升为费用业务成功。拒绝消耗原剩余预算、作废观察并停止；完整链仍是2观察+1点击。新增官方插件注册/图片/取消/身份/坏响应及真实loopback HTTP到模拟Driver的跨层测试。部署源码清单同步纳入三个Calc依赖模块，防止新版tools_server在旧任务启动时缺模块；补实际安装包隔离导入回归，但不部署或改现有运行服务/模型profile。真实DSH会话和VM验收必须后续冻结部署准入并记录，不能把本地跨层测试当真实通过。
