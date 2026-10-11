@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-11：按用户要求跳过P5观察
+
+- 用户明确“p5先跳过吧”。通过原ScheduleService.pause暂停唯一正式计划，独立读回PAUSED；原6条occurrence内容未变，未补跑、未删除证据，P5仍未验收。
+- 原Operator.revoke返回REVOKED，私有回执已落盘；Codex跟进cuagent-p5本已PAUSED，未重复修改。数据库未发现QUEUED/RUNNING/STOP_REQUESTED/WAITING_RELEASE任务，无需停止在途批次。
+- 本次未派发模型、未操作VM、未切换DSH profile或停止共享Worker。下一步继续原Calc候选的真实DSH验证，仍需共享运行切换及独立验收；不自动恢复P5。
+
 ## 2026-10-11：控制版本部署及共享运行冲突
 
 - 原候选001新增control-revision-001，固定ec0e1d38088034382723ef436fa60d9d382511ec；30个VM文件独立读回/权限/哈希通过，旧d5c5f20回执保留，原run/session不变。原guest运行目录和独立连接凭据已准备，无lease、激活、模型或GUI派发。
