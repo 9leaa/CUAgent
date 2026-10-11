@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：候选003真实取消成功、后续模型定位越界拒绝
+
+- 固定已推送99eadfb，冻结472份公开源码，31份guest文件独立读回哈希一致。新run/session保留001/002失败谱系，不恢复旧会话或清零旧预算。当前额度普通可用、剩11%、余额及重置卡未变，遵循最新3%停止线。
+- 官方DSH同一会话真实Flash/off，依次observe、请求AX、收到NEEDS_EDIT_CANCEL、明确cancel_edit=true、收到新图、请求AX、收到NEEDS_SCREENSHOT_POINT、模型给出(130,358)。取消点击只使用新观察的Cancel AX身份；后图中a和启用的Cancel/Accept消失，公式栏空，名称框仍A1。取消部分独立验证通过。
+- 模型错误估计行高为36px，实际该截图行高约24px，目标A2在y330–352，而358已到A3。执行端按原区域在真正点击前拒绝；原任务4raw包含2观察、1Cancel及1拒绝，五次模型工具调用，框架终态error、业务UNVERIFIED。没有再次点击、输入、保存或用助手坐标替代模型。后续需提升图像定位，不放宽批准区域迁就错误点。
+- 私有independent-guest保存原两张PNG/JSON、trace、lease和绑定，SHA独立一致；independent-audit.json核对连续预算、唯一Cancel、真实模型参数、原调用、停止及零在途。保存实际usage，不猜货币费用。live-quota时间字段采用紧随查询后的主机分钟，非精确API响应时间，另存审计说明；后续须用查询前后真实时钟夹定而非手填估计。
+- 同一生命周期finally撤销、关闭guest(exit0)、恢复原profile；Worker恢复PID53369且进程存活，P5仍PAUSED。首次额外只读inspect用了相对root被路径校验拒绝，未导致重发；原runner已经完成绝对路径检查及session归档。此次未重启VM、修改Driver权限或账户设置。P7完整费用产物仍未验收。
+
 ## 2026-10-11：DSH受限取消编辑接线与本地验证
 
 - 先补充P7费用方案，再接入原vm_calc_select/select_cell；可信启动绑定approved、expected_text及三个审核区域，控制激活与model-binding保留批准内容。部署白名单同步新增calc_edit.py，不添加通用键盘或raw工具。
