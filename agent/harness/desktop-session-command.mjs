@@ -9,7 +9,7 @@ import { createDesktopRpc, startDesktopSession, startHandoffSession, startCalcSe
 import { officialSessionReader, inspectAndArchiveDesktopSession } from './desktop-session-evidence.mjs';
 
 export function sessionStarter(kind) {
-  if (kind === 'calc-selection' || kind === 'calc-input') return startCalcSession;
+  if (kind === 'calc-selection' || kind === 'calc-input' || kind === 'calc-save') return startCalcSession;
   return kind === 'project-handoff' ? startHandoffSession : startDesktopSession;
 }
 

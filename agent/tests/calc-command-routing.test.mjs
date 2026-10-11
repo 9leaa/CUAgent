@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {sessionStarter} from '../harness/desktop-session-command.mjs';
 import {startCalcSession,startHandoffSession,startDesktopSession} from '../harness/desktop-session.mjs';
 
-for(const kind of ['calc-selection','calc-input'])test(`CLI routes ${kind} to strict Calc starter`,()=>{
+for(const kind of ['calc-selection','calc-input','calc-save'])test(`CLI routes ${kind} to strict Calc starter`,()=>{
   assert.equal(sessionStarter(kind),startCalcSession);
 });
 test('CLI keeps legacy starters separate',()=>{

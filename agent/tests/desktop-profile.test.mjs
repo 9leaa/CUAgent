@@ -154,7 +154,7 @@ test('optional real pinned compiler builds into temporary run without altering p
     assert.equal(readFileSync(f.target, 'utf8'), f.before);
   });
 
-for (const kind of ['calc-selection','calc-input']) test(`Calc ${kind} profile uses original compiled plugins and restores original bytes`,
+for (const kind of ['calc-selection','calc-input','calc-save']) test(`Calc ${kind} profile uses original compiled plugins and restores original bytes`,
   {skip: !process.env.CUAGENT_TEST_BUILD_TOOLS}, async t => {
     const f = fixture(t);
     rmSync(join(f.root,'desktop-plugins'),{recursive:true});

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存宿主profile、App与会话入口
+
+- 先写方案，再新增独立calc-save preset与prepare-calc-save命令；与原选择/输入preset互斥，沿原固定编译器、临时profile审查、应用与恢复流程。没有修改正式profile或切换服务。
+- calc绑定支持calc-save-v1并精确生成六工具ready，App预期preset、session kind及CLI分派同步。保存会话明确原批准文字/类型、当前snapshot、提交独立确认、最多16raw进入保存、看面板新图后停止；不宣称文件已保存，不提供最终保存能力或任意路径。
+- 运行CUAGENT_TEST_BUILD_TOOLS指向主仓库固定desktop-build-tools的Node测试：desktop-session、desktop-profile、desktop-app及calc-command-routing共98/98，无跳过。覆盖真实临时配置编译与字节恢复、模拟App/session正常及错误ready、工具、协议、创建/模型/提示失败不可重发；git diff --check通过。上述不是模型或VM业务验收。
+- README同步。下一步冻结新代码/新run，按最新账户门槛、原VM互斥及profile/Worker恢复流程，实测保存面板新图；之后依据实际面板实现填写/最终保存/重开及独立ODS，不恢复旧005或拼接多run业务成功。
+
 ## 2026-10-11：官方DSH插件显式保存入口
 
 - 按先行方案支持calc-save-v1，严格六工具，新vm_calc_open_save只提交原snapshot；仍固定Flash/off、原session/run及私有图片审计。原选择/输入协议保持三/五工具和原终止行为。

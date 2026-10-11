@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 宿主保存会话入口（2026-10-11，实施前）
+
+新增独立calc-save preset和prepare-calc-save命令，沿原编译/profile暂存与恢复流程，不修改正式配置。宿主App和session按calc-save-v1精确核对六工具ready、原run/session及批准输入，旧输入/选择不变。会话提示要求选择→输入→提交独立确认→打开保存面板→看新图并停止，明确当前不含面板填写或文件成功。文件路径仍只由guest原run推导，宿主不授予任意路径。用固定编译器生成/恢复临时profile、模拟App/session测试和插件测试验证；新真实候选必须单独冻结及账户/VM准入。
+
 ## 官方插件保存入口（2026-10-11，实施前）
 
 插件显式calc-save-v1复用批准输入绑定并新增vm_calc_open_save，严格六工具。新模式commit必须收到CELL_COMMIT_OBSERVED与同新图/原cell/text/type、commitEffectVerified=true及saved/storageTypeVerified=false；原输入协议仍仅接受尝试并结束。open_save只允许committed阶段、当前snapshot与used≤16，返回必须新增2raw、新PNG且saved/savePermitted=false，模型不得提供路径/控件。当前入口不包含面板填写或最终保存，观察返回后只能分析/停止，不称业务成功；后续面板能力依据实机证据接入。模型仍固定Flash/off，保留图片审计、停止和UNKNOWN不可重试。

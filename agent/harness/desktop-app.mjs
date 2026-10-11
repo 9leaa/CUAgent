@@ -7,7 +7,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { createDesktopRpc } from './desktop-session.mjs';
 import { loadA1TaskConfig } from '../a1-task-config.mjs';
 import { handoffTools } from './handoff-prompt.mjs';
-import { calcInput, calcReady } from './calc-binding.mjs';
+import { calcInput, calcReady, calcPreset } from './calc-binding.mjs';
 
 const APP = '/Applications/DeepSeek Harness.app';
 const EXECUTABLE = APP + '/Contents/MacOS/DeepSeek Harness';
@@ -119,7 +119,7 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
     assert.match(connection.token, /^[A-Za-z0-9_-]{43,60}$/u);
     environment = [`DSH_HOME=${home}`, `CUAGENT_C0_CONNECTION=${launchFile}`,
       `CUAGENT_C0_AUDIT_PATH=${join(root, 'request-audit.jsonl')}`, 'CUAGENT_A1_TASKS_PATH='];
-    expected = [mode === 'calc' ? (calcInput(connection)?'calc-input':'calc-selection') : mode === 'p7' ? 'project-handoff' : 'real-app'];
+    expected = [mode === 'calc' ? calcPreset(connection) : mode === 'p7' ? 'project-handoff' : 'real-app'];
   } else {
     privatePath(launchFile);
     (dependencies.validateA1 ?? loadA1TaskConfig)(launchFile);
