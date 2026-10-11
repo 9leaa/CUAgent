@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存候选001源码冻结、部署及VM准备
+
+- 冻结1dd3d9013401e6973529d157c5fdc471f2fa714f：492个受控源码文件留存SHA，VM新部署目录37文件及manifest独立读回校验一致。私有候选calc-dsh-save-001，原run calc-select-23724c45-6f3f-4b36-ab9b-298e83cdbd4b、session-fc51716b-e682-4cc5-9f53-e61fc0c995dd；只创建候选绑定，尚未创建实际官方模型会话。
+- 固定编译器生成calc-save profile并保存原字节摘要，正式profile前后完全相同；固定原目标路径、工具栏区域、A2批准文字及公式栏模式，30raw/180秒约束不变。没有授予租约、停止Worker或派发模型/业务GUI动作。
+- 实查原Worker67854命令/cwd和Calc79126仍在；VM首次返回锁屏，屏幕共享旧窗口黑屏，关闭该查看窗口并重连原VNC。用原普通账号登录，首次typeText未解锁，聚焦密码栏普通按键后独立require_unlocked返回VM_READY；未改变密码、权限、睡眠或网络配置，未通过GUI代做业务。
+- 当前Codex普通额度可用、剩84%、原余额62494.0260570000及两张未使用卡保持；此只是准备期读数，不用于未来派发授权。私有preflight摘要保留上述介入，真实运行前仍须重查额度、冻结源码、共享队列/锁与服务状态。
+- README同步。下一步在同一原候选准备运行入口、受控临时profile/Worker切换及恢复，再由官方DSH Flash/off观察保存面板；当前并无保存/重开/ODS或完整P7验收证据。
+
 ## 2026-10-11：保存宿主profile、App与会话入口
 
 - 先写方案，再新增独立calc-save preset与prepare-calc-save命令；与原选择/输入preset互斥，沿原固定编译器、临时profile审查、应用与恢复流程。没有修改正式profile或切换服务。
