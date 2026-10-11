@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存候选003真实聚焦准入失败与提示契约修正
+
+- 固定99334bd，494份源码冻结、VM37文件独立哈希一致。原控制台锁定，旧VNC黑屏；重连原查看连接后，单独Shift被CUA拒绝，Return唤醒，再用原测试账号正常解锁。独立VM_READY后继续同一未派发候选，不改VM设置、权限或业务内容。全部准备介入私有记录保留。
+- 派发前真实额度剩79%，原余额和两张卡未变；原空闲Worker69768按既有准入停止。官方Flash/off观察→已选中只读复核→请求聚焦，3模型工具、2raw。DSH自主给(900,231)，可见白色公式栏内，但AXTextArea的当前原图frame仅(496,212)-(598,244)，规划器在生成聚焦意图及click之前拒绝。
+- 原state01/02 JSON、PNG、trace和绑定独立收集哈希；原模型请求与离线规划器重现point must be inside current formula editor，只有两次get_window_state，未派发点击/输入/提交/保存，不把这次失败称为Driver点击无效。结果FOCUS_POINT_OUTSIDE_AX_TEXT_FRAME，UNVERIFIED；任务终止、许可撤销、pending0、guest退出0、profile恢复、Worker恢复70582，P5仍暂停。
+- 先补方案，再修正focus工具描述和input/save persona：自主点击当前可见文字内部，说明AX文字框不覆盖整条白栏，不提供固定点位、不扩大原准入范围。新增描述契约断言；官方运行时90/90及宿主98/98测试通过，git diff --check通过。原003不修改、不恢复；提示改善、实际聚焦/文字替换与保存重开仍待新候选验证。
+
 ## 2026-10-11：官方插件聚焦工具与宿主名单同步
 
 - 先补方案；输入/保存模式新增vm_calc_focus，精确snapshot_id/x/y、finite、selected阶段及used≤24才允许请求。响应严格核对INPUT_FOCUS_OBSERVED、原身份、新PNG、增加2raw和未输入/未提交边界；进入focused后可继续原输入，重复聚焦拒绝，新观察使聚焦证明失效。选择模式保持三工具，不增加通用键鼠能力。

@@ -122,6 +122,8 @@ for (const fault of [null,'nan','partial','extra','proof','accounting','stale','
 test('explicit save protocol confirms commit then opens once with new image',async t=>{
   const f=await inputFixture(t,true)
   assert.equal(f.registered.length,7)
+  assert.match(f.tool('vm_calc_focus').description,/visible existing formula text itself/)
+  assert.match(f.tool('vm_calc_focus').description,/never choose the empty middle/)
   await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
   const committed=await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
   assert.equal(JSON.parse(committed.result).status,'CELL_COMMIT_OBSERVED')

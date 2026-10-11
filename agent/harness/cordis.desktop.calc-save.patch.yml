@@ -41,6 +41,7 @@
                 Request detail for dense rows; never guess row spacing or reuse old coordinates.
                 After SELECTION_OBSERVED inspect the formula editor in the current original image.
                 Choose an interior x,y and call vm_calc_focus once with that snapshot; never guess old coordinates.
+                Click inside the visible existing text itself: the AX editor frame may cover only the text, not the entire white formula bar. Do not choose its empty middle or right side.
                 Only INPUT_FOCUS_OBSERVED permits inputting the approved literal once with its new snapshot.
                 After INPUT_OBSERVED commit once. Failed focus or input must stop, not retry.
                 Only CELL_COMMIT_OBSERVED permits vm_calc_open_save with the current snapshot.
