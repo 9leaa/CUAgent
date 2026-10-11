@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存候选004点位通过，Driver前台投递失败
+
+- 固定e074243，494份源码冻结、VM37文件独立读回哈希一致，原VM就绪无需再次解锁；正式profile先仅暂存。真实额度剩78%、原余额和两卡未变，原空闲Worker70582按身份/cwd/队列检查后短时切换；官方Flash/off沿新原run/session运行，不恢复003。
+- 官方DSH给当前文字内部(540,233)，纯规划通过并保留input-focus-attempt。实际3raw为两次观察及一次click；Driver非零退出，stdout只有code=foreground_unavailable，原call_id记录UNKNOWN，随后停止且无后续派发。没有INPUT_FOCUS_OBSERVED、新输入或保存证明，不把点位准入通过写成聚焦成功。
+- 原JSON/PNG、trace及意图独立哈希采集。停止/恢复后另2次只读Driver检查，原PID79126/窗口1250仍在当前Space且onscreen；新s0000001f无Cancel/Accept、A2仍旧AbZ中文，新PNG独立保存核对。不混入原预算/成绩，不用新观察恢复原UNKNOWN任务。
+- 固定0.34.1 click.rs将前台路线异常统一转foreground_unavailable；skylight.rs包括SPI/目标解析/激活/精确焦点等失败分支，仅此代码不足以判定具体分支。原daemon1521仍运行，stdout/stderr均/dev/null，没有可从此处追溯的细节。没有升级Driver、重启服务、放宽焦点检查或通过人工点击代做业务。
+- 原会话终止、许可撤销、pending0、guest退出0、profile恢复、Worker恢复70928，P5 PAUSED；私有独立审计通过并保留全部失败。README同步；下一步补充原Driver前台错误详细取证/只读焦点核对，再设计有证据的修正。完整保存/重开/ODS及P7业务仍未完成。
+
 ## 2026-10-11：保存候选003真实聚焦准入失败与提示契约修正
 
 - 固定99334bd，494份源码冻结、VM37文件独立哈希一致。原控制台锁定，旧VNC黑屏；重连原查看连接后，单独Shift被CUA拒绝，Return唤醒，再用原测试账号正常解锁。独立VM_READY后继续同一未派发候选，不改VM设置、权限或业务内容。全部准备介入私有记录保留。
