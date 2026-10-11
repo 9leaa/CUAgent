@@ -1,5 +1,15 @@
 # CUAgent 实际进度
 
+## 2026-10-11：候选005官方DSH局部坐标选择A2实机通过
+
+- 固定05c8aaa，473份源码冻结、31个guest文件独立读回一致；原001–004失败不恢复。新运行calc-select-c8d29af6-8a7b-4d7f-bca1-500fb393309c、官方会话session-afac26f9-2c97-4406-9024-9f719daeaa8f绑定同一候选；运行前再次核对Driver0.34.1可执行SHA和原权限。首次只读list_windows确认原LibreOffice79126/window1250与窗口尺寸不变，此准备观察单独记为一次Driver请求，不计入随后模型任务的4raw。
+- 两次准备准入因VM控制台锁定拒绝，均发生于guest令牌/租约/模型派发前。屏幕共享旧连接显示历史画面，不能当作解锁证据；关闭并重连原VNC，使用原凭据登录，正常解锁mvpagent，第三次原候选准备通过。一次Shift纯修饰键被CUA拒绝，未向VM输入；Escape/Return用于显示登录界面。无助手代点A2、无修改睡眠/权限/SSH。上述操作者介入不算模型自主恢复。
+- 实时额度查询UTC13:15:46至13:15:48夹定：普通可用、剩98%，积分基准62494.0260570000及两张未用重置卡不变；未触发低于3%的停止后恢复逻辑。私有0600额度记录供原170秒运行入口校验。
+- 实际工具顺序observe→select(无坐标，返回需截图点)→observe(detail left0/top240/width300/height200)→select(detail_x200/detail_y196)。模型实际收到同一s00000002原图和2倍局部图；插件映射x=0+200/2=100、y=240+196/2=338，本轮真实覆盖detail_x/detail_y，而非只用模拟成绩。实际模型路由Flash/off、原三工具范围核对。
+- 原trace连续4raw为两次get_window_state、一次click、一次get_window_state。Driver单次点击报告明确窗口激活、硬件指针移动、HID tap，仍effect=unverifiable；独立state-04.png肉眼显示A2选中且名称框A2，新AX亦A2，前两张为A1。selection_confirmed为SELECTION_OBSERVED；没有输入、保存或追加点击，不能称费用工作簿成功。
+- 独立采集原三张PNG/JSON、trace、lease与绑定，核对源哈希、局部图源/附件进入模型、实际点位/连续预算/新snapshot和新名称框。私有independent-audit.json通过，官方completed仅为辅助证据，不替代实际GUI判据。usage保留原会话各assistant/message值，不把未知货币成本填零。
+- 清理确认原任务停止、pendingCalls0、guest退出0、控制入口关闭、profile恢复；空闲Worker恢复64179，P5为PAUSED。无重启VM、无再升级Driver。此轮为真实模型/VM选择验证，不新增代码单元成绩；README同步，完整费用输入/保存重开/ODS和三组业务任务继续待验收。
+
 ## 2026-10-11：用户明确允许后完成VM Driver受控升级
 
 - 用户明确允许VM Driver备份、升级和失败回退。固定0.34.1官方完整归档75828341字节，SHA256为4c7edf1ebbad7e4bc9fac90a4dc4f50d544592e00b35f15b681ccf8b41cb4ff1，与发布资产一致；本地及VM codesign严格检查通过，签名TeamIdentifier YCK386LBJ7、公证stapled。没有执行latest安装器或改宿主Driver。
