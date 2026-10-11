@@ -10,6 +10,8 @@ import time
 
 from calc_model_task import CalcModelTask, PROTOCOL
 from calc_input_model_task import CalcInputModelTask
+from calc_save_model_task import CalcSaveModelTask
+from calc_save import workbook_destination
 from calc_input import validate_cell_payload
 from calc_targeting import _number
 from calc_selection import SHARED_LOCK, _save
@@ -51,6 +53,18 @@ def input_binding(args):
                 commit_approved=commit,controls_region=controls,editor_regions=[body,formula])
     if target=='formula':result['formula_region']=list(formula)
     return result
+
+
+def save_binding(args, inputs):
+    approved=getattr(args,'approve_save',False)
+    region=getattr(args,'save_toolbar_region',None)
+    if not approved and region is None:return None
+    if approved is not True or inputs is None or inputs.get('commit_approved') is not True:
+        raise ValueError('save requires explicit input, commit and save approvals')
+    if (not isinstance(region,(list,tuple)) or len(region)!=4 or not all(_number(v) for v in region)
+            or not 0<=region[0]<region[2] or not 0<=region[1]<region[3]):
+        raise ValueError('reviewed save toolbar region required')
+    return dict(save_approved=True,destination=workbook_destination(args.run),toolbar_region=list(region))
 
 
 def credential(path):
@@ -101,6 +115,8 @@ def main(argv=None):
     parser.add_argument('--approve-input',action='store_true')
     parser.add_argument('--overwrite-disposable',action='store_true')
     parser.add_argument('--approve-commit',action='store_true')
+    parser.add_argument('--approve-save',action='store_true')
+    parser.add_argument('--save-toolbar-region',type=float,nargs=4)
     parser.add_argument('--input-text')
     parser.add_argument('--input-kind',choices=('text','decimal'))
     parser.add_argument('--input-target',choices=('cell','formula'),default='cell')
@@ -114,9 +130,11 @@ def main(argv=None):
     parser.add_argument('--controlled', action='store_true',
                         help='Wait for trusted host control; do not require or grant an initial lease')
     args = parser.parse_args(argv)
-    try:inputs=input_binding(args)
+    try:
+        inputs=input_binding(args)
+        saves=save_binding(args,inputs)
     except ValueError as error:parser.error(str(error))
-    protocol=CalcInputModelTask.protocol if inputs is not None else PROTOCOL
+    protocol=CalcSaveModelTask.protocol if saves is not None else CalcInputModelTask.protocol if inputs is not None else PROTOCOL
     edit_fields=(args.pending_edit_text,args.edit_controls_region,args.edit_body_region,args.edit_formula_region)
     if any(v is not None for v in edit_fields) or args.approve_cancel_edit:
         if not args.approve_cancel_edit or any(v is None for v in edit_fields):
@@ -140,7 +158,7 @@ def main(argv=None):
         return controlled(directory, controller, model_token, control_token, args)
     controller.gate.check()
     # One launch attempt per original run, including failures. Never overwrite.
-    _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=protocol,inputBinding=inputs,
+    _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=protocol,inputBinding=inputs,saveBinding=saves,
           runId=args.run, sessionId=args.session, owner=args.owner, epoch=args.epoch,
           pid=args.pid, window=args.window, title=args.title, cell=args.cell,
           grid=args.grid, nameBoxGrid=args.name_box_grid,**edit_binding(args))).encode())
@@ -154,11 +172,11 @@ def main(argv=None):
     try:
         for sig in (signal.SIGINT, signal.SIGTERM):
             previous[sig] = signal.signal(sig, interrupted)
-        factory=CalcInputModelTask if inputs is not None else CalcModelTask
+        factory=CalcSaveModelTask if saves is not None else CalcInputModelTask if inputs is not None else CalcModelTask
         task = factory(directory, lease=controller.gate, pid=args.pid,
             window_id=args.window, title=args.title, cell=args.cell, grid=args.grid,
             session_id=args.session, name_box_grid=args.name_box_grid, approved=True,
-            **edit_binding(args),**(inputs or {}))
+            **edit_binding(args),**(inputs or {}),**(saves or {}))
         server = tools_server(task, model_token, control_token=control_token)
         server.daemon_threads = False
         _save(directory/'calc-ready.json', json.dumps(dict(protocol=protocol,
@@ -191,15 +209,16 @@ def main(argv=None):
 
 def controlled(directory, controller, model_token, control_token, args):
     inputs=input_binding(args)
-    protocol=CalcInputModelTask.protocol if inputs is not None else PROTOCOL
+    saves=save_binding(args,inputs)
+    protocol=CalcSaveModelTask.protocol if saves is not None else CalcInputModelTask.protocol if inputs is not None else PROTOCOL
     if controller.existing() is not None:
         raise ValueError('controlled launch requires an unused original lease')
     selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
                      grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid,**edit_binding(args))
     _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
-          sessionId=args.session,selection=selection,inputBinding=inputs)).encode())
+          sessionId=args.session,selection=selection,inputBinding=inputs,saveBinding=saves)).encode())
     runtime = CalcGuestRuntime(directory,controller,model_token=model_token,
-                               control_token=control_token,selection=selection,input_binding=inputs)
+                               control_token=control_token,selection=selection,input_binding=inputs,save_binding=saves)
     server = None
     previous = {}
     stopping = threading.Event()

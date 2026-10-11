@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 保存启动绑定（2026-10-11，实施前）
+
+guest新增显式approve-save与save-toolbar-region，路径不接受命令行自由输入，只从原run推导。必须已经完整批准输入与提交，否则在VM检查、写文件和监听前拒绝。runtime单独冻结save_binding并验证精确键、原路径、有限区域及提交批准，选择原CalcSaveModelTask；激活意图记录绑定，仍等待原短租约，不自行观察、授权或续期。未指定保存时原选择/输入工厂与协议不变。两种启动路径均写出calc-save-v1；默认文件准入仍在实际任务构造时执行。官方插件尚待单独接线，当前测试不代替真实模型启动。
+
 ## 显式保存模型协议（2026-10-11，实施前）
 
 新增calc-save-v1适配器，复用CalcInputModelTask及CalcSaveTask同一账本。旧calc-input-v1保持提交后停止；新模式提交后必须confirm_commit独立核对才能进入COMMIT_CONFIRMED，不因点击返回成功继续。模型open_save_dialog只接受当前snapshot_id，不能提供路径、区域或控件；可信启动的固定绑定仍为唯一授权来源。HTTP仅对新类型开放该操作，旧选择/输入任务拒绝；保存入口结果仍是尝试、新截图和UNVERIFIED，不称文件已保存。加入宿主与guest打包清单但本轮不激活新启动模式，后续再接runtime/官方插件并根据实机面板完成保存与重开。测试覆盖真实loopback鉴权接口及模拟Driver，不能冒充DSH或GUI验收。

@@ -7,6 +7,9 @@ import threading
 
 from calc_model_task import CalcModelTask
 from calc_input_model_task import CalcInputModelTask
+from calc_save_model_task import CalcSaveModelTask
+from calc_save import workbook_destination
+from calc_targeting import _number
 from calc_selection import SHARED_LOCK, _save
 from desktop_lease import LeaseGate
 from desktop_tools_http import tools_server
@@ -14,7 +17,7 @@ from desktop_tools_http import tools_server
 
 class CalcGuestRuntime:
     def __init__(self, directory, controller, *, model_token, control_token, selection,
-                 port=8766, loopback_test=False, task_factory=CalcModelTask, input_binding=None):
+                 port=8766, loopback_test=False, task_factory=CalcModelTask, input_binding=None, save_binding=None):
         self.directory = Path(directory).absolute()
         if self.directory.resolve(strict=True) != self.directory or self.directory.name != controller.gate.run_id:
             raise ValueError('original canonical run required')
@@ -47,6 +50,19 @@ class CalcGuestRuntime:
                 raise ValueError('input mode uses original input factory')
             task_factory=CalcInputModelTask
         self.input_binding=json.loads(json.dumps(input_binding,allow_nan=False))
+        if save_binding is not None:
+            if (input_binding is None or input_binding.get('commit_approved') is not True
+                    or not isinstance(save_binding,dict)
+                    or set(save_binding)!={'save_approved','destination','toolbar_region'}
+                    or save_binding['save_approved'] is not True
+                    or save_binding['destination']!=workbook_destination(self.directory.name)):
+                raise ValueError('explicit original save and commit binding required')
+            r=save_binding['toolbar_region']
+            if (not isinstance(r,(list,tuple)) or len(r)!=4 or not all(_number(v) for v in r)
+                    or not 0<=r[0]<r[2] or not 0<=r[1]<r[3]):
+                raise ValueError('valid save toolbar region required')
+            task_factory=CalcSaveModelTask
+        self.save_binding=json.loads(json.dumps(save_binding,allow_nan=False))
         self.port, self.loopback_test, self.factory = port, loopback_test, task_factory
         self.task = self.server = self.thread = None
         self.closed = False
@@ -74,10 +90,10 @@ class CalcGuestRuntime:
             try:
                 _save(self.directory/'calc-activation-intent.json',
                       json.dumps(dict(binding=self.status()['binding'],selection=self.selection,
-                                      inputBinding=self.input_binding)).encode())
+                                      inputBinding=self.input_binding,saveBinding=self.save_binding)).encode())
                 self.controller.gate.check()
                 self.task = self.factory(self.directory,lease=self.controller.gate,approved=True,
-                                         **self.selection,**(self.input_binding or {}))
+                                         **self.selection,**(self.input_binding or {}),**(self.save_binding or {}))
                 if not isinstance(self.task,CalcModelTask):
                     raise ValueError('original Calc task required')
                 self.controller.gate.check()

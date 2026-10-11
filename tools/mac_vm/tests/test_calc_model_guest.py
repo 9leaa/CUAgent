@@ -73,6 +73,8 @@ def test_no_approval_never_checks_vm(monkeypatch):
     ['--approve-cancel-edit','--pending-edit-text','a'],
     ['--approve-input'],['--approve-commit'],['--input-text','AbZ'],
     ['--overwrite-disposable'],
+    ['--approve-save'],['--save-toolbar-region','100','20','250','90'],
+    ['--approve-save','--save-toolbar-region','100','20','250','90'],
 ])
 def test_partial_edit_approval_rejected_before_vm(monkeypatch,extra):
     check=Mock();monkeypatch.setattr('calc_model_guest.require_unlocked',check)
