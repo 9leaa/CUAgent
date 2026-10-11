@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：005公式栏输入与GUI提交真实链路通过
+
+- 固定9708581，484源码冻结/VM34文件独立校验；run calc-select-42be8cd6-009d-49fe-b711-9bb9153666ad、session-18e19767-624a-4aa2-acbf-8a9c36c39c61。显式--input-target formula及可信原验证区域、Flash/off/五工具；普通额度剩87%、余额基准和两卡未变。
+- 六次模型工具、8raw：观察→token-only取消→新观察→已选中双观察复核→一次公式栏输入→新观察→一次Accept→新观察。没有操作者GUI代做、无输入重试。Driver type_text正常返回effect=confirmed、delivered_count=5；独立执行端在新snapshot双编辑区逐字确认AbZ中文，然后才允许提交。
+- 原state-06截图可见两处AbZ中文及编辑按钮；state-08新图A2显示同文字，Cancel/Accept消失；新AXTextField A2自身value为AbZ中文，名称框仍A2，公式栏一致。独立私有审计逐文件SHA、8条连续dispatch/result、5个不同snapshot、无UNKNOWN/error及停止后零派发通过。结果仅SINGLE_CELL_INPUT_AND_GUI_COMMIT_OBSERVED，不宣称存储类型、保存、重开或完整费用任务通过。
+- 原官方会话completed，guest退出0/pending0/stopped，许可撤销、profile原字节恢复，Worker67437恢复67854，P5 PAUSED。原001–004输入失败、选择历史失败及usage全部保留。原commit工具仍诚实返回COMMIT_ATTEMPT_OBSERVED，GUI提交效果由独立证据确认，不把框架completed当通过。
+- README同步；下一步将提交后的严格核对纳入执行协议，设计固定测试路径的GUI保存/重开和独立ODS读取，再推进三组完整费用业务。005已结束，不能复活/重置预算拼接后续任务；新完整流程必须从一开始预留保存验证的30raw预算。
+
 ## 2026-10-11：显式公式栏输入目标模式，等待实机验证
 
 - 按前轮先写方案实现：plan_cell_input可接可信formula_region，仍先验证原名称框、独立子文本、单元格身份/区域/新鲜度、无待编辑按钮及批准文字。只选择区域完整包含、同窗口、启用且唯一AXTextArea，并严格校验当前snapshot token；无value不当空白。
