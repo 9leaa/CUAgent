@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：固定保存路径及真实Save控件规划
+
+- 先写完整保存/重开/ODS路线，明确新完整候选必须从输入起共用30raw，不复活已结束005或拼接多run成功。唯一文件名由原UUID生成，禁止任意目录、覆盖、远端保存和Shell/UNO代写；路径存在/父目录链接检查在后续可信执行准入，不把纯字符串检查当文件系统安全证明。
+- 新增calc_save纯规划器：重验提交后的值、名称框/单元格、无编辑态；仅可信Untitled 1窗口、审核区域唯一启用Save AXMenuButton/AXPress与新鲜token可返回计划。拒绝菜单项、歧义、已有附属对话框、错误值/区域/身份/旧图；返回filesystemAdmissionVerified/savePermitted/saved均false。
+- 18项新正常/反例，完整VM工具/部署710通过、256个subtests通过。使用005原state-08做离线结构核对，定位真实s00000011:327，不把旧快照当当前GUI许可；没有调用Driver或创建ODS。
+- README同步，模块尚未进入部署/模型工具。下一步接显式受控保存执行器与原路径检查，再从新观察识别真实保存面板，不猜名称/目录/格式控件。GUI保存、重开、独立ODS与完整三组业务仍待完成。
+
 ## 2026-10-11：执行层提交后确认，为受控保存建立前置条件
 
 - 先补设计，再增加inspect_committed_cell和CalcInputTask.confirm_commit；使用原提交后已采集的新snapshot，不增加Driver调用。重验原环境/租约/窗口/名称框/单元格与无编辑态，单元格value必须逐字等于批准文字，公式模式另核对原区域文字；不根据Driver click响应或框架completed推断成功。
