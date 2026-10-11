@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：候选004局部图进入真实模型，正确区域点击仍无确认效果
+
+- 固定afd2cd1，新冻结473份源码、31文件部署独立一致；原001–003不重跑。实际额度查询前后UTC02:55:29–02:55:31夹定，剩10%、普通可用、余额与两张未使用卡不变，保存精确查询区间而非手填估计时间。
+- 原DSH会话先observe/AX请求，再自主请求detail(left40,top240,width400,height180)。同一s000000c0原图1536×1082及局部图800×360均真实进入下一模型请求，源SHA对应guest state-02.png。模型自行算回原图(130,348)，该点在A2批准区域；本轮用了原图x/y而非detail_x/y，故只证明真实放大图片及模型自行换算链，不冒充detail_x/y字段已实机覆盖。
+- 原账本4raw为observe、observe、click、observe；唯一点击delivery=foreground，Driver返回route=global_input/effect=unverifiable。新s000000c1仍名称框A1，独立PNG也未选择A2，验证器拒绝。编辑Cancel/Accept在本轮前后均不启用，不把旧编辑态当唯一根因。四次模型工具调用，保留实际usage、原终态error、业务UNVERIFIED。
+- 独立采集三份原PNG/JSON、原trace/lease/绑定并重算SHA，independent-audit.json核对模型路由、图像入模、坐标、原调用、4raw及清理。guest退出0、无在途、许可停止、profile恢复；原空闲Worker恢复PID53954。未重试、未输入保存、未重启VM或升级Driver，P5仍PAUSED。
+- 本地Calls.cli逐字JSON传参、无额外scale运算。只读Driver describe click仍定义窗口截图像素、Driver自行还原Retina；同版本上游标签cua-driver-rs-v0.28.2解析为fc188250b4ca8549b8e61f937fdb1fb560770e86，px_frame.to_screen为origin+pixel/scale。该标签mouse.rs的无修饰键foreground分支使用PublicOnly的PID投递，与当前main文档描述的HID前台路径不同；不能仅凭返回global_input认定真正系统HID投递，也尚未证明安装二进制与标签构建完全相同。下一步应核实投递实现/二进制身份，不随意更改正确模型坐标。初次旧Swift路径404、全仓tree请求超时，改成固定tag的platform-macos子树读取；未拉取覆盖项目或修改Driver。
+
 ## 2026-10-11：同图局部放大与确定坐标映射
 
 - 先写接口方案，再扩展原vm_calc_observe的可选detail矩形；仍通过guest新观察计1raw，原图/局部图同snapshot，固定2倍最近邻、不绘制答案。模型可传detail_x/detail_y，插件按审核公式转换为原像素，再调用原选择工具；无图、旧图、越界、混用坐标均停止。新图片清除旧映射，下一模型请求必须同时包含原图和局部图。
