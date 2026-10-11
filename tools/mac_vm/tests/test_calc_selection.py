@@ -18,7 +18,8 @@ from test_calc_targeting import state
 
 
 @pytest.fixture
-def setup(tmp_path, state):
+def setup(tmp_path, state, monkeypatch):
+    monkeypatch.setattr('calc_selection.calc_identity', lambda pid: None)
     root = tmp_path.resolve()
     root.chmod(0o700)
     control = root / 'lease.json'
@@ -41,7 +42,7 @@ def setup(tmp_path, state):
     def factory():
         return CalcSelectionTask(root/'selection',lease=LeaseGate(control,run_id='selection',owner='worker',epoch=1,clock=lambda:100),
              pid=10,window_id=20,title='probe',cell='A1',grid=(0,80,700,550),approved=True,
-             transport=transport,identity=lambda _:None,environment=lambda:None,shared_lock=root/'bridge.lock')
+             transport=transport,environment=lambda:None,shared_lock=root/'bridge.lock')
     task = factory()
     yield task,calls,state,control,value,factory
     task.close()

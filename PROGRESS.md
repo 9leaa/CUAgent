@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-11：真实选择诊断发现默认身份接线错误
+
+- 用户明确允许VM Driver单次选择并重新观察，不输入保存。锁屏前置检查两次拒绝（各0raw）；既有测试账号正常登录首次反馈失败，按原凭据逐字符输入并观察后成功。只读窗口采集2raw，确认原Untitled 1，PID79126/window1250，未改旧文档。
+- 原ecf6fbc及九个Python模块/许可证与私有supervisor冻结为12文件新部署。诊断calc-select-469d0071-d393-40d8-8a39-8edc307af1c4启动后observe被StopRun拒绝，0raw、无点击；closed=UNVERIFIED、lease_revoked及host returncode=0。源码检查定位到Task默认app_identity只接受旧TASKS，Calc不在其中。原私有.runtime/calc-selection-live-20261011-001回执及VM账本保留，不复用run。
+- 先补修复方案，再新增calc_identity：原PID必须对应固定LibreOffice路径，不改旧TASKS。原执行器测试不再直接注入空identity，而在calc_identity的系统边界模拟；新增10项PID/路径/查询失败测试。含选择入口、策略、TextEdit、租约及交接回归148项与55个subtests通过。未把模拟结果记作实机选择通过；下一步冻结修复版本进行新诊断，仍只允许一次点击、无输入保存模型。
+
 ## 2026-10-11：Calc选择诊断入口（仅本地模拟验证）
 
 - 先写方案，再新增calc_selection_diagnostic.py：可信操作者显式approve-selection，固定run/owner/epoch和窗口/单元格/网格，只接受原目录已有租约；不授权、不续租、不注册HTTP或模型工具，不开放输入/保存。

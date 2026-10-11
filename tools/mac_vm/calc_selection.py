@@ -4,6 +4,7 @@ Caller supplies trusted window/grid binding and a live lease. Uses the existing
 Task ledger and original guest desktop lock; never creates a second budget.
 """
 import base64
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -22,6 +23,18 @@ from real_app_bridge import require_unlocked
 
 EXECUTABLE = '/Users/mvpagent/Applications/LibreOffice.app/Contents/MacOS/soffice'
 SHARED_LOCK = Path('/Users/mvpagent/C0Evidence/bridge.lock')
+
+
+def calc_identity(pid):
+    """Independent fixed Calc identity; do not widen the legacy C0 registry."""
+    if type(pid) is not int or pid <= 0:
+        raise StopRun('BLOCKED', 'Invalid Calc PID')
+    lib = ctypes.CDLL('/usr/lib/libproc.dylib')
+    lib.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    lib.proc_pidpath.restype = ctypes.c_int
+    buffer = ctypes.create_string_buffer(4096)
+    if lib.proc_pidpath(pid, buffer, len(buffer)) <= 0 or os.fsdecode(buffer.value) != EXECUTABLE:
+        raise StopRun('BLOCKED', 'PID no longer belongs to approved Calc executable')
 
 
 def _save(path, data):
@@ -66,7 +79,7 @@ class CalcSelectionTask(Task):
             if os.path.lexists(lock.with_name(lock.name + '.quarantine')):
                 raise StopRun('BLOCKED', 'Desktop lock quarantined')
             case = UICase('calc_selection', title, '', (), (), 'org.libreoffice.script', 'LibreOffice', EXECUTABLE)
-            super().__init__(Path(directory), transport, identity, approved=approved,
+            super().__init__(Path(directory), transport, calc_identity if identity is None else identity, approved=approved,
                              case_id='calc_selection', registry={'calc_selection': case})
             self.pid, self.window, self.cell, self.grid = pid, window_id, cell, tuple(grid)
             binding = dict(pid=pid, window_id=window_id, title=title, cell=cell, grid=list(grid))
