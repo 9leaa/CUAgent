@@ -8,6 +8,7 @@ from desktop_lease import DesktopTask
 from handoff_task import HandoffDesktopTask
 from calc_model_task import CalcModelTask
 from calc_input_model_task import CalcInputModelTask
+from calc_save_model_task import CalcSaveModelTask
 
 
 def unique_object(pairs):
@@ -36,6 +37,8 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
         operations = {'observe', 'select_cell'}
         if isinstance(task, CalcInputModelTask):
             operations.update({'input_cell', 'commit_cell'})
+        if isinstance(task, CalcSaveModelTask):
+            operations.add('open_save_dialog')
     if isinstance(task, HandoffDesktopTask):
         operations.update({'read_materials', 'reopen', 'locate_quote', 'check_draft'})
         if task.submission_protocol == 'p7-tool-submit-v1':

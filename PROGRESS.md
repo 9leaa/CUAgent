@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：显式保存模型适配器及HTTP边界
+
+- 按先行方案新增CalcSaveModelTask/calc-save-v1，复用原输入/保存执行器及账本。commit_cell单次提交后调用confirm_commit，只有新图单元格/名称框核对通过才保持可继续；旧calc-input-v1仍在提交尝试后停止，没有静默改变原协议。
+- 新open_save_dialog只接受snapshot_id；可信名称框定位、固定原路径/工具栏、租约、预算及防重复仍在执行端。HTTP仅对新类型开放，拒绝旧输入任务、原始open_save、跨run/session、模型路径/控件及错误阶段。打开面板仍标UNVERIFIED/saved=false。
+- 宿主/guest打包名单同步增加三个保存模块，独立包导入通过；尚未接runtime/guest启动或官方DSH插件，未部署。真实loopback HTTP配合模拟Driver测试提交确认→打开面板共5raw（输入前置为合成），失败提交不能继续保存，保留旧协议回归；不算实机或完整业务证明。
+- 初次单独运行发现保存测试依赖其他测试预先设置导入路径，已补显式路径并重新运行；目标27项通过，完整VM工具/部署736 passed、256 subtests passed，git diff --check通过。README同步；下一步接可信启动和官方工具链，再以新完整候选实测面板及保存重开，不恢复005、不重置原30raw。
+
 ## 2026-10-11：受控保存入口执行器与文件准入
 
 - 按实施前方案新增CalcSaveTask，复用原输入任务、COMMIT_CONFIRMED、新snapshot、租约、独占锁和30raw；不注册模型工具、不部署。可信启动必须显式批准保存并绑定原run唯一路径及工具栏区域。

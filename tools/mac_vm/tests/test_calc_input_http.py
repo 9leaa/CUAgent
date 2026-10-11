@@ -20,7 +20,7 @@ def test_input_and_commit_over_original_authenticated_http(adapter,service,monke
     assert service('input_cell',args)[0]==409 and len(calls)==7
 
 
-@pytest.mark.parametrize('fault',['session','run','target','raw','save'])
+@pytest.mark.parametrize('fault',['session','run','target','raw','save','open_save_dialog'])
 def test_input_http_scope_refusals(adapter,service,monkeypatch,fault):
     task,calls,*_=adapter;args=prepare(task,monkeypatch);changes={};op='input_cell'
     if fault=='session':changes['sessionId']='other'
@@ -28,5 +28,6 @@ def test_input_http_scope_refusals(adapter,service,monkeypatch,fault):
     elif fault=='target':args['name_box_index']=2
     elif fault=='raw':op='type_text'
     elif fault=='save':op='save'
+    elif fault=='open_save_dialog':op='open_save_dialog'
     assert service(op,args,**changes)[0]==409
     assert task.stopped.is_set() and len(calls)==3

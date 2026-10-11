@@ -2,9 +2,12 @@
 import base64
 import copy
 import json
+from pathlib import Path
 import struct
+import sys
 import zlib
 import pytest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from calc_save_task import CalcSaveTask, _inspect_unused_path, inspect_unused_destination
 from calc_save import workbook_destination
 from desktop_lease import LeaseGate
