@@ -15,7 +15,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from contextlib import nullcontext
-from driver_smoke import require_vm, calculator_identity, display_value, Calls, StopRun, BUNDLE
+from driver_smoke import require_vm, calculator_identity, display_value, Calls, StopRun, DriverCallError, BUNDLE
 from c0_cases import CALCULATORS, UI_CASES, TASKS
 from c0_identity import app_identity
 
@@ -143,7 +143,9 @@ class Task:
             return value
         except Exception as exc:
             if tool in self.SIDE_EFFECT_TOOLS and not explicitly_refused: self.uncertain = True
-            self.record({'event':'UNKNOWN' if self.uncertain else 'error','tool':tool,'error':type(exc).__name__,'call_id':call_id})
+            row={'event':'UNKNOWN' if self.uncertain else 'error','tool':tool,'error':type(exc).__name__,'call_id':call_id}
+            if isinstance(exc, DriverCallError): row['driverDiagnostic']=exc.diagnostic
+            self.record(row)
             raise
         finally:
             with self.dispatch_lock:

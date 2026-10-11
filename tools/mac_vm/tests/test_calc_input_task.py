@@ -69,6 +69,26 @@ def test_one_input_new_observation_original_budget(input_setup):
     assert t.used==5 and len(calls)==5 and t.stopped.is_set()
 
 
+def test_driver_diagnostic_on_original_unknown_private_ledger(input_setup):
+    from driver_smoke import DriverCallError
+    t,calls,*_=input_setup;selected(t)
+    prior=t.transport
+    def failed(tool,args):
+        if tool=='type_text':raise DriverCallError('nonzero_exit',returncode=1,stderr='focus unavailable')
+        return prior(tool,args)
+    t.transport=failed
+    with pytest.raises(DriverCallError):write(t)
+    rows=[json.loads(line) for line in t.ledger.read_text().splitlines()]
+    error=next(r for r in rows if r['event']=='UNKNOWN')
+    dispatch=[r for r in rows if r['event']=='dispatch'][-1]
+    assert error['call_id']==dispatch['call_id'] and dispatch['tool']=='type_text'
+    assert error['driverDiagnostic']['stderr']['preview']=='focus unavailable'
+    assert t.ledger.stat().st_mode & 0o777==0o600
+    assert t.used==4 and t.uncertain and t.stopped.is_set() and not t.inflight
+    with pytest.raises(StopRun):write(t)
+    assert t.used==4
+
+
 @pytest.mark.parametrize('fault',['no_selection','stopped','unknown','old','text','kind','wrong_box','lease','budget'])
 def test_input_guard_no_dispatch(input_setup,fault):
     t,calls,s,control,lease,*_=input_setup

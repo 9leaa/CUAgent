@@ -5,6 +5,7 @@ Timeouts on actions remain UNKNOWN; they are never replayed.
 """
 import ctypes
 import getpass
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,20 @@ class StopRun(Exception):
     def __init__(self, status, message):
         super().__init__(message)
         self.status = status
+
+
+class DriverCallError(StopRun):
+    """Bounded private evidence, never a model-facing error message."""
+    def __init__(self, reason, *, returncode=None, stdout=None, stderr=None):
+        super().__init__('FAILED' if reason=='nonzero_exit' else 'UNVERIFIED',
+                         'Driver call failed: ' + reason)
+        def stream(value):
+            raw = value if isinstance(value, bytes) else (value or '').encode('utf-8', errors='replace')
+            return dict(preview=raw[:4096].decode('utf-8', errors='replace'),
+                        bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest(),
+                        truncated=len(raw)>4096)
+        self.diagnostic = dict(reason=reason, returncode=returncode,
+                               stdout=stream(stdout), stderr=stream(stderr))
 
 
 def require_vm():
@@ -84,17 +99,23 @@ class Calls:
 
     @staticmethod
     def cli(tool, args):
-        result = subprocess.run([DRIVER, tool, json.dumps(args)], capture_output=True,
-                                text=True, timeout=35,
-                                env=dict(os.environ, CUA_DRIVER_RS_TELEMETRY_ENABLED='false'))
+        try:
+            result = subprocess.run([DRIVER, tool, json.dumps(args)], capture_output=True,
+                                    text=True, timeout=35,
+                                    env=dict(os.environ, CUA_DRIVER_RS_TELEMETRY_ENABLED='false'))
+        except subprocess.TimeoutExpired as exc:
+            raise DriverCallError('timeout', stdout=exc.stdout, stderr=exc.stderr) from exc
         if result.returncode:
-            raise StopRun('FAILED', result.stderr.strip() or 'Driver returned nonzero')
+            raise DriverCallError('nonzero_exit', returncode=result.returncode,
+                                  stdout=result.stdout, stderr=result.stderr)
         try:
             value = json.loads(result.stdout)
         except json.JSONDecodeError as e:
-            raise StopRun('UNVERIFIED', 'Driver response is not structured JSON') from e
+            raise DriverCallError('invalid_json', returncode=result.returncode,
+                                  stdout=result.stdout, stderr=result.stderr) from e
         if not isinstance(value, dict):
-            raise StopRun('UNVERIFIED', 'Unexpected Driver response shape')
+            raise DriverCallError('invalid_shape', returncode=result.returncode,
+                                  stdout=result.stdout, stderr=result.stderr)
         return value
 
     def record(self, row):
