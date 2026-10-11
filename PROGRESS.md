@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：原UNKNOWN后的独立只读观察确认编辑文字
+
+- 复用已授权只读inspect-calc-ax.py，在普通VM账号、解锁和原桌面互斥锁、固定soffice进程身份检查后，执行list_windows/get_window_state共2次只读请求；零动作、零模型、无原任务复活。原002的3raw保持不变，另列本次操作者诊断2raw，不隐藏介入。
+- 原PID79126/window1250/Untitled 1，新snapshot s00000007。独立查看原PNG：名称框A2，单元格及公式栏均AbZ中文，红Cancel和绿Accept启用；两个AXTextArea 311/324也逐字相同。按原可信区域调用inspect_edit对已采集证据离线结构复核通过，不以离线时间参数当当前截图新鲜许可。
+- 私有receipt SHA aca958e5221819569588d3c81120e07d9fcd2c6da17950dfd70655c0d9edbc45及独立复核记录保留。可确认当前编辑态已出现批准文字，不能反推原Driver退出码或stderr、不能证明提交/存储类型/保存。原002状态仍UNKNOWN_STOPPED，不改成功，不重发输入。
+- 只读describe type_text确认当前0.34.1支持foreground、element_token与原窗口参数；该说明不是实际成功响应证据，也不足以确定非零退出根因。README同步；下一步以新诊断版保留Driver真实错误并设计输入后核对路径，禁止把失败响应一概当成功。P5继续跳过，完整P7未完成。
+
 ## 2026-10-11：补齐Driver异常的私有证据，不重试UNKNOWN
 
 - 先更新p7-expense-design方案，再为Calls.cli添加DriverCallError，覆盖非零退出、无效JSON/形状与35秒超时；保留退出码、每流最多4096字节预览、已捕获流字节数/SHA及截断标记。错误消息仅固定原因，不包含输出或调用参数；预览上限不代表subprocess捕获内存上限。
