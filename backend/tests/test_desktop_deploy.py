@@ -65,7 +65,7 @@ def test_builder_reads_explicit_commit_not_working_tree(tmp_path):
     assert 'handoff_draft.py' in SOURCES
     assert 'handoff_submit.py' in SOURCES
     assert {'calc_model_task.py','calc_selection.py','calc_targeting.py'} <= set(SOURCES)
-    assert read.call_count == 29  # 27 Python modules, license and installer.
+    assert read.call_count == 30  # 28 Python modules, license and installer.
     assert len(digest) == 64
 
 
@@ -77,7 +77,7 @@ def test_actual_source_package_imports_without_checkout_dependencies(tmp_path):
         data=path.read_bytes()
         files[name]=dict(base64=base64.b64encode(data).decode(),sha256=hashlib.sha256(data).hexdigest())
     result=install_package(json.dumps(dict(commit=COMMIT,files=files)).encode(),COMMIT,tmp_path)
-    code='import sys;sys.path.insert(0,sys.argv[1]);import desktop_tools_http,desktop_guest,calc_model_task;assert desktop_tools_http.__file__.startswith(sys.argv[1])'
+    code='import sys;sys.path.insert(0,sys.argv[1]);import desktop_tools_http,desktop_guest,calc_model_task,calc_model_guest;assert desktop_tools_http.__file__.startswith(sys.argv[1])'
     subprocess.run([sys.executable,'-I','-c',code,result['deployment']],check=True,capture_output=True,timeout=15)
 
 
