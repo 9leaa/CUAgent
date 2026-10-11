@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：受控保存入口执行器与文件准入
+
+- 按实施前方案新增CalcSaveTask，复用原输入任务、COMMIT_CONFIRMED、新snapshot、租约、独占锁和30raw；不注册模型工具、不部署。可信启动必须显式批准保存并绑定原run唯一路径及工具栏区域。
+- 默认只读检查固定Documents目录：各父路径无链接、直接父目录当前账号所有且非组/其他可写，目标不存在（含悬空链接）；记录dev/ino/uid并在点击前复核。此检查不构成原子预留，最终保存前仍须再查并拒绝覆盖面板。
+- used≤16才允许入口；独占save-open-attempt审计后，单次新鲜token点击Save，再沿原账本观察。仅返回SAVE_DIALOG_ATTEMPT_OBSERVED，saved=false；不推断面板内容正确或文件已保存。错误、旧图、失权、审计失败及UNKNOWN停止且不重试。
+- 新增16项测试：临时文件系统准入/已有内容保留/链接/共享目录、模拟单次点击与新观察、预算16/17边界、已有意图防重复、停止/UNKNOWN/旧图/错误值/失权/超时等。运行`.runtime/backend-venv/bin/python -m pytest -q tools/mac_vm/tests backend/tests/test_desktop_deploy.py`（解释器取主仓库绝对路径），726 passed、256 subtests passed；这些不是实机或模型验收。
+- README同步。未创建业务ODS，未操作VM或切换服务；下一步接官方DSH显式保存协议，再从真实新图识别保存面板。005已结束不恢复，完整新流程从输入开始共用30raw，保存/重开/独立ODS及三组业务仍待完成。
+
 ## 2026-10-11：固定保存路径及真实Save控件规划
 
 - 先写完整保存/重开/ODS路线，明确新完整候选必须从输入起共用30raw，不复活已结束005或拼接多run成功。唯一文件名由原UUID生成，禁止任意目录、覆盖、远端保存和Shell/UNO代写；路径存在/父目录链接检查在后续可信执行准入，不把纯字符串检查当文件系统安全证明。
