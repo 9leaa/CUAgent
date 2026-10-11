@@ -69,6 +69,25 @@ def test_already_selected_requires_second_observation_without_click(adapter):
     assert t.phase=='CONFIRMED' and not t.stopped.is_set()
 
 
+def test_driver_confirmed_existing_text_without_edit_state_is_not_input_success(adapter,monkeypatch):
+    t,calls,s,*_=adapter
+    s['elements'][1]['value']='AbZ中文'
+    original=t.transport
+    def transport(tool,args):
+        result=original(tool,args)
+        if tool=='type_text':
+            return dict(effect='confirmed',delivery=dict(delivered_count=5,mode='foreground'))
+        return result
+    monkeypatch.setattr(t,'transport',transport)
+    t.observe();t.select_cell(dict(snapshot_id=t.snapshot['snapshot_id']))
+    with pytest.raises(ValueError,match='unique enabled edit controls required'):
+        t.input_cell(dict(snapshot_id=t.snapshot['snapshot_id'],text='AbZ中文',kind='text'))
+    assert t.used==4 and t.stopped.is_set()
+    assert [tool for tool,_ in calls]==['get_window_state','get_window_state','type_text','get_window_state']
+    with pytest.raises(Exception):t.commit_cell(dict(snapshot_id=t.snapshot['snapshot_id']))
+    assert t.used==4 and len(calls)==4
+
+
 def test_approved_pending_edit_precedes_already_selected(adapter):
     t,calls,*_=adapter
     source,regions=fixture()

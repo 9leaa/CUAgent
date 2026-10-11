@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存候选002输入核验失败及独立审计
+
+- 候选固定2848e4e，492份源码冻结、VM37文件独立哈希一致；运行前真实额度剩82%、原余额及未使用卡保持。原空闲Worker69294短时切换，官方Flash/off沿唯一run/session派发3模型工具、4raw，无重试或预算重置。
+- 原轨迹为观察、已选择只读复核、type_text、输入后新观察。Driver返回foreground/global_input、delivered_count=5、effect=confirmed，但三张原PNG摘要完全相同；输入前后A2/公式栏均为既有AbZ中文，未出现启用的Cancel/Accept。不是截图Save点击失败，因为本轮尚未派发click、提交或保存。
+- 原JSON/PNG、trace和绑定独立采集并核对哈希，离线inspect_edit重现unique enabled edit controls required；确认连续4dispatch/result、停止后零派发，无INPUT_OBSERVED或CELL_COMMIT_OBSERVED。当前只能确定未观察到编辑状态，不能断言焦点问题或Driver忽略输入是唯一根因。
+- 私有审计记录INPUT_EDIT_STATE_NOT_OBSERVED、saved/reopened=false、UNVERIFIED；原会话终止、pending0、guest退出0、许可撤销、profile恢复、Worker恢复69768。收集器按实际存在文件取证，没有补造未到达的state-06/08或save-open-attempt。原错误会话保留，不恢复。
+- 先补方案，再新增模拟Driver“已有同值且响应confirmed但无编辑态”的拒绝回归，确保停止后提交不再派发。完整VM工具/部署回归763 passed、256 subtests passed，git diff --check通过，不替代实机验收。README同步；下一步独立设计并验证公式栏聚焦/编辑准入，保持双编辑区核验，不直接把旧值转换成成功或放宽门槛。P5继续跳过，完整保存/重开/ODS及P7三组业务仍未完成。
+
 ## 2026-10-11：Save截图点位与前台单次投递候选
 
 - 只读核对固定cua-driver-rs-v0.34.1 click.rs：element_token路线为AX RPC，x/y为像素事件；仅给token加foreground不能据此声称已变成鼠标。本轮未证明LibreOffice未显示面板的唯一原因，001保持SAVE_DIALOG_NOT_OBSERVED。
