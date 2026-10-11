@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：首个输入候选冻结部署与VM正常解锁
+
+- 固定命令入口修复提交0f544e2c0b834c2f3633a9053c82cbdb6c179b15，私有calc-dsh-input-001冻结483份源码；新guest目录34个文件（33模块与来源许可证）逐份独立校验字节哈希、文件私有权限与部署manifest摘要一致。没有覆盖005或原失败候选。
+- 创建输入探测run calc-select-7e306bb8-cb44-4acf-9efe-d0185c9f5f3f及预定session，绑定A2/AbZ中文/text、专用覆盖与提交许可；输入profile编译暂存，正式profile前后字节一致。未创建官方模型会话、guest控制目录或授予租约。
+- VM准入最初两次因锁屏拒绝。屏幕共享先黑屏，Escape/Return后显示旧Calc画面，但执行端仍锁屏；关闭仅该VNC查看窗口、重连原57593，原VNC凭据登录后看到真实MVP Agent锁屏。使用原普通账号凭据正常登录，SSH执行端require_unlocked返回VM_READY；不修改权限/睡眠/SSH，不以旧图当解锁证明，不代做表格业务。
+- 原始冻结/部署/暂存回执保存在私有.runtime，不上传凭据/截图。README同步；下一步沿原新输入候选绑定当前窗口/验证区域、核对互斥及新额度后实跑。没有真实单元格输入或保存，完整P7未验收，P5不恢复。
+
 ## 2026-10-11：真实候选冻结前修正命令分派遗漏
 
 - 只读核查原005脚本发现session命令仅识别calc-selection，新calc-input会落入TextEdit入口；尚未运行新候选，没有模型/GUI误派发。补实施方案后增加明确sessionStarter分派和prepare-calc-input profile命令，原入口保留。
