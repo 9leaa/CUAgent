@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：官方Cordis插件受限输入/提交接线
+
+- 先补方案，再扩展原calc-vm-tools：显式calc-input-v1要求approvedText/approvedKind连接字段，旧selection-v1键集合及三工具不变。新模式五工具，沿官方模型循环及Flash/off，未实现替代循环或坐标生成器。
+- 输入仅在选择确认后、同snapshot且文字/类型严格匹配时派发；提交仅在INPUT_OBSERVED后。核对原run/session/cell、2raw增量、新PNG/附件，以及确认中的目标、文字、类型、snapshot和未验证存储类型。提交结果若声称已验证效果则拒绝；失败停止、不重试。选择在新模式非终态，提交尝试的新图后结束，业务保持UNVERIFIED。
+- 新增8项官方App运行时插件测试，模拟HTTP完整7raw链、文字/旧图/提前提交拒绝、错误确认/预算/图像/提交成功误报。使用原固定esbuild与`/Applications/DeepSeek Harness.app`执行test-calc-tools.mjs：66/66通过；无模型推理或VM动作，不能当输入/保存实机验收。
+- README同步，git diff --check通过；尚未部署或切换正式profile。下一步宿主profile/会话工具配置支持新协议、冻结候选、原额度/互斥检查后进行真实DSH输入验证。P5继续跳过，完整费用工作簿和保存重开/ODS读回仍待完成。
+
 ## 2026-10-11：可信guest输入启动配置与受控激活接线
 
 - 先补方案，再为calc_model_guest添加显式输入/覆盖批准、文字/类型、控制区及双编辑区参数，提交独立批准。残缺批准、危险文本、错误/重叠区域在VM检查前拒绝；默认仍selection-v1。非受控入口与受控入口均记录原输入绑定和正确协议，不自发观察或续租。

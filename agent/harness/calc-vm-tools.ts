@@ -7,18 +7,22 @@ import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { assertImageCapableRoute } from './image-probe.ts'
 import { deriveDetail, originalPoint } from './calc-image-detail.ts'
 
-const TOOLS = ['vm_calc_observe', 'vm_calc_select', 'vm_calc_stop']
-const PROTOCOL = 'calc-selection-v1'
+const BASE_TOOLS = ['vm_calc_observe', 'vm_calc_select', 'vm_calc_stop']
 const UUID = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 
 export function registerCalcTools(ctx: Context, binding: any, configPath: string, auditPath: string): void {
-  if (JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(['url','token','caseId','stage','protocol','runId','sessionId','cell'].sort())
+  const inputMode = binding.protocol === 'calc-input-v1'
+  const PROTOCOL = inputMode ? 'calc-input-v1' : 'calc-selection-v1'
+  const TOOLS = [...BASE_TOOLS,...(inputMode ? ['vm_calc_input','vm_calc_commit'] : [])]
+  if (JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(['url','token','caseId','stage','protocol','runId','sessionId','cell',...(inputMode?['approvedText','approvedKind']:[])].sort())
       || !Object.values(binding).every(value => typeof value === 'string')
       || binding.url !== 'http://192.168.64.3:8766' || !/^[\w-]{43}$/.test(binding.token)
       || binding.caseId !== 'calc_selection' || binding.stage !== 'p7' || binding.protocol !== PROTOCOL
       || !new RegExp('^calc-select-'+UUID+'$').test(binding.runId)
       || !new RegExp('^session-'+UUID+'$').test(binding.sessionId)
       || !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(binding.cell)) throw new Error('Explicit Calc selection binding required')
+  if (inputMode && (!binding.approvedText || Buffer.byteLength(binding.approvedText)>256
+      || !['text','decimal'].includes(binding.approvedKind))) throw Error('Bound Calc input required')
   const root = dirname(configPath)
   const info = lstatSync(root)
   const configInfo = lstatSync(configPath)
@@ -42,6 +46,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   let latestImage: string | undefined
   let latestDetail: any
   let cancelRequested = false, cancelAttempted = false
+  let inputPhase = 'selection'
   const images = new Set<string>()
   const watches = new WeakSet<AbortSignal>()
   async function stop() {
@@ -95,7 +100,12 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (stopped) throw new Error('Calc stopped')
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
-      if (op === 'observe' ? !['','detail'].includes(keys) : !['snapshot_id','snapshot_id,x,y','cancel_edit,snapshot_id','detail_x,detail_y,snapshot_id'].includes(keys)
+      if (op === 'input_cell' || op === 'commit_cell') {
+        if (!inputMode || args.snapshot_id!==snapshot || typeof snapshot!=='string'
+            || (op==='input_cell' ? keys!=='kind,snapshot_id,text' || inputPhase!=='selected'
+              || args.text!==binding.approvedText || args.kind!==binding.approvedKind
+              : keys!=='snapshot_id' || inputPhase!=='input')) throw Error('Bound input phase and payload required')
+      } else if (op === 'observe' ? !['','detail'].includes(keys) : !['snapshot_id','snapshot_id,x,y','cancel_edit,snapshot_id','detail_x,detail_y,snapshot_id'].includes(keys)
           || typeof args.snapshot_id !== 'string' || args.snapshot_id !== snapshot || ('x' in args && (!Number.isFinite(args.x) || !Number.isFinite(args.y)))) throw new Error('Calc same-snapshot arguments required')
       let dispatchedArgs=op==='observe'?{}:args
       if ('detail_x' in args) {
@@ -112,7 +122,9 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || value.sessionId !== binding.sessionId || value.cell !== binding.cell || value.inputPermitted !== false
           || value.businessStatus !== 'UNVERIFIED' || !Number.isInteger(value.used) || value.used < lastUsed || value.used > 30) throw new Error('Calc response unconfirmed')
       const status = op === 'observe' ? 'OBSERVED' : value.status
-      if (!['OBSERVED','NEEDS_SCREENSHOT_POINT','NEEDS_EDIT_CANCEL','EDIT_CANCEL_ATTEMPT_OBSERVED','SELECTION_OBSERVED'].includes(status)) throw new Error('Calc status denied')
+      const allowed = op==='observe'?['OBSERVED']:op==='input_cell'?['INPUT_OBSERVED']:op==='commit_cell'?['COMMIT_ATTEMPT_OBSERVED']
+        :['NEEDS_SCREENSHOT_POINT','NEEDS_EDIT_CANCEL','EDIT_CANCEL_ATTEMPT_OBSERVED','SELECTION_OBSERVED']
+      if (!allowed.includes(status)) throw new Error('Calc status denied')
       if (status === 'NEEDS_SCREENSHOT_POINT' || status === 'NEEDS_EDIT_CANCEL') {
         if (args.cancel_edit === true) throw new Error('Calc cancellation response mismatch')
         if (value.used !== lastUsed || value.snapshot_id !== snapshot || value.png !== undefined || value.state !== undefined) throw new Error('Calc fallback binding denied')
@@ -122,7 +134,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
         }
         return {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,inputPermitted:false})}
       }
-      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+2)) throw new Error('Calc raw accounting mismatch')
+      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+2)) throw new Error('Calc raw accounting mismatch')
       if ((status === 'EDIT_CANCEL_ATTEMPT_OBSERVED') !== (args.cancel_edit === true)) throw new Error('Calc cancellation response mismatch')
       const state = value.state
       if (!state || typeof state.snapshot_id !== 'string' || !/^s[0-9a-f]{8}$/.test(state.snapshot_id)
@@ -134,6 +146,12 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || png.readUInt32BE(16) !== state.screenshot_width || png.readUInt32BE(20) !== state.screenshot_height) throw new Error('Calc PNG mismatch')
       if (status === 'SELECTION_OBSERVED' && (value.confirmation?.status !== status || value.confirmation.cell !== binding.cell
           || value.confirmation.snapshot_id !== state.snapshot_id || value.confirmation.inputPermitted !== false)) throw new Error('Calc selection proof missing')
+      if (status==='INPUT_OBSERVED' && (value.confirmation?.status!==status || value.confirmation.cell!==binding.cell
+          || value.confirmation.snapshot_id!==state.snapshot_id || value.confirmation.text!==binding.approvedText
+          || value.confirmation.kind!==binding.approvedKind || value.confirmation.inputEffectVerified!==true
+          || value.confirmation.storageTypeVerified!==false || value.confirmation.commitPermitted!==false)) throw Error('Calc input proof missing')
+      if (status==='COMMIT_ATTEMPT_OBSERVED' && (value.commitEffectVerified!==false
+          || value.storageTypeVerified!==false || value.commitPermitted!==false)) throw Error('Calc commit evidence boundary missing')
       const image = await ctx.get('attachments')!.saveImage({data:new Uint8Array(png),mediaType:'image/png',name:'vm-calc.png'})
       if (!/^sha256:[0-9a-f]{64}$/.test(image.attachmentId) || !['image/png','image/webp'].includes(image.mediaType)
           || ![image.bytes,image.width,image.height].every(v => Number.isInteger(v) && v>0)
@@ -163,7 +181,9 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       const result = {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,
         screenshot_width:state.screenshot_width,screenshot_height:state.screenshot_height,elements_complete:state.elements_complete,
         inputPermitted:false,businessStatus:'UNVERIFIED',...(detail?{detail:{...detail.geometry,coordinateSpace:'detail_pixels',originalMapping:'x=left+detail_x/2,y=top+detail_y/2'}}:{})}),image:ref,...(detail?{detailImage:detail.image}:{})}
-      if (status === 'SELECTION_OBSERVED') { stopped=true; exec.concludeTurn() }
+      if (status==='SELECTION_OBSERVED') inputPhase='selected'
+      if (status==='INPUT_OBSERVED') inputPhase='input'
+      if ((status === 'SELECTION_OBSERVED' && !inputMode) || status==='COMMIT_ATTEMPT_OBSERVED') { stopped=true; exec.concludeTurn() }
       return result
     } catch (error) {
       await stop().catch(() => ctx.logger.error('Calc stop delivery unconfirmed; no replay'))
@@ -179,5 +199,15 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   ctx.tools.register({name:'vm_calc_stop',description:'Stop this original VM selection task without further actions.',
     parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,
     async execute(args,exec) { admit(exec); if (!args || Object.keys(args).length) throw new Error('No stop arguments'); await stop(); exec.concludeTurn(); return {result:JSON.stringify({stopped:true,businessStatus:'UNVERIFIED'})} }})
+  if (inputMode) {
+    // Selection is non-terminal only in this explicitly bound protocol.
+    // The input tool description states the next allowed step independently.
+    ctx.tools.register({name:'vm_calc_input',description:'After confirmed selection, input only the approved literal once. Inspect the returned new image; independent edit evidence is not saved business success. Never retry failed input.',
+      parameters:{type:'object',additionalProperties:false,required:['snapshot_id','text','kind'],properties:{snapshot_id:{type:'string'},text:{type:'string',enum:[binding.approvedText]},kind:{type:'string',enum:[binding.approvedKind]}}},
+      output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('input_cell',args,exec)})
+    ctx.tools.register({name:'vm_calc_commit',description:'After INPUT_OBSERVED, confirm one Accept action using that snapshot. Returns a new image and ends this probe; commit effect, storage type and saved workbook remain unverified.',
+      parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
+      output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('commit_cell',args,exec)})
+  }
   record(join(root,'vm-tools-ready.json'), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,toolNames:[...TOOLS].sort()}, true)
 }

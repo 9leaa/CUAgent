@@ -56,6 +56,50 @@ function fixture(t: any, change: any = {}) {
     tool:(name:string)=>registered.find(x=>x.name===name)}
 }
 
+async function inputFixture(t:any) {
+  const f=fixture(t,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
+  f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
+    if(body.op==='input_cell')return {...common,used:5,status:'INPUT_OBSERVED',state:state('s00000003'),png:png.toString('base64'),
+      confirmation:{status:'INPUT_OBSERVED',cell:'A2',snapshot_id:'s00000003',text:'AbZ中文',kind:'text',inputEffectVerified:true,storageTypeVerified:false,commitPermitted:false}}
+    if(body.op==='commit_cell')return {...common,used:7,status:'COMMIT_ATTEMPT_OBSERVED',state:state('s00000004'),png:png.toString('base64'),
+      commitEffectVerified:false,storageTypeVerified:false,commitPermitted:false}
+    return value
+  }
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  await f.tool('vm_calc_select').execute({snapshot_id:'s00000001',x:25,y:30},f.exec)
+  return f
+}
+
+test('explicit input protocol keeps selection alive and ends after one commit image',async t=>{
+  const f=await inputFixture(t)
+  assert.equal(f.registered.length,5);assert.equal(f.control.concluded,undefined)
+  const value=await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
+  assert.equal(JSON.parse(value.result).status,'INPUT_OBSERVED');assert.ok(value.image)
+  assert.equal(f.control.concluded,undefined)
+  const result=await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
+  assert.equal(JSON.parse(result.result).used,7);assert.ok(result.image);assert.equal(f.control.concluded,true)
+  assert.deepEqual(f.calls.map(c=>c.op),['observe','select_cell','input_cell','commit_cell'])
+})
+
+for(const fault of ['payload','old','early_commit','proof','budget','image','commit_claim'])test(`input protocol refuses ${fault}`,async t=>{
+  const f=await inputFixture(t)
+  const args={snapshot_id:'s00000002',text:'AbZ中文',kind:'text'}
+  if(fault==='payload')args.text='other'
+  if(fault==='old')args.snapshot_id='old'
+  if(fault==='early_commit') {
+    await assert.rejects(()=>f.tool('vm_calc_commit').execute({snapshot_id:'s00000002'},f.exec));return
+  }
+  if(fault==='proof')f.control.corrupt=(v:any)=>({...v,confirmation:{...v.confirmation,text:'abz中文'}})
+  if(fault==='budget')f.control.corrupt=(v:any)=>({...v,used:6})
+  if(fault==='image')f.control.corrupt=(v:any)=>({...v,png:undefined})
+  if(fault==='commit_claim') {
+    await f.tool('vm_calc_input').execute(args,f.exec)
+    f.control.corrupt=(v:any)=>({...v,commitEffectVerified:true})
+    await assert.rejects(()=>f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec))
+  } else await assert.rejects(()=>f.tool('vm_calc_input').execute(args,f.exec))
+  assert.equal(f.calls.at(-1).op,'stop');assert.equal(f.control.concluded,undefined)
+})
+
 test('offered edit cancellation returns fresh image before a separate model selection',async t=>{
   const f=fixture(t);f.init()
   let cancelled=false
