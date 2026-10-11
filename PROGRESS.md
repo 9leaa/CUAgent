@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入候选001真实DSH运行，坐标越界拒绝，未输入
+
+- 原calc-dsh-input-001/run calc-select-7e306bb8-cb44-4acf-9efe-d0185c9f5f3f，session-7d71efda-c62b-4eac-b8ce-11063ef19aef，固定0f544e2与Driver0.34.1 SHA。只读list_windows确认79126/1250、Untitled 1、768×541与原位置一致；该准备观察单独记录，不计模型任务预算。新实时额度普通可用、剩92%、余额基准和两未用卡不变。
+- 原空闲Worker64179在命令/cwd和DB空闲、P5 PAUSED核对后临时停止；原profile切换至calc-input。官方请求确认为Flash/off、仅五工具，最新原图进入实际模型请求。三次模型工具为observe、select(snapshot)、select(snapshot,x300,y354)，未请求detail。
+- 首次观察名称框已A2；模型也文字识别A2，却给出的点击点落在批准A2区域[70,330,196,352]之外，独立原图可见x300已为B列且y354在A2下边界。guest在click前拒绝；原trace仅get_window_state=1与rejected_calc_request=2，无click/type_text。不能记选择/输入/提交成功，不复活原任务、不替换失败样本。
+- 原状态2raw、pending0、stopped；许可撤销、guest退出0、官方会话terminal/error、profile原字节恢复，Worker恢复65711、P5 PAUSED。runner退出0仅代表正常收尾，不能当任务成功。独立采集state-01 PNG/JSON、trace、lease、selection/model/input/verifier绑定并逐文件核对摘要；原失败和usage会话原值保留。
+- 下一步先解决已经选中目标仍需额外点击的问题：可验证连续新观察的原名称框，或要求局部图定位，而非扩大区域/提供答案坐标/重试旧任务。输入、提交、保存重开及完整费用业务仍未验收。README同步，本轮没有新增代码成绩。
+
 ## 2026-10-11：首个输入候选冻结部署与VM正常解锁
 
 - 固定命令入口修复提交0f544e2c0b834c2f3633a9053c82cbdb6c179b15，私有calc-dsh-input-001冻结483份源码；新guest目录34个文件（33模块与来源许可证）逐份独立校验字节哈希、文件私有权限与部署manifest摘要一致。没有覆盖005或原失败候选。
