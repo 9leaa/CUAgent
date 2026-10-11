@@ -57,6 +57,10 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
             self.lease.check()
             if (isinstance(args,dict) and set(args)=={'snapshot_id'} and self.snapshot
                     and args['snapshot_id']==self.snapshot['snapshot_id']):
+                # Approved pending edit recovery precedes the no-click shortcut.
+                # Selection alone is not evidence that the cell is out of edit mode.
+                if self._pending_approved_edit() is not None:
+                    return super().select_cell(args)
                 try:
                     inspect_selected_cell(self.snapshot,**self._context(),name_box_index=self._name_box())
                 except ValueError:

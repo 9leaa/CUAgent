@@ -69,6 +69,30 @@ def test_already_selected_requires_second_observation_without_click(adapter):
     assert t.phase=='CONFIRMED' and not t.stopped.is_set()
 
 
+def test_approved_pending_edit_precedes_already_selected(adapter):
+    t,calls,*_=adapter
+    source,regions=fixture()
+    t.edit_cancel=dict(approved=True,expected_text='AbZ中文',
+        controls_region=regions['controls_region'],editor_regions=regions['editor_regions'])
+    t.observe()
+    for element in source['elements'][1:]:
+        e=copy.deepcopy(element);e['element_index']+=10
+        e['element_token']=t.snapshot['snapshot_id']+':'+str(e['element_index'])
+        if e['role']=='AXTextArea':e['value']='AbZ中文'
+        t.snapshot['elements'].append(e)
+    result=t.select_cell(dict(snapshot_id=t.snapshot['snapshot_id']))
+    assert result['status']=='NEEDS_EDIT_CANCEL'
+    assert t.phase=='NEW' and t.used==1 and len(calls)==1
+    assert not t._edit_cancel_attempted
+
+
+def test_no_implicit_edit_cancel_authority(adapter):
+    t,calls,*_=adapter;t.observe()
+    with pytest.raises(ValueError):
+        t.select_cell(dict(snapshot_id=t.snapshot['snapshot_id'],cancel_edit=True))
+    assert t.used==1 and len(calls)==1
+
+
 @pytest.mark.parametrize('fault',['changed','same','lease','budget','stopped'])
 def test_current_selection_recheck_never_falls_back_to_click(adapter,monkeypatch,fault):
     t,calls,s,control,lease,*_=adapter;t.observe();snapshot=t.snapshot['snapshot_id']

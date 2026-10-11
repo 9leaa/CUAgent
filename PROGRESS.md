@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入模式优先处理明确批准的残留编辑
+
+- 只读检查原Driver1521仍运行，stdout/stderr均/dev/null，缓存目录无错误日志；无法找回002原错误。固定0.34.1的cli.rs run_call先输出structuredContent，否则文本写stdout，isError时退出1，因此仅stderr并不完整。此为源码行为，不是002具体根因证明；新诊断已保存双流，原任务不重发。
+- 实施前补方案，修正CalcInputModelTask.select_cell：有可信edit_cancel且实际双编辑区/按钮匹配时，先回原NEEDS_EDIT_CANCEL，不让already-selected快捷路线跳过恢复。仍需模型显式取消请求，无绑定不授权；未自动点击、取消或更改实际编辑内容。
+- 新增2项模拟测试，使用编辑AX证据验证NEEDS_EDIT_CANCEL、零额外Driver派发及无批准取消拒绝；全量VM工具与部署668通过、256个subtests通过。README同步，未部署/实跑，不宣称输入返回错误已修复。下一步冻结含诊断的新候选，旧UNKNOWN保持原样，完整P7仍未验收。
+
 ## 2026-10-11：原UNKNOWN后的独立只读观察确认编辑文字
 
 - 复用已授权只读inspect-calc-ax.py，在普通VM账号、解锁和原桌面互斥锁、固定soffice进程身份检查后，执行list_windows/get_window_state共2次只读请求；零动作、零模型、无原任务复活。原002的3raw保持不变，另列本次操作者诊断2raw，不隐藏介入。
