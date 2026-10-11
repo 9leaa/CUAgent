@@ -56,7 +56,7 @@ python -m backend.desktop_operator worker-once --profile /absolute/private/paren
 
 准备阶段失败分两类有证据收尾：原guest已关闭，或本次profile.prepare已完成但bootstrap尚未调用。后一类要求原失败绑定、没有启动/切换意图、profile原字节未变及原DB执行权仍有效，才能结束FAILED（已收到停止则STOPPED）；回执`guestNotStarted=true`、`guestRevoked=false`、`preparationCleanupConfirmed=false`，不是执行过撤销/清理。usage未知不填零，无模型/产物。bootstrap响应未知、配置变化、缺证据或失权仍隔离，不能自动清旧隔离；不会自动停启P5。
 
-`current-quota.json` 必须来自本次真实Codex用量工具读取，0600，不能复制示例/旧读数或填造数据。字段严格为：`version=1`、`taskId`、`profileSha256`（service.json原字节SHA256）、`source="Codex get_usage_limits"`、带时区的`checkedAt`/`expiresAt`（至多五分钟）、`remainingPercent`、`ordinaryUsageAllowed`、`creditsBalance`、`resetCardsUsed`。余额基准62494.0260570000，普通额度可用且剩余≥40%、卡未用方可进入；缺失/过期拒绝，真实触线在原共享运行目录持久写desktop-operator-stop.json，自然重置不解锁，禁止手动删除绕过。原P5 scheduler停止锁同样生效；这不限制DSH平台余额。
+`current-quota.json` 必须来自本次真实Codex用量工具读取，0600，不能复制示例/旧读数或填造数据。字段严格为：`version=1`、`taskId`、`profileSha256`（service.json原字节SHA256）、`source="Codex get_usage_limits"`、带时区的`checkedAt`/`expiresAt`（至多五分钟）、`remainingPercent`、`ordinaryUsageAllowed`、`creditsBalance`、`resetCardsUsed`。按2026-10-11用户新授权，桌面任务普通额度剩余≥3%可进入，低于3%停止；余额基准62494.0260570000、普通额度可用、卡未用要求不变。缺失/过期拒绝，真实触线在原共享运行目录持久写desktop-operator-stop.json，自然重置或此次阈值调整均不解锁，禁止手动删除绕过。原P5 scheduler停止锁同样生效；暂缓的P5定时计划本次不修改，这不限制DSH平台余额。
 
 准入、准备、App切换及正式prompt前会重新检查：原P5无排队/在途/未释放资源、未来30分钟无到期计划、旧Worker进程不存在、VM身份正确且已解锁、绑定额度未过期或变更。操作意图和结果存在独立service/admission目录；有attempt的任务或已有启动意图不能再次运行。`EXECUTION_RECORDED`只表示收到了结果，必须读取outcome.status、restoreConfirmed和quarantined；未知/隔离不得重放，不能换任务掩盖失败。确认原App恢复和无隔离后，由本次切换操作者恢复原P5领取者。本命令目前经过隔离PG/模拟VM边界测试，尚待通过正式命令运行同版三例，不把历史私有脚本验收当作新入口验收。
 

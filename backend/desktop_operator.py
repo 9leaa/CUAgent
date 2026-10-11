@@ -73,7 +73,7 @@ class QuotaGate:
                 or not isinstance(value['creditsBalance'], str)
                 or type(value['resetCardsUsed']) is not int or value['resetCardsUsed'] < 0):
             raise ValueError('INVALID_OR_EXPIRED_QUOTA')
-        if (remaining < 40 or not value['ordinaryUsageAllowed']
+        if (remaining < 3 or not value['ordinaryUsageAllowed']
                 or value['creditsBalance'] != CREDITS or value['resetCardsUsed'] != 0):
             save_exclusive(self.stop, json.dumps({'taskId': self.task_id, 'reason': 'QUOTA_POLICY_STOP',
                 'quotaSha256': self.quota_sha, 'observedAt': self.clock().isoformat()}).encode())

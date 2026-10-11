@@ -26,7 +26,7 @@ def quota(tmp_path):
               'profileSha256': hashlib.sha256(profile.read_bytes()).hexdigest(),
               'source': 'Codex get_usage_limits', 'checkedAt': now.isoformat(),
               'expiresAt': (now + timedelta(minutes=5)).isoformat(),
-              'remainingPercent': 40, 'ordinaryUsageAllowed': True,
+              'remainingPercent': 3, 'ordinaryUsageAllowed': True,
               'creditsBalance': operator.CREDITS, 'resetCardsUsed': 0}
     path = tmp_path / 'quota.json'
     def build(**changes):
@@ -44,8 +44,16 @@ def test_exact_quota_threshold_and_five_minute_deadline(quota):
     assert not gate.stop.exists()
 
 
+@pytest.mark.parametrize('remaining', [3, 3.01, 17, 39.99, 40, 100])
+def test_updated_desktop_threshold_allows_three_percent_and_above(quota, remaining):
+    build, _, _, _ = quota
+    gate = build(remainingPercent=remaining)
+    assert gate.check()
+    assert not gate.stop.exists()
+
+
 @pytest.mark.parametrize('changes', [
-    {'remainingPercent': 39.99}, {'ordinaryUsageAllowed': False},
+    {'remainingPercent': 2.99}, {'ordinaryUsageAllowed': False},
     {'creditsBalance': '0'}, {'resetCardsUsed': 1},
 ])
 def test_real_policy_stop_is_persistent_across_new_good_record(quota, changes):
