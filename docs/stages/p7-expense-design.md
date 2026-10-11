@@ -49,6 +49,8 @@
 
 ## 最小测试矩阵
 
+2026-10-11截图回退调整（实现前）：先实现独立、无副作用的Calc定位策略，不继承TextEdit唯一正文假设。可信适配器提供原PID/窗口/标题、采集时刻和截图中审核过的网格区域；完整AX中存在唯一、有效、可见且属于原窗口的目标单元格时使用AX，否则返回NEEDS_SCREENSHOT_POINT，请原模型从同一新截图提供网格内像素坐标，再产生坐标点击计划。控件树不完整本身不阻塞截图路径；截图无效、过期、身份改变或坐标不在网格内则拒绝。点击计划不是动作执行或语义证明，点击后必须取得不同snapshot的新观察，并由名称框确认目标单元格，缺失/歧义/不符拒绝输入。该策略不直接调用Driver、不注册生产工具，不生成输入/保存计划；后续接受限执行器时沿原租约、30raw、停止、UNKNOWN及独占锁计数，不允许策略自建预算或重试。
+
 2026-10-11真实只读AX结果：用户明确允许既有SSH调用VM内Driver只读采集。原Untitled 1在解锁与桌面互斥锁内取得窗口/状态共2raw；返回1140元素但elements_complete=false，A1是无value的AXTextField，单元格内编辑区与公式栏各有值a的AXTextArea，名称框是含AXTextArea的AXComboBox。截图坐标校验有效，不等于目标可写或工作簿完整可读。后续适配不得复用TextEdit唯一AXTextArea假设、硬编码本次index/token或把无value当空值；必须结合新观察、窗口身份、目标位置及输入前后状态，无法唯一识别则拒绝。此次没有输入/保存/模型调用，原失败样本保持不变。
 
 2026-10-10正式输入通道核对方案（测试前）：沿HandoffDesktopTask→DesktopTask→RealAppTask→Calls.cli追踪原生产路径。使用模拟transport及模拟subprocess验证AbZ、中文、组合Unicode、换行与括号逐字传递，确认绑定PID/window/session/element身份、单次调用计数与失败UNKNOWN不重发；不启动Driver、不调用模型，不把模拟结果当作Calc兼容性证明。现有适配器只允许TextEdit的AXTextArea，禁止为验证Calc而替换应用身份或放宽原白名单。后续Calc适配需先取得其真实AX/窗口证据，再单独设计受限入口；屏幕共享输入失败不能直接判为正式Driver失败。
