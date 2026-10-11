@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：Calc选择诊断入口（仅本地模拟验证）
+
+- 先写方案，再新增calc_selection_diagnostic.py：可信操作者显式approve-selection，固定run/owner/epoch和窗口/单元格/网格，只接受原目录已有租约；不授权、不续租、不注册HTTP或模型工具，不开放输入/保存。
+- 精确命令白名单，拒绝重复JSON键、额外参数、非有限值及超长命令；读取部分行也检查期限。最多30条命令、180秒准入期限，原真实调用预算保持30；在途请求沿用原超时，不保证在180秒瞬间退出或取消副作用。EOF、错误、输出失败及中断最终停止；关闭失败不输出已关闭回执，业务始终UNVERIFIED。
+- 新增25项模拟测试，覆盖AX/截图选择完整链、非法协议、EOF/超时/中断/输出失败清理、读后超时不派发、命令数与单行边界。主CUAgent虚拟环境运行test_calc_selection_diagnostic.py、test_calc_selection.py、test_calc_targeting.py、test_real_app.py、test_desktop_lease.py、test_handoff_trace.py：138项及55个subtests通过。CLI --help及git diff --check通过。
+- 本轮无VM/Driver/模型调用、无P5更改。真实点击仍待冻结部署与明确动作范围授权；已有SSH只读授权未扩展。原模型截图坐标交互、输入保真、保存重开及费用业务验收仍未完成。README同步。
+
 ## 2026-10-11：Calc截图回退接入选择执行器（未部署）
 
 - 先补执行方案，再新增CalcSelectionTask，只接受可信现有窗口/单元格/网格绑定，独立Calc注册表且不改变TextEdit权限。复用Task原持久账本、30raw、stop和UNKNOWN逻辑及LeaseGate；持有原guest bridge.lock，quarantine拒绝、重启原计数保留并停止。构造不启动应用，公开raw与继承的输入/滚动/结果/验证入口拒绝。
