@@ -1,7 +1,7 @@
 """Opt-in single input attempt on the original Calc ledger; no model endpoint."""
 import json
 
-from calc_input import plan_cell_input, validate_cell_payload
+from calc_input import plan_cell_input, validate_cell_payload, inspect_committed_cell
 from calc_edit import inspect_edit
 from calc_targeting import confirm_selected_cell
 from calc_selection import CalcSelectionTask, _save
@@ -134,6 +134,7 @@ class CalcInputTask(CalcSelectionTask):
                     editor_regions=self.confirmed_input['editor_regions'])
                 _save(self.directory/'commit-attempt.json',json.dumps(evidence).encode())
                 self.record(dict(event='commit_intent',evidence=evidence,used=self.used))
+                self.before_commit=snapshot_id
                 self.phase='COMMIT_ATTEMPTED';self.snapshot=None
                 self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,
                     element_token=evidence['accept']['element_token']))
@@ -144,6 +145,26 @@ class CalcInputTask(CalcSelectionTask):
                 return dict(result,status='COMMIT_ATTEMPT_OBSERVED',commitEffectVerified=False,
                     storageTypeVerified=False,inputPermitted=False,commitPermitted=False,
                     businessStatus='UNVERIFIED')
+            except Exception:
+                self.stop()
+                raise
+
+    def confirm_commit(self, *, snapshot_id, name_box_index):
+        """Trusted post-commit verification; no action, save, or retry authority."""
+        with self.lock:
+            try:
+                if (self.phase!='AWAITING_COMMIT_CONFIRMATION' or self.stopped.is_set()
+                        or self.uncertain or self.lock_fd is None or not self.snapshot
+                        or snapshot_id!=self.snapshot['snapshot_id']):
+                    raise StopRun('BLOCKED','Fresh original post-commit observation required')
+                self.environment();self.lease.check();self.identity(self.pid)
+                result=inspect_committed_cell(self.snapshot,**self._context(),grid=self.grid,
+                    previous_snapshot_id=self.before_commit,name_box_index=name_box_index,
+                    approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
+                    approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region)
+                self.record(dict(event='cell_commit_observed',result=result,used=self.used))
+                self.phase='COMMIT_CONFIRMED'
+                return result
             except Exception:
                 self.stop()
                 raise

@@ -269,6 +269,45 @@ def test_single_accept_with_original_budget(input_setup,monkeypatch):
     assert len(calls)==7
 
 
+@pytest.mark.parametrize('input_setup',[True],indirect=True)
+@pytest.mark.parametrize('fault',[None,'value','edit','old','stopped','unknown','lease','phase','audit'])
+def test_post_commit_confirmation_no_new_dispatch(input_setup,monkeypatch,fault):
+    t,calls,s,control,lease,*_=input_setup
+    args=edited(t,monkeypatch);t.confirm_input(**args)
+    original=t.transport
+    def committed(tool,arguments):
+        result=original(tool,arguments)
+        if tool=='get_window_state':
+            result['elements']=[e for e in result['elements'] if e['element_index']<10]
+            result['elements'][1]['value']='AbZ中文'
+        return result
+    monkeypatch.setattr(t,'transport',committed)
+    t.commit_once(snapshot_id=args['snapshot_id']);snapshot=t.snapshot['snapshot_id']
+    if fault=='value':t.snapshot['elements'][1]['value']='abz中文'
+    elif fault=='edit':t.snapshot['elements'].append(dict(element_index=99,parent_index=0,role='AXButton',label='Accept',enabled=True))
+    elif fault=='old':snapshot=t.before_commit
+    elif fault=='stopped':t.stop()
+    elif fault=='unknown':t.uncertain=True
+    elif fault=='lease':control.write_text(json.dumps(dict(lease,stopped=True)))
+    elif fault=='phase':t.phase='INPUT_OBSERVED'
+    elif fault=='audit':
+        record=t.record
+        def fail(row):
+            if row['event']=='cell_commit_observed':raise OSError('audit unavailable')
+            return record(row)
+        monkeypatch.setattr(t,'record',fail)
+    if fault:
+        with pytest.raises((ValueError,StopRun,OSError)):t.confirm_commit(snapshot_id=snapshot,name_box_index=2)
+        assert t.stopped.is_set()
+    else:
+        result=t.confirm_commit(snapshot_id=snapshot,name_box_index=2)
+        assert result['status']=='CELL_COMMIT_OBSERVED' and result['commitEffectVerified']
+        assert not result['saved'] and not result['storageTypeVerified']
+        assert t.phase=='COMMIT_CONFIRMED'
+        with pytest.raises(StopRun):t.confirm_commit(snapshot_id=snapshot,name_box_index=2)
+    assert t.used==7 and len(calls)==7
+
+
 def test_commit_requires_separate_approval(input_setup,monkeypatch):
     t,calls,*_=input_setup;args=edited(t,monkeypatch);t.confirm_input(**args)
     with pytest.raises(StopRun):t.commit_once(snapshot_id=args['snapshot_id'])

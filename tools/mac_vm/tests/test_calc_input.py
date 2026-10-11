@@ -5,6 +5,23 @@ from pathlib import Path
 import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from calc_input import plan_cell_input, validate_cell_payload
+from calc_input import inspect_committed_cell
+
+
+@pytest.mark.parametrize('fault',[None,'value','formula','missing'])
+def test_commit_requires_cell_and_formula_values(fault):
+    s,a=fixture();s['elements'][1]['value']='AbZ中文'
+    a['formula_region']=[200,40,700,90]
+    editor=dict(element_index=4,parent_index=0,role='AXTextArea',enabled=True,value='AbZ中文',
+        element_token='s00000002:4',frame=dict(x=220,y=75,w=40,h=12))
+    if fault!='missing':s['elements'].append(editor)
+    if fault=='value':s['elements'][1]['value']='abz中文'
+    if fault=='formula':editor['value']='different'
+    if fault:
+        with pytest.raises(ValueError):inspect_committed_cell(s,**a)
+    else:
+        result=inspect_committed_cell(s,**a)
+        assert result['commitEffectVerified'] and not result['saved']
 
 
 def fixture():

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：执行层提交后确认，为受控保存建立前置条件
+
+- 先补设计，再增加inspect_committed_cell和CalcInputTask.confirm_commit；使用原提交后已采集的新snapshot，不增加Driver调用。重验原环境/租约/窗口/名称框/单元格与无编辑态，单元格value必须逐字等于批准文字，公式模式另核对原区域文字；不根据Driver click响应或框架completed推断成功。
+- 成功记录cell_commit_observed并转COMMIT_CONFIRMED，只声明GUI显示提交效果；saved/storageTypeVerified=false，businessStatus=UNVERIFIED。值变化、编辑仍启用、旧截图、停止/UNKNOWN/失权/错误阶段或审计失败停止，不能再次点击。金额格式变化暂保守拒绝，不猜单元格类型。
+- 新增13项模拟正常/反例与原预算测试；全部VM工具/部署692通过、256个subtests通过，git diff --check通过。对原005 state-08离线调用核对器得到CELL_COMMIT_OBSERVED，不把离线时间参数当新鲜许可，不恢复原005。
+- README同步。当前旧模型commit工具仍按原协议返回尝试并停止；本轮没有静默开放保存或部署新代码。下一步设计显式完整保存模式，接提交确认、固定路径GUI保存/重开和独立ODS读回，整个新完整流程共享原30raw，不能续用已结束005预算。
+
 ## 2026-10-11：005公式栏输入与GUI提交真实链路通过
 
 - 固定9708581，484源码冻结/VM34文件独立校验；run calc-select-42be8cd6-009d-49fe-b711-9bb9153666ad、session-18e19767-624a-4aa2-acbf-8a9c36c39c61。显式--input-target formula及可信原验证区域、Flash/off/五工具；普通额度剩87%、余额基准和两卡未变。

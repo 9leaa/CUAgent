@@ -89,3 +89,22 @@ def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
                 target=dict(element_token=target['element_token']),text=text,kind=kind,
                 delivery_mode='foreground',requiresPostActionObservation=True,
                 inputPermitted=False,inputEffectVerified=False,businessStatus='UNVERIFIED')
+
+
+def inspect_committed_cell(state, **context):
+    """Verify displayed committed text, not disk persistence or storage type."""
+    plan=plan_cell_input(state,**context)
+    indexed=_elements(state)
+    cells=[e for e in indexed.values() if e.get('role')=='AXTextField'
+           and e.get('label')==context['cell'] and e.get('enabled') is True
+           and _in_window(e,indexed,context['title'])]
+    if len(cells)!=1 or cells[0].get('value')!=context['approved_text']:
+        raise ValueError('committed cell value differs from approved text')
+    if context.get('formula_region') is not None:
+        editors=[e for e in indexed.values() if e.get('element_token')==plan['target']['element_token']]
+        if len(editors)!=1 or editors[0].get('value')!=context['approved_text']:
+            raise ValueError('formula readback differs from committed cell')
+    return dict(status='CELL_COMMIT_OBSERVED',snapshot_id=state['snapshot_id'],cell=context['cell'],
+                text=context['approved_text'],kind=context['approved_kind'],commitEffectVerified=True,
+                storageTypeVerified=False,saved=False,inputPermitted=False,commitPermitted=False,
+                businessStatus='UNVERIFIED')
