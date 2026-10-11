@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-11：用户明确允许后完成VM Driver受控升级
+
+- 用户明确允许VM Driver备份、升级和失败回退。固定0.34.1官方完整归档75828341字节，SHA256为4c7edf1ebbad7e4bc9fac90a4dc4f50d544592e00b35f15b681ccf8b41cb4ff1，与发布资产一致；本地及VM codesign严格检查通过，签名TeamIdentifier YCK386LBJ7、公证stapled。没有执行latest安装器或改宿主Driver。
+- VM普通账号只读备份完整0.28.2 App，副本签名/二进制SHA与原件一致。原位置由管理员拥有；开发侧经原项目VM管理员凭据执行本次授权安装，凭据未进入DSH或日志。首次认证检查的远程命令引号有误，修正后纯id检查通过；未安装依赖（本地pexpect不可用，复用系统expect）。
+- 切换前官方DSH无运行会话、DB无活动任务/桌面owner、P5为PAUSED。暂时停止准确核实的空闲Worker并取得原独占锁，停止原Driver602，移动原完整App至可回退路径，再部署候选完整签名App；不修改权限、SSH、SIP或模型profile。
+- 第一次切换的检查在open异步启动后立即收到daemon未运行，入口直接失败并自动回退0.28.2；重新核对旧哈希、权限true/true、Driver1412及恢复Worker63544。原driver-upgrade-001失败/回退回执保留，不伪称一次成功。修订入口只对明确daemon未运行作有限只读等待，不重复open或点击；第二次driver-upgrade-002成功。
+- 独立读回版本0.34.1、签名有效，现用二进制SHA256为12d4f43b9db80af6fe1dc295f362a50891121be964ec52b032f84b0ffd50640a，daemon1521、standard模式，原辅助功能/录屏权限保持。Worker恢复63612。原完整App仍在VM可回退目录；失败候选副本与两次私有回执均保留，未删除材料。
+- 已读取新CLI describe click，接口适配和真实官方DSH截图点击仍待验证；没有模型请求、点击、输入或保存，本轮仅安装/生命周期检查。README同步，不把升级成功当P7验收。本轮只改文档，git diff --check；私有操作脚本经py_compile但不当单元/GUI验收。
+
 ## 2026-10-11：完整App来源闭环，等待明确Driver切换授权
 
 - 沿原12743991字节文件续传官方0.28.2 universal完整归档，curl退出0。完整SHA256为e273181b26709c88b1d809474deb3c592b4efae3530b11d76318f1887fc3fbb1，与官方release摘要一致；tar流式读取CuaDriver.app/Contents/MacOS/cua-driver，SHA为9a7731f7e961a57963f0deb132878367fdf7354e7327a4d558fe4a68e4686b81。
