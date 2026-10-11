@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { realpathSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
-import { startDesktopSession, startHandoffSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
+import { startDesktopSession, startHandoffSession, startCalcSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
 import { HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 import { DAILY_MODEL } from '../harness/daily-report-runner.mjs';
 
@@ -47,6 +47,33 @@ function fixture(t, fault) {
     throw Error('unexpected RPC');
   };
   return { root, binding, rpc, calls, readSession: async () => rows };
+}
+
+for (const fault of [undefined, 'ready', 'cell', 'create', 'model', 'prompt']) {
+  test(`Calc official session binding and no replay: ${fault}`, async t => {
+    const f = fixture(t, fault);
+    const binding = {kind:'calc-selection',protocol:'calc-selection-v1',
+      runId:'calc-select-11111111-1111-4111-8111-111111111111',
+      sessionId:f.binding.sessionId,cwd:f.binding.cwd,cell:fault === 'cell' ? 'A0' : 'A2'};
+    const ready = {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
+      toolNames:['vm_calc_observe','vm_calc_select','vm_calc_stop']};
+    if (fault === 'ready') ready.sessionId = 'other';
+    writeFileSync(join(f.root,'vm-tools-ready.json'),JSON.stringify(ready),{mode:0o600});
+    const rpc = (method,args) => method === 'agentPresets/list'
+      ? Promise.resolve({presets:[{id:'calc-selection'}]}) : f.rpc(method,args);
+    if (fault) await assert.rejects(startCalcSession(f.root,binding,rpc));
+    else {
+      assert.equal((await startCalcSession(f.root,binding,rpc)).accepted,true);
+      const prompt = JSON.parse(readFileSync(join(f.root,'prompt-request.json'))).request.content[0].text;
+      assert.match(prompt,/NEEDS_SCREENSHOT_POINT/);
+      assert.match(prompt,/A2/);
+      assert.match(prompt,/不输入、不保存/);
+    }
+    const count = f.calls.length;
+    await assert.rejects(startCalcSession(f.root,binding,rpc));
+    assert.equal(f.calls.length,count);
+    if (['ready','cell'].includes(fault)) assert.equal(count,0);
+  });
 }
 
 test('fixed official model/off, intent before RPC, original inspection and cancel once', async t => {

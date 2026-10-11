@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：Calc接入原官方App/profile/session生命周期
+
+- 方案先行；增加Calc专用persona/profile，沿原编译、独占profile事务及恢复路径，不复制上游或实现模型循环。原P6/P7模式保留，切换会移除旧Calc preset，避免混用。
+- App入口显式`start-calc`检查精确连接字段、协议、run/session、目标、唯一preset和三工具ready；会话入口显式`kind=calc-selection`，创建前再核对私有ready。沿原创建意图、模型选择、prompt ID和查询/取消，固定Flash/off、未知响应不重发。
+- 新增6项Calc会话、5项App就绪及1项编译/profile恢复测试；70项相关Node测试全部通过、零跳过。真实固定编译器只操作临时测试home，App/RPC模拟，未修改正式profile、启动真实模型或控制VM。
+- 下一步冻结部署并接可信运行控制/实时额度准入、原官方会话执行及独立审计。仍未完成真实DSH截图选择、输入保存和费用业务；总目标未完成。
+
 ## 2026-10-11：Calc模型工具的可信VM启动入口
 
 - 先补费用阶段方案，再实现`calc_model_guest.py`：固定VM目录及原run/session、独立token、既有短租约、窗口/目标/网格/名称框；不创建或续租、不观察或点击、不运行自建模型循环。原启动意图独占落盘，失败不重放。

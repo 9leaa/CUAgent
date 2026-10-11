@@ -1,0 +1,51 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: calc-selection }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-calc-selection
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: calc-selection
+        name: CUAgent VM Calc selection
+        description: Observe, select the bound cell once, independently verify. No typing or saving.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Use only the approved VM Calc tools. Observe first and use the current snapshot.
+                Try AX selection with snapshot_id only. On NEEDS_SCREENSHOT_POINT inspect the returned image yourself,
+                then pass x/y in original screenshot pixels and the same snapshot_id.
+                The tool clicks once and independently verifies a new observation. Never retry an uncertain click.
+                Do not type, save, use files, shell, clipboard, network or subagents.
+                Selection confirmation is not business completion. Remain UNVERIFIED.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

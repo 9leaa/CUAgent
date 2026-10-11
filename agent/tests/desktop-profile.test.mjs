@@ -153,3 +153,17 @@ test('optional real pinned compiler builds into temporary run without altering p
     restoreDesktopProfile(f.root, f.home, () => {});
     assert.equal(readFileSync(f.target, 'utf8'), f.before);
   });
+
+test('Calc profile uses original compiled plugins and restores original bytes',
+  {skip: !process.env.CUAGENT_TEST_BUILD_TOOLS}, async t => {
+    const f = fixture(t);
+    rmSync(join(f.root,'desktop-plugins'),{recursive:true});
+    await prepareDesktopProfile(f.root,f.home,process.env.CUAGENT_TEST_BUILD_TOOLS,'calc-selection');
+    const next = readFileSync(join(f.root,'profile-next.yml'),'utf8');
+    assert.match(next,/preset-calc-selection/);
+    assert.match(next,/NEEDS_SCREENSHOT_POINT/);
+    assert.doesNotMatch(next,/preset-real-app/);
+    applyDesktopProfile(f.root,f.home,()=>{});
+    restoreDesktopProfile(f.root,f.home,()=>{});
+    assert.equal(readFileSync(f.target,'utf8'),f.before);
+  });
