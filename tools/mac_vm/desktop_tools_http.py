@@ -36,7 +36,7 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
     if calc:
         operations = {'observe', 'select_cell'}
         if isinstance(task, CalcInputModelTask):
-            operations.update({'input_cell', 'commit_cell'})
+            operations.update({'focus_input', 'input_cell', 'commit_cell'})
         if isinstance(task, CalcSaveModelTask):
             operations.add('open_save_dialog')
     if isinstance(task, HandoffDesktopTask):

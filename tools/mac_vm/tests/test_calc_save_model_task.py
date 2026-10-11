@@ -92,3 +92,20 @@ def test_failed_post_commit_never_opens_save(adapter, service, monkeypatch):
     assert task.stopped.is_set() and len(calls) == 3
     assert service('open_save_dialog', dict(snapshot_id='any'))[0] == 409
     assert len(calls) == 3
+
+
+def test_save_protocol_focus_entry_uses_original_executor_gate(adapter,service,monkeypatch):
+    task,calls,*_=adapter
+    task.phase='CONFIRMED'
+    reached=[]
+    original=task.focus_input_once
+    def guarded(**kwargs):
+        reached.append(kwargs)
+        return original(**kwargs)
+    monkeypatch.setattr(task,'focus_input_once',guarded)
+    # This fixture has no explicit formula target: inherited endpoint exists,
+    # but must not turn an unapproved target into a click.
+    code,_=service('focus_input',dict(snapshot_id=task.snapshot['snapshot_id'],x=410,y=40))
+    assert code==409 and len(reached)==1 and len(calls)==1
+    assert reached[0]['controls_region']==task.input_regions['controls_region']
+    assert task.stopped.is_set()

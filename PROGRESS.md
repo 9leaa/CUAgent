@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：显式聚焦模型适配及鉴权HTTP接线
+
+- 先写方案；CalcInputModelTask新增focus_input，只接受snapshot_id/x/y，自行定位名称框并使用原启动冻结的controls/editor区域。保存子类继承入口；模型不能提交expected_text、验证区域、内部聚焦证明、PID或其他目标。
+- 原鉴权HTTP仅输入/保存任务开放focus_input，selection-v1继续拒绝。返回新PNG及INPUT_FOCUS_OBSERVED确认，明确inputEffectVerified=false、inputPermitted=false、commitPermitted=false；后续input_cell仍需独立确认批准的新文字，聚焦不等于输入成功。
+- 新增真实loopback HTTP/模拟Driver完整观察→只读选择→前台聚焦→新观察→输入→新观察链，原6raw及单次输入确认通过；错会话/run、额外区域/文字/证明、陈旧图、NaN、缺字段及错阶段停止且无点击。保存协议实测到达原执行器，但未批准公式栏时仍拒绝且无动作；不把此拒绝测试当保存链成功。
+- 完整VM工具/部署回归795 passed、256 subtests passed，git diff --check通过。README同步；本轮没有模型调用、VM部署或GUI动作，正式profile不变。下一步官方DSH插件、ready工具名单和提示同步后再冻结候选；真实文本替换、聚焦效果、保存/重开/ODS及完整P7仍未完成，P5不恢复。
+
 ## 2026-10-11：公式栏显式聚焦执行层及原账本输入衔接
 
 - 先写方案；核对固定Driver0.34.1 type_text源码，token目标和x/y内置聚焦路线不同。未断言002唯一根因，不升级Driver或操作VM。为保持每个实际请求可核对，采用独立click与get_window_state，不直接使用隐藏聚焦的复合输入。

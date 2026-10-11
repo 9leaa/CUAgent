@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 聚焦模型协议接线（2026-10-11，代码前）
+
+在显式输入/保存模型适配器增加focus_input，只接受snapshot_id/x/y；可信适配器自己解析名称框并使用启动时冻结的双编辑区/控件区域，外部不能指定原文字、验证区域或批准。沿原鉴权HTTP仅CalcInputModelTask及其保存子类开放，selection-v1拒绝。返回新PNG及INPUT_FOCUS_OBSERVED确认，必须明确inputEffectVerified=false和commitPermitted=false；仍需原input_cell核验新文字。异常停止，同run不重发。本步先验证真实loopback HTTP+模拟Driver完整聚焦/输入链，官方插件工具名单/profile须另行同步后才能部署，不提前改正式配置。
+
 ## 显式公式栏聚焦候选（2026-10-11，代码前）
 
 固定Driver0.34.1的type_text源码区分token目标与x/y先点击聚焦；仅窗口foreground不能证明目标编辑器收到键盘焦点。先增加独立、可审计的focus_input_once执行步骤：模型未来提供当前原图点位，可信端重验已确认选择、批准覆盖/内容、唯一公式栏token及区域，点位严格位于该编辑器frame内部；不自动计算点位。单次foreground click和独立新观察各计1raw，独占意图防重复，进入前至少保留聚焦2、输入2、提交2raw，沿原锁/租约/停止保护。新观察必须名称框仍是原单元格、Cancel/Accept启用，且两个编辑区都等于聚焦前原公式栏文字，才记INPUT_FOCUS_OBSERVED；它不证明新文字输入，不允许直接提交/保存。失败停止、不换路线重试。

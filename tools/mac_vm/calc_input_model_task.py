@@ -39,6 +39,21 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
             self.close()
             raise
 
+    def focus_input(self, args):
+        with self.lock:
+            try:
+                if not isinstance(args,dict) or set(args)!={'snapshot_id','x','y'}:
+                    raise ValueError('only current snapshot and focus point allowed')
+                result=self.focus_input_once(snapshot_id=args['snapshot_id'],point=args,
+                    name_box_index=self._name_box(),**self.input_regions)
+                confirmation=dict(status='INPUT_FOCUS_OBSERVED',cell=self.cell,
+                    snapshot_id=result['state']['snapshot_id'],inputEffectVerified=False,
+                    inputPermitted=False,commitPermitted=False)
+                return self.envelope(dict(result,confirmation=confirmation))
+            except Exception:
+                self.stop()
+                raise
+
     def input_cell(self, args):
         with self.lock:
             try:
