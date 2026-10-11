@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入候选002，已选中确认成功、输入结果UNKNOWN
+
+- 固定f7f337d5eaacf282fca4865fad8d2493a2933340，冻结483份源码、VM34文件独立读回一致；新原run calc-select-bd555d6a-296b-4a69-91da-19e8ff1d983e、session-4a3c0370-5528-4fc3-9a8c-d79715ff0d6b。普通额度剩91%，余额基准未变，两卡仍未用；原空闲Worker65711身份/cwd及数据库互斥核对后临时切换，未恢复P5。
+- 官方DSH Flash/off三次模型工具调用：observe、无坐标select、input。原两张不同snapshot s00000005/06、AX名称框及独立PNG确认A2；already-selected路线实际只新增观察，无click，累计2raw。不是模拟成绩，也不替代输入验收。
+- 第3raw为真实type_text派发，目标当前A2 token、批准文字AbZ中文；约4.44秒后StopRun，原账本记录UNKNOWN并停止，无后观察、提交或保存，未重试。当前Calls.cli会将Driver非零退出转换为StopRun，raw日志仅保存异常类，缺少本次原stderr；故不能断言是定位、焦点或字符编码问题，也不能断言没有写入。输入前PNG不可冒充输入后证据。
+- 独立采集两张原PNG/JSON、trace、lease及选择/模型/输入绑定并逐文件验证摘要；原失败与官方usage保留。收尾确认pending0、stopped、撤权、guest退出0、profile原字节恢复，Worker66224恢复，P5 PAUSED。runner退出0只表示收尾，不表示业务成功。
+- README同步；下一步先设计有界私有Driver错误证据记录和受控只读状态核对，UNKNOWN原任务不复活、不重输；完整费用任务与保存/重开/ODS仍未验收。
+
 ## 2026-10-11：已选中目标的双观察确认，避免不必要点击
 
 - 依据输入001真实失败先补方案。抽取inspect_selected_cell局部AX核对；仅CalcInputModelTask无坐标select在当前名称框及独立子文字一致时，再调用一次原observe、要求不同snapshot和目标再次一致，标already-selected并转CONFIRMED。此路线无click，输入仍走原目标token、编辑态、租约/预算保护。
