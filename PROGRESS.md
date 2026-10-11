@@ -1,5 +1,19 @@
 # CUAgent 实际进度
 
+## 2026-10-11：回到DSH内CUAgent接线（未部署、未真实模型验收）
+
+- 用户指出独立Driver诊断没有走DSH内CUAgent。先补主链方案，在原c0-vm-tools入口增加严格calc-selection-v1分支，只注册vm_calc_observe/select/stop；旧任务不混入。官方附件服务提供image block，私有回执记录原PNG SHA/附件ID与snapshot，模型请求必须包含最新图片且固定deepseek-account/deepseek-flash/off。坐标原样来自模型参数，不由操作者提供。
+- 新增CalcModelTask及原tools_server的独立Calc协议：run/session逐次核对、目标/窗口/网格均可信绑定；模型不可提供名称框index，适配器按可信名称框区域选唯一新控件，再用原确认器核对目标。拒绝沿原账本计数、作废观察并停止，成功也停止且业务UNVERIFIED；官方工具concludeTurn，不自建模型循环，不开放输入保存。截图坐标显式foreground为待实机候选，旧失败不重试。
+- 同步宿主打包/guest安装器的三个Calc依赖，避免新版HTTP模块导入导致旧P6缺模块。实际当前源码打包、临时私有安装、隔离Python导入测试通过；不启动服务。旧冻结部署/P5不变，现有可信guest启动器尚未选择CalcModelTask，因此不能称运行链已启用。
+- Python：calc_model_http、calc_identity、calc_selection_diagnostic、calc_selection、calc_targeting、desktop_tools_http、real_app、desktop_lease、handoff_trace及backend/test_desktop_deploy共187项与55个subtests通过；真实loopback HTTP仅连接模拟Driver。官方App Electron运行时载入原dsh工具库，31项插件测试通过，其中18项新Calc边界测试，HTTP/附件仍模拟，无真实模型。
+- 可复现插件测试入口agent/harness/test-calc-tools.mjs接受现有esbuild模块和官方App绝对路径；打包只进.runtime，不修改App。README/适配文档同步。后续应完成可信启动、冻结profile/源码/额度准入，再由DSH模型看图选择并独立核验，不能继续用助手手填坐标替代。
+
+## 2026-10-11：底层单次坐标点击实机失败（完整保留）
+
+- 身份修复版本2a09004冻结后，新run calc-select-e26b0003-7826-4f8d-bee1-0a63f52007be观察原Untitled 1；AX不完整返回NEEDS_SCREENSHOT_POINT。操作者从新截图给出A2坐标(130,342)，派发一次click及内部新观察，原3raw。Driver返回delivery.mode=background、effect=unverifiable、route=accessibility；新名称框仍A1，确认抛ValueError，closed=UNVERIFIED，不重试。
+- 独立SSH只读采集原账本及摘要，核对宿主两份PNG/JSON与VM文件哈希一致、dispatch恰为观察/点击/观察、stop无在途、lease.stopped=true且可重新获取原共享锁。私有.runtime/calc-selection-live-20261011-002/verification.json为SELECTION_FAILED，target=A2/observed=A1，0输入保存/模型调用；001零派发身份失败仍保留，未覆盖或重置预算。
+- 当前安装cua-driver 0.28.2的describe click只读说明确认坐标单位为窗口截图像素，默认background、支持foreground。不能把未选中归因为scale错误，也不能断言只有后台投递一个原因。候选代码改为截图路线显式foreground并记录派发方式，AX路线不变，148项回归通过；本轮限定的一次真实点击已执行，候选不追加点击。
+
 ## 2026-10-11：真实选择诊断发现默认身份接线错误
 
 - 用户明确允许VM Driver单次选择并重新观察，不输入保存。锁屏前置检查两次拒绝（各0raw）；既有测试账号正常登录首次反馈失败，按原凭据逐字符输入并观察后成功。只读窗口采集2raw，确认原Untitled 1，PID79126/window1250，未改旧文档。

@@ -60,7 +60,7 @@ def test_screenshot_click_observe_confirm_original_ledger(setup):
     result = task.select(point=point(task))
     assert result['status'] == 'SELECTION_CONFIRMATION_REQUIRED'
     assert [tool for tool,_ in calls] == ['get_window_state','click','get_window_state']
-    assert calls[1][1] == dict(pid=10,window_id=20,session='selection',x=90,y=120)
+    assert calls[1][1] == dict(pid=10,window_id=20,session='selection',x=90,y=120,delivery_mode='foreground')
     assert task.confirm(name_box_index=2)['status'] == 'SELECTION_OBSERVED'
     assert task.used == 3
     with pytest.raises(StopRun): task.select(point=point(task))
@@ -75,6 +75,7 @@ def test_unique_ax_same_executor(setup):
     state['elements_complete'] = True
     task.observe(); task.select(); task.confirm(name_box_index=2)
     assert calls[1][1]['element_index'] == 1 and 'x' not in calls[1][1]
+    assert 'delivery_mode' not in calls[1][1]
 
 
 @pytest.mark.parametrize('fault',['png','dimensions','audit'])

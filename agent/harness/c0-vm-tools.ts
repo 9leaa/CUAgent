@@ -10,6 +10,7 @@ import { verifyHandoffMaterials } from './handoff-materials.ts'
 import { recordHandoffImage } from './handoff-image-evidence.ts'
 import { handoffObservation } from './handoff-observation.ts'
 import { registerHandoffSubmit } from './handoff-submit.ts'
+import { registerCalcTools } from './calc-vm-tools.ts'
 
 export const name = 'cuagent-c0-vm-tools'
 export const inject = ['tools', 'attachments', 'llm']
@@ -22,6 +23,12 @@ export function apply(ctx: Context): void {
   const connection = JSON.parse(readFileSync(configPath, 'utf8'))
   if (connection.url !== URL || typeof connection.token !== 'string' || !/^[\w-]{40,60}$/.test(connection.token)) {
     throw new Error('Invalid fixed VM connection')
+  }
+  if (connection.caseId === 'calc_selection' || connection.protocol === 'calc-selection-v1') {
+    const audit = process.env.CUAGENT_C0_AUDIT_PATH
+    if (!audit) throw new Error('Calc request audit required')
+    registerCalcTools(ctx, connection, configPath, audit)
+    return
   }
   const handoff = connection.caseId === 'project_handoff'
   const submit = connection.protocol === 'p7-tool-submit-v1'

@@ -6,6 +6,7 @@ import re
 
 from desktop_lease import DesktopTask
 from handoff_task import HandoffDesktopTask
+from calc_model_task import CalcModelTask
 
 
 def unique_object(pairs):
@@ -18,7 +19,7 @@ def unique_object(pairs):
 
 
 def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
-    if not isinstance(task, DesktopTask):
+    if not isinstance(task, (DesktopTask, CalcModelTask)):
         raise ValueError('lease-guarded DesktopTask required')
     for credential in (token, control_token):
         if not isinstance(credential, str) or not re.fullmatch(r'[A-Za-z0-9_-]{43,128}', credential):
@@ -29,6 +30,9 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
         raise ValueError('explicit test mode required')
     address, peer = ('127.0.0.1', '127.0.0.1') if loopback_test else ('192.168.64.3', '192.168.64.1')
     operations = {'observe', 'type_text', 'save', 'write_result', 'read_result'}
+    calc = isinstance(task, CalcModelTask)
+    if calc:
+        operations = {'observe', 'select_cell'}
     if isinstance(task, HandoffDesktopTask):
         operations.update({'read_materials', 'reopen', 'locate_quote', 'check_draft'})
         if task.submission_protocol == 'p7-tool-submit-v1':
@@ -81,8 +85,11 @@ def tools_server(task, token, *, control_token, port=8766, loopback_test=False):
                 if len(raw) != size:
                     raise ValueError('incomplete body')
                 body = json.loads(raw, object_pairs_hook=unique_object)
-                if not isinstance(body, dict) or set(body) != {'op', 'args'}:
+                keys = {'op','args','runId','sessionId'} if calc else {'op','args'}
+                if not isinstance(body, dict) or set(body) != keys:
                     raise ValueError('envelope denied')
+                if calc and (body['runId'] != task.run_id or body['sessionId'] != task.session_id):
+                    raise ValueError('Calc run/session denied')
                 op, args = body['op'], body['args']
                 if size > 32768 and op not in ('check_draft', 'submit_handoff'):
                     raise ValueError('size denied')

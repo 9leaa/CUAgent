@@ -171,11 +171,15 @@ class CalcSelectionTask(Task):
                 return plan
             if self.used > 28:
                 raise StopRun('BLOCKED', 'Reserve click and post-click observation')
-            self.record(dict(event='selection_intent', plan=plan, used=self.used))
+            # Pixel coordinates alone default to best-effort background delivery
+            # in Driver 0.28.2. Calc requires a separately verified foreground
+            # candidate, never an automatic second click after a failed effect.
+            delivery = {'delivery_mode': 'foreground'} if plan['route'] == 'screenshot' else {}
+            self.record(dict(event='selection_intent', plan=plan, used=self.used, delivery=delivery))
             self.phase = 'CLICK_ATTEMPTED'
             self.before_click = plan['snapshot_id']
             self.snapshot = None
-            args = dict(pid=self.pid, window_id=self.window, session=self.run_id, **plan['target'])
+            args = dict(pid=self.pid, window_id=self.window, session=self.run_id, **plan['target'], **delivery)
             try:
                 self._call('click', args)
                 result = self.observe()

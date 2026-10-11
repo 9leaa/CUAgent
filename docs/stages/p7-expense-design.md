@@ -49,6 +49,12 @@
 
 ## 最小测试矩阵
 
+2026-10-11用户纠偏后的DSH主链接线方案（代码前）：不再将操作者手填坐标视为CUAgent能力。沿原c0-vm-tools官方插件入口，新增显式calc-selection-v1分支，仅在可信连接同时绑定caseId/stage/run/session/cell时注册vm_calc_observe、vm_calc_select、vm_calc_stop；原TextEdit/交接工具不混入。截图通过官方附件服务返回真实image block，记录原PNG摘要与附件ID；模型从截图自行给出同snapshot像素坐标，禁止由操作者预填。模型请求固定Flash/off，取消/错误立即本地封闭并请求原任务stop，不重试动作。
+
+VM端CalcModelTask复用CalcSelectionTask和原tools_server授权/来源/大小边界；模型HTTP额外校验原run/session，不能提供PID、窗口、单元格、名称框index或派发模式。可信启动绑定名称框截图区域，点击后从新AX中仅选择该区域唯一ComboBox并核对其唯一子文本值；模型不能自选验证控件。成功只返回SELECTION_OBSERVED并停止，正式工具结果concludeTurn，不提升为费用业务成功。拒绝消耗原剩余预算、作废观察并停止；完整链仍是2观察+1点击。新增官方插件注册/图片/取消/身份/坏响应及真实loopback HTTP到模拟Driver的跨层测试。部署源码清单同步纳入三个Calc依赖模块，防止新版tools_server在旧任务启动时缺模块；补实际安装包隔离导入回归，但不部署或改现有运行服务/模型profile。真实DSH会话和VM验收必须后续冻结部署准入并记录，不能把本地跨层测试当真实通过。
+
+2026-10-11坐标派发修复候选（代码前）：修复身份后的实机002完成observe→单次背景坐标click→新observe共3raw，Driver返回effect=unverifiable、delivery.mode=background、route=accessibility；名称框仍A1，目标A2确认失败并停止，未重试。当前安装Driver 0.28.2的`describe click`明确坐标为窗口截图像素、默认background且支持foreground；因此坐标策略不是简单除scale，下一候选在Calc截图路线明确指定foreground（AX路线保持既有行为），由Driver临时前置原窗口并恢复此前应用。默认路径候选需新实机验收，不能据此断言原失败只有后台投递一个原因。保留一次动作上限、点击后新观察和目标确认；绝不在原失败run补第二次点击。此次用户限定一次点击已经执行，候选本轮只作代码及离线回归。
+
 2026-10-11实机零派发拒绝后的修复方案（代码前）：首个选择诊断在observe前被旧c0_identity的TASKS全局应用名单拒绝，rawCalls=0、无点击，原回执保留。新增仅认可固定LibreOffice可执行路径的calc_identity，默认由CalcSelectionTask使用，不修改旧TASKS或注入空身份验证。用模拟proc_pidpath验证正例、错误PID/路径、查询失败；执行器测试改为替换calc_identity系统边界而不跳过默认接线。冻结修复后的新版本再开展下一次限定诊断，原失败run保持停止及原计数，不重启或覆盖。
 
 2026-10-11真实选择验证方案（用户已明确允许VM Driver点击）：冻结当前ecf6fbc源码及依赖摘要到VM专用新私有目录，保留旧部署与文档。只针对已核实的现有Untitled 1 Calc窗口，可信操作者根据本次新截图确定网格及一个空白单元格目标；原执行器观察、按需提供同截图像素坐标、单次点击、强制新观察并核对新名称框。不输入、不保存、不启动模型，不修改P5或旧预算；前置窗口查询单列真实调用数。沿用原bridge.lock和既有短租约格式，仅本诊断至多180秒，结束撤销并核对无在途。原始轨迹与前后PNG私有留存；若登录、绑定、租约或点击失败则保留失败，不重发未知动作，不能用新的样本覆盖。当前授权已包含本次限定点击，不再重复索取同范围许可。

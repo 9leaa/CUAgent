@@ -162,3 +162,12 @@ node agent/harness/configure-desktop.mjs --a1
 当前无凭证核心 59/59、官方注册集成 25/25；实际三文本/CSV、重启/压缩、首轮前 preset 切换、图片、取消及持久预算拒绝已独立通过，见 [业务记录](../../docs/stages/a1-business-progress.md)。默认 `a1-controlled` 六工具，`a1-readonly` 只有计算、列目录、读文件和 CSV 统计；官方首轮之后禁止切换 preset，不绕过此锁。当前文本/CSV/只读预算分别 10/30、30/30、1/30。
 
 [插件示例](../../docs/stages/a1-plugin-extension.md)必须显式审查并批准，编译不等于挂载或授权；[等效流程](../../docs/stages/a1-controlled-workflow.md)不授予额外权限。新真实 C0/VM 兼容与声明安全回归已通过，见 [本地总结](../../docs/stages/a1-summary.md)；第二人按用户确认暂缓、未验，不计为通过。当前 App 是 A1，旧 A0/C0 部分保留各自阶段范围，不直接套用其启动环境。
+# Calc选择协议：代码接线，尚未启用运行服务
+
+原`c0-vm-tools`入口显式选择`caseId=calc_selection`、`stage=p7`、`protocol=calc-selection-v1`时，只注册`vm_calc_observe`、`vm_calc_select`、`vm_calc_stop`。可信私有连接还须固定原url/token、`calc-select-UUID` runId、`session-UUID` sessionId和目标cell；拒绝混入旧TextEdit/交接配置。模型不能修改绑定、名称框、派发模式或调用任意Driver。
+
+观察通过官方附件服务返回PNG/WebP image block并记录源图SHA、snapshot、附件引用。模型先以原snapshot调用选择；AX不足时在同一截图自行定位并返回原图像素x/y，VM单次点击并强制重观察，可信名称框校验完成后结束该选择任务，不赋予输入保存许可。模型请求必须Flash/off且携带最新返回图片；取消、坏响应/图片、旧snapshot、本地并发或错误身份不得重试动作。
+
+VM侧须由可信启动器构造`CalcModelTask`（原租约、窗口/网格、官方session、可信名称框截图区域）并交给既有`tools_server`；HTTP请求额外携带原runId/sessionId，仅开放observe/select_cell/stop。模型不创建或续租。当前只完成插件/协议代码和测试、部署依赖清单；正式启动器及profile尚未切换，不能直接把旧TextEdit部署视为Calc可用。
+
+本地插件测试（无模型、VM或App界面操作）：`node agent/harness/test-calc-tools.mjs /absolute/esbuild/lib/main.js "/Applications/DeepSeek Harness.app"`。测试在官方App的Electron Node模式载入实际工具库；HTTP、附件和Driver模拟，不是端到端验收。源码包额外包含calc_model_task/calc_selection/calc_targeting，私有安装及隔离导入回归覆盖依赖完整性。真实验证仍需冻结部署、原会话/图片审计、实际VM后观察及独立结果核验。
