@@ -13,6 +13,8 @@ from calc_selection import SHARED_LOCK, _save
 from desktop_control import LeaseController
 from desktop_lease import LeaseGate
 from desktop_tools_http import tools_server
+from desktop_control_http import control_server
+from calc_runtime import CalcGuestRuntime
 from real_app_bridge import require_unlocked
 
 UUID = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
@@ -63,6 +65,8 @@ def main(argv=None):
     for name in ('grid', 'name-box-grid'):
         parser.add_argument('--'+name, required=True, type=float, nargs=4)
     parser.add_argument('--approve-selection', action='store_true')
+    parser.add_argument('--controlled', action='store_true',
+                        help='Wait for trusted host control; do not require or grant an initial lease')
     args = parser.parse_args(argv)
     if (not args.approve_selection or not re.fullmatch('calc-select-'+UUID, args.run)
             or not re.fullmatch(UUID, args.owner) or not re.fullmatch('session-'+UUID, args.session)
@@ -75,11 +79,13 @@ def main(argv=None):
     LeaseGate.private(directory.stat(), directory=True)
     controller = LeaseController(directory/'lease.json', run_id=args.run,
                                  owner=args.owner, epoch=args.epoch, clock=time.time)
-    controller.gate.check()
     model_token = credential(directory/'bridge-token')
     control_token = credential(directory/'control-token')
     if model_token == control_token:
         raise ValueError('independent credentials required')
+    if args.controlled:
+        return controlled(directory, controller, model_token, control_token, args)
+    controller.gate.check()
     # One launch attempt per original run, including failures. Never overwrite.
     _save(directory/'calc-start-intent.json', json.dumps(dict(protocol=PROTOCOL,
           runId=args.run, sessionId=args.session, owner=args.owner, epoch=args.epoch,
@@ -126,6 +132,47 @@ def main(argv=None):
             finally:
                 for sig, handler in previous.items():
                     signal.signal(sig, handler)
+
+
+def controlled(directory, controller, model_token, control_token, args):
+    if controller.existing() is not None:
+        raise ValueError('controlled launch requires an unused original lease')
+    selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
+                     grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid)
+    _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
+          sessionId=args.session,selection=selection)).encode())
+    runtime = CalcGuestRuntime(directory,controller,model_token=model_token,
+                               control_token=control_token,selection=selection)
+    server = None
+    previous = {}
+    stopping = threading.Event()
+    def interrupted(*_):
+        stopping.set()
+        runtime.revoke()
+    try:
+        for sig in (signal.SIGINT,signal.SIGTERM):
+            previous[sig] = signal.signal(sig,interrupted)
+        server = control_server(controller,control_token,runtime=runtime)
+        server.timeout = .1
+        server.daemon_threads = False
+        _save(directory/'calc-control-ready.json',json.dumps(dict(
+            binding=runtime.status()['binding'],protocol=PROTOCOL,sessionId=args.session,
+            controlHost='127.0.0.1',controlPort=server.server_port,pid=os.getpid(),
+            modelUrl='http://192.168.64.3:8766',activated=False)).encode())
+        deadline = time.monotonic()+180
+        while not stopping.is_set() and not runtime.closed and time.monotonic()<deadline:
+            server.handle_request()
+        return 0
+    finally:
+        try:
+            runtime.close()
+        finally:
+            try:
+                if server is not None:
+                    server.server_close()
+            finally:
+                for sig,handler in previous.items():
+                    signal.signal(sig,handler)
 
 
 if __name__ == '__main__':

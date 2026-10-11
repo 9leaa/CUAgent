@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：复用原控制协议完成Calc运行期接线
+
+- 先写方案，再增加CalcGuestRuntime并接入既有guest CLI显式`--controlled`。启动只开放loopback控制服务，不授权、不创建模型任务；原DesktopControlClient短租约检查后才一次激活CalcModelTask及模型HTTP服务，窗口和session绑定来自可信启动参数。
+- 原控制status/renew/activate/revoke/shutdown可复用；拒绝交接材料/业务激活/应用清理，停止不等待Task模型锁，关闭先撤权、排空HTTP再释放桌面锁。既有控制记录/激活意图阻止启动重放，最长180秒，无自续租。
+- 新增9项控制适配及CLI生命周期测试；含真实loopback HTTP＋LeaseController文件＋原宿主client、模拟GUI，相关84项通过。部署依赖清单同步，未实际部署或新增模型/GUI调用。
+- 原候选001的旧冻结部署d5c5f20继续留存，新控制代码需要另存版本/部署回执并继续绑定原run/session；不能覆盖旧冻结清单或把旧部署当作新代码已运行。费用任务与总目标未完成。
+
 ## 2026-10-11：修正执行端遗留40%门槛并核对官方空闲状态
 
 - 发现上轮仅更新文档，`desktop_operator.QuotaGate`仍拒绝40%以下；先补方案，再按用户新授权改为低于3%停止。新增3/3.01/17/39.99/40/100六项准入回归，2.99触线后旧停止锁不可由新读数解除；P5 scheduler与正式运行配置不改。

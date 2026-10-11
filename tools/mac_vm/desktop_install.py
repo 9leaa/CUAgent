@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 FILES = ('desktop_guest.py', 'desktop_export.py', 'desktop_runtime.py', 'desktop_control.py',
-         'calc_model_task.py', 'calc_model_guest.py', 'calc_selection.py', 'calc_targeting.py',
+         'calc_model_task.py', 'calc_model_guest.py', 'calc_runtime.py', 'calc_selection.py', 'calc_targeting.py',
          'desktop_app_cleanup.py', 'desktop_app_native.py', 'handoff_input.py', 'handoff_task.py',
          'handoff_export.py', 'handoff_evidence.py', 'handoff_trace.py', 'handoff_quote.py', 'handoff_draft.py', 'handoff_submit.py',
          'desktop_control_http.py', 'desktop_lease.py', 'desktop_tools_http.py', 'desktop_evidence.py',
