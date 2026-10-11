@@ -1,0 +1,54 @@
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config: { enabled: false }
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config: { mode: DISABLED }
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config: { default: calc-input }
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: workspace-dependencies
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- insert:
+    - id: preset-calc-input
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: calc-input
+        name: CUAgent VM bounded Calc input
+        description: Select, input the approved literal once, inspect and commit once. No saving.
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                Use only the bound VM Calc tools, the current snapshot and the approved literal.
+                Observe first; try selection with snapshot_id only. On NEEDS_SCREENSHOT_POINT inspect the image yourself.
+                For dense rows request detail covering headers and neighboring cells, then use the new snapshot and detail coordinates.
+                Never guess row spacing or reuse old coordinates. Selection is not terminal in this input protocol.
+                After SELECTION_OBSERVED use vm_calc_input once with the exact approved text and kind.
+                Inspect the new image and INPUT_OBSERVED evidence. Then use vm_calc_commit once with that snapshot.
+                Inspect its new image. COMMIT_ATTEMPT_OBSERVED is not proof of commit effect, storage type or business success.
+                Remain UNVERIFIED. Never retry failed or uncertain actions. All observations/actions share the original 30 raw budget.
+                Do not save, use files, shell, clipboard, network or subagents.
+              complete: true
+              includeRuntimeContext: false
+- insert:
+    - id: c0-vm-tools
+      name: @@PLUGIN_URL@@/c0-vm-tools.mjs
+    - id: desktop-tool-scope
+      name: @@PLUGIN_URL@@/desktop-tool-scope.mjs

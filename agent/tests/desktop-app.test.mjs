@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stopIdleDesktop, startDesktop } from '../harness/desktop-app.mjs';
 
-function fixture(t, handoff = false) {
+function fixture(t, handoff = false, input = false) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'desktop-app-')));
   t.after(() => rmSync(base, { recursive: true }));
   const runId = handoff === 'calc' ? 'calc-select-11111111-1111-1111-1111-111111111111'
@@ -41,7 +41,7 @@ function fixture(t, handoff = false) {
       if (program === '/usr/bin/open') {
         state.running = true;
         state.presets = args.includes('CUAGENT_C0_CONNECTION=' + connection)
-          ? [handoff === 'calc' ? 'calc-selection' : handoff ? 'project-handoff' : 'real-app'] : ['p1-daily-report'];
+          ? [handoff === 'calc' ? (input?'calc-input':'calc-selection') : handoff ? 'project-handoff' : 'real-app'] : ['p1-daily-report'];
         return '';
       }
       throw Error('unexpected command');
@@ -54,14 +54,16 @@ function fixture(t, handoff = false) {
   return { root, home, connection, tasks, state, dependencies };
 }
 
-for (const fault of [undefined,'session','tools','protocol','extra']) {
+for (const input of [false,true]) for (const fault of [undefined,'session','tools','protocol','extra']) {
   test(`Calc App readiness ${fault}`, async t => {
-    const f = fixture(t,'calc');
+    const f = fixture(t,'calc',input);
     const connection = {runId:f.root.split('/').at(-1),caseId:'calc_selection',stage:'p7',
       protocol:'calc-selection-v1',sessionId:'session-22222222-2222-2222-2222-222222222222',
       cell:'A2',url:'http://192.168.64.3:8766',token:'x'.repeat(43)};
+    if(input)Object.assign(connection,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});
     const ready = {protocol:connection.protocol,runId:connection.runId,sessionId:connection.sessionId,
-      toolNames:['vm_calc_observe','vm_calc_select','vm_calc_stop']};
+      toolNames:[...(input?['vm_calc_commit','vm_calc_input']:[]),'vm_calc_observe','vm_calc_select','vm_calc_stop'],
+      ...(input?{approvedText:connection.approvedText,approvedKind:connection.approvedKind}:{})};
     if (fault === 'session') ready.sessionId = 'other';
     if (fault === 'tools') ready.toolNames.push('shell');
     if (fault === 'protocol') connection.protocol = 'other';
@@ -71,7 +73,7 @@ for (const fault of [undefined,'session','tools','protocol','extra']) {
     f.state.running = false;
     if (fault) await assert.rejects(startDesktop(f.root,f.home,'unused','calc',f.connection,f.dependencies));
     else assert.deepEqual(await startDesktop(f.root,f.home,'unused','calc',f.connection,f.dependencies),
-      {started:true,presets:['calc-selection']});
+      {started:true,presets:[input?'calc-input':'calc-selection']});
     const launches = f.state.commands.filter(([p])=>p === '/usr/bin/open');
     assert.equal(launches.length,['protocol','extra'].includes(fault) ? 0 : 1);
   });

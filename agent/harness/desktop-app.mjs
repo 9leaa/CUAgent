@@ -7,6 +7,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { createDesktopRpc } from './desktop-session.mjs';
 import { loadA1TaskConfig } from '../a1-task-config.mjs';
 import { handoffTools } from './handoff-prompt.mjs';
+import { calcInput, calcReady } from './calc-binding.mjs';
 
 const APP = '/Applications/DeepSeek Harness.app';
 const EXECUTABLE = APP + '/Contents/MacOS/DeepSeek Harness';
@@ -90,14 +91,13 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
     assert.equal(connection.runId, root.split('/').at(-1));
     assert.equal(connection.caseId, mode === 'calc' ? 'calc_selection' : mode === 'p7' ? 'project_handoff' : 'real_textedit');
     if (mode === 'calc') {
-      assert.deepEqual(Object.keys(connection).sort(), ['caseId','cell','protocol','runId','sessionId','stage','token','url']);
+      const input=calcInput(connection);
+      assert.deepEqual(Object.keys(connection).sort(), [...(input?['approvedKind','approvedText']:[]),'caseId','cell','protocol','runId','sessionId','stage','token','url']);
       assert.equal(connection.stage, 'p7');
-      assert.equal(connection.protocol, 'calc-selection-v1');
       assert.match(connection.runId, /^calc-select-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
       assert.match(connection.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
       assert.match(connection.cell, /^[A-Z]{1,3}[1-9][0-9]{0,6}$/u);
-      handoffBinding = {protocol:connection.protocol,runId:connection.runId,sessionId:connection.sessionId,
-        toolNames:['vm_calc_observe','vm_calc_select','vm_calc_stop']};
+      handoffBinding = calcReady(connection);
     }
     if (mode === 'p7') {
       assert.equal(connection.stage, 'p7');
@@ -119,7 +119,7 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
     assert.match(connection.token, /^[A-Za-z0-9_-]{43,60}$/u);
     environment = [`DSH_HOME=${home}`, `CUAGENT_C0_CONNECTION=${launchFile}`,
       `CUAGENT_C0_AUDIT_PATH=${join(root, 'request-audit.jsonl')}`, 'CUAGENT_A1_TASKS_PATH='];
-    expected = [mode === 'calc' ? 'calc-selection' : mode === 'p7' ? 'project-handoff' : 'real-app'];
+    expected = [mode === 'calc' ? (calcInput(connection)?'calc-input':'calc-selection') : mode === 'p7' ? 'project-handoff' : 'real-app'];
   } else {
     privatePath(launchFile);
     (dependencies.validateA1 ?? loadA1TaskConfig)(launchFile);

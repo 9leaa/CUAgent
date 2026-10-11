@@ -166,6 +166,8 @@ node agent/harness/configure-desktop.mjs --a1
 
 原`c0-vm-tools`入口显式选择`caseId=calc_selection`、`stage=p7`、`protocol=calc-selection-v1`时，只注册`vm_calc_observe`、`vm_calc_select`、`vm_calc_stop`。可信私有连接还须固定原url/token、`calc-select-UUID` runId、`session-UUID` sessionId和目标cell；拒绝混入旧TextEdit/交接配置。模型不能修改绑定、名称框、派发模式或调用任意Driver。
 
+输入探测须显式`calc-input-v1`及`approvedText/approvedKind`，使用独立`calc-input` preset和profile模板，增加`vm_calc_input/vm_calc_commit`。App/session核对同一批准内容的ready回执；guest还须独立批准输入/专用覆盖、绑定验证区域，可另行批准提交。选择→输入双编辑区核对→单次提交的新截图共享原30raw；提交尝试仍UNVERIFIED，不提供保存。此链已有离线/模拟测试，尚未实机输入验收。
+
 观察通过官方附件服务返回PNG/WebP image block并记录源图SHA、snapshot、附件引用。模型先以原snapshot调用选择；AX不足时在同一截图自行定位并返回原图像素x/y，VM单次点击并强制重观察，可信名称框校验完成后结束该选择任务，不赋予输入保存许可。模型请求必须Flash/off且携带最新返回图片；取消、坏响应/图片、旧snapshot、本地并发或错误身份不得重试动作。
 
 VM侧须由可信启动器构造`CalcModelTask`（原租约、窗口/网格、官方session、可信名称框截图区域）并交给既有`tools_server`；HTTP请求额外携带原runId/sessionId，仅开放observe/select_cell/stop。模型不创建或续租。当前只完成插件/协议代码和测试、部署依赖清单；正式启动器及profile尚未切换，不能直接把旧TextEdit部署视为Calc可用。

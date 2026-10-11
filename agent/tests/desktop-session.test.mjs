@@ -49,25 +49,27 @@ function fixture(t, fault) {
   return { root, binding, rpc, calls, readSession: async () => rows };
 }
 
-for (const fault of [undefined, 'ready', 'cell', 'create', 'model', 'prompt']) {
+for (const input of [false,true]) for (const fault of [undefined, 'ready', 'cell', 'create', 'model', 'prompt']) {
   test(`Calc official session binding and no replay: ${fault}`, async t => {
     const f = fixture(t, fault);
     const binding = {kind:'calc-selection',protocol:'calc-selection-v1',
       runId:'calc-select-11111111-1111-4111-8111-111111111111',
       sessionId:f.binding.sessionId,cwd:f.binding.cwd,cell:fault === 'cell' ? 'A0' : 'A2'};
+    if(input)Object.assign(binding,{kind:'calc-input',protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});
     const ready = {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
-      toolNames:['vm_calc_observe','vm_calc_select','vm_calc_stop']};
+      toolNames:[...(input?['vm_calc_commit','vm_calc_input']:[]),'vm_calc_observe','vm_calc_select','vm_calc_stop'],
+      ...(input?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})};
     if (fault === 'ready') ready.sessionId = 'other';
     writeFileSync(join(f.root,'vm-tools-ready.json'),JSON.stringify(ready),{mode:0o600});
     const rpc = (method,args) => method === 'agentPresets/list'
-      ? Promise.resolve({presets:[{id:'calc-selection'}]}) : f.rpc(method,args);
+      ? Promise.resolve({presets:[{id:input?'calc-input':'calc-selection'}]}) : f.rpc(method,args);
     if (fault) await assert.rejects(startCalcSession(f.root,binding,rpc));
     else {
       assert.equal((await startCalcSession(f.root,binding,rpc)).accepted,true);
       const prompt = JSON.parse(readFileSync(join(f.root,'prompt-request.json'))).request.content[0].text;
-      assert.match(prompt,/NEEDS_SCREENSHOT_POINT/);
+      assert.match(prompt,input?/vm_calc_input/:/NEEDS_SCREENSHOT_POINT/);
       assert.match(prompt,/A2/);
-      assert.match(prompt,/不输入、不保存/);
+      assert.match(prompt,input?/AbZ中文/:/不输入、不保存/);
     }
     const count = f.calls.length;
     await assert.rejects(startCalcSession(f.root,binding,rpc));

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入宿主profile/App/session生命周期接通
+
+- 先补方案，新增calc-input独立preset模板；profile切换删除旧受控preset但保留无关配置，输入提示允许一次批准输入/提交、禁止保存及其他工具。旧calc-selection仍只选择，新工具说明同步消除“选择结束全部模式”的歧义。
+- 新增calc-binding宿主契约；App连接和会话参数严格核对新协议、批准文字/类型、原run/session及工作目录，插件ready回执包含批准文字/类型和五工具。输入会话使用calc-input，原Flash/off、一次创建/prompt意图、未知不重发规则不变。
+- 新增输入模式App/readiness、会话与profile分支覆盖。固定编译器实际构建临时profile并恢复原字节；RPC/App进程模拟。`CUAGENT_TEST_BUILD_TOOLS=... node --test agent/tests/desktop-session.test.mjs agent/tests/desktop-app.test.mjs agent/tests/desktop-profile.test.mjs`：82通过、零跳过。官方App插件测试66通过；git diff --check通过。
+- README与Harness说明同步；没有切换正式profile、部署VM或派发模型。下一步冻结含完整链的新候选，绑定输入许可和验证区域，核对额度/VM/互斥后进行真实DSH输入、提交与独立新截图核验。P5不恢复，完整P7费用保存重开及ODS业务证据仍未完成。
+
 ## 2026-10-11：官方Cordis插件受限输入/提交接线
 
 - 先补方案，再扩展原calc-vm-tools：显式calc-input-v1要求approvedText/approvedKind连接字段，旧selection-v1键集合及三工具不变。新模式五工具，沿官方模型循环及Flash/off，未实现替代循环或坐标生成器。
