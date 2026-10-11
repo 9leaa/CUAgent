@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-11：保存候选001真实DSH运行，面板未观察到
+
+- 固定1dd3d90及原run/session执行，运行前源代码哈希复核、Driver0.34.1固定哈希/权限、队列/互斥及额度83%准入通过。普通余额和两卡未变；临时停止原空闲Worker67854，沿原profile应用/恢复路径，未恢复P5。
+- 官方Flash/off共6模型工具、8raw：观察→已选中只读复核→输入→新观察→Accept→新观察及CELL_COMMIT_OBSERVED→Save→新观察，随后stop。输入与A2提交值AbZ中文核对通过；没有编辑取消、动作重试或预算重置。
+- 第7raw Save的Driver原响应为delivery.mode=background、route=accessibility、effect=unverifiable，摘要为对AXMenuButton Save执行AXPress。第8raw原snapshot s00000016及PNG仍为Untitled 1表格、未见保存面板；不能把SAVE_DIALOG_ATTEMPT_OBSERVED或会话completed当成面板/保存成功。
+- 在原任务终止和恢复后，另执行2次只读Driver诊断（单独记人工/程序介入，不混入原任务成绩）：list_windows仅原Untitled 1及旧隐藏文档/内部窗口，未见保存窗口；新s00000017无AXSheet/AXDialog。当前能证明没有观察到面板，不能断言AX未触发的唯一根因；下一步检查Save动作投递及观察范围。
+- 原state-01/02/04/06/08 JSON与PNG、trace、租约和各绑定独立采集哈希，私有审计验证连续8次dispatch/result、停止后零派发及恢复。结果SAVE_DIALOG_NOT_OBSERVED、saved/reopened=false、UNVERIFIED；未尝试最终保存。guest退出0、pending0、许可撤销、profile恢复、Worker恢复为69294，P5 PAUSED。
+- README同步，失败原样保留；旧候选不会复活。完整保存/重开/ODS与P7三组业务仍未完成，下一版本须先方案再改代码，用新候选验证，不能把本次保存尝试改写为成功。
+
 ## 2026-10-11：保存候选001源码冻结、部署及VM准备
 
 - 冻结1dd3d9013401e6973529d157c5fdc471f2fa714f：492个受控源码文件留存SHA，VM新部署目录37文件及manifest独立读回校验一致。私有候选calc-dsh-save-001，原run calc-select-23724c45-6f3f-4b36-ab9b-298e83cdbd4b、session-fc51716b-e682-4cc5-9f53-e61fc0c995dd；只创建候选绑定，尚未创建实际官方模型会话。

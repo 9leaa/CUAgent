@@ -1,5 +1,7 @@
 # CUAgent
 
+保存候选001实机未打开可确认面板（2026-10-11）：固定1dd3d90，官方DSH Flash/off完成输入、提交独立确认及单次Save请求，共8raw/6模型工具。Save返回background/AXPress、effect=unverifiable；原新PNG仍为表格，另两次只读检查没有保存窗口/AXSheet。结果SAVE_DIALOG_NOT_OBSERVED，未保存/重开、未重试。原会话结束、许可撤销、profile和Worker恢复；下一步检查Save投递及观察范围，不把AX响应当保存成功。
+
 保存候选001已冻结部署（2026-10-11，未派发）：固定1dd3d90，492份源码哈希、VM内37文件独立读回一致；新calc-save profile仅暂存，正式配置字节未变。旧VNC黑屏重连后，用原测试账号正常解锁，执行端确认VM_READY；原Worker/Calc保留。当前额度剩84%，没有授予租约或调用模型。下一步为同一候选准备受控运行并观察真实保存面板，尚无实际保存/重开证明。
 
 保存宿主生命周期已接通（2026-10-11，未实跑）：新增独立calc-save preset/准备命令，App与会话严格核对calc-save-v1、批准文字及六工具ready；原配置可按字节恢复，旧选择/输入模式不变。固定编译器和模拟App/session共98项测试通过。尚未切正式profile、部署VM或派发模型；下一步冻结新候选实测保存面板，当前没有面板填写/落盘/重开证明，P7未完成。
