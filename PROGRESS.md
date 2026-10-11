@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-11：004取消实机通过，输入不完整回执与新界面矛盾
+
+- 冻结7b74f54，484份源码/VM34文件独立校验；原004/run calc-select-bda07e89-285f-45d3-a865-ac3207802b17、session-42dbd38b-4c09-4b7e-a855-bfe70ab345e7，Flash/off与五工具。普通额度剩88%，余额基准和两卡未变。
+- 五次模型工具，实际5raw为观察、一次token-only Cancel、新观察、已选中复核新观察、一次输入。独立state-03 PNG显示A2空白且编辑按钮消失，取消有效；state-04/新名称框确认A2。未带旧element_index，003参数修复实机验证通过。
+- 第5raw type_text返回非零1，stdout结构化code=type_text_incomplete、effect=partial、path=key_events_fg、requested_chars=5、delivered_chars=0、retryable=true。完整185字节stdout摘要79829a9fd2d866246a62d69e024f4a17dac01cd22980a7d98e9ab8b0fa657866保留。执行器未服从重试建议，仍UNKNOWN/停止，没有提交或保存。
+- 原会话terminal/error、pending0、撤权、guest退出0、profile恢复，原Worker67032恢复67437，P5 PAUSED。一次额外宿主只读inspect误传相对路径，在任何会话操作前被privateRoot拒绝；已由原runner绝对路径回执确认终态，无重建/重发。
+- 独立操作者只读list_windows/get_window_state另2raw取得原窗口新图，A2编辑区/公式栏完整AbZ中文，两AXTextArea311/324逐字相同且Cancel/Accept启用。证据在私有calc-ax-inspection-32337ff10d0d4c7490c31372c13a00b2，原任务账本不变。说明本轮Driver0字符读回不代表没有输入；不能推断002原错误一定相同，也不能当提交/存储/保存成功。
+- 当前输入绑定的是无value的单元格AXTextField；新文字出现在另两个AXTextArea，疑似Driver仍读取原单元格节点。此为待验证推断。下一步设计绑定实际公式编辑区的新鲜token，保留名称框/专用覆盖/双编辑区后验证，不忽略错误或盲目重输。README同步，本轮没有新增代码测试成绩。
+
 ## 2026-10-11：输入003实机拒绝与Driver AX参数修复
 
 - 固定8bb012b，484份源码冻结、VM34文件独立读回通过；原003/run calc-select-3ea467f4-db7f-428a-b5c2-b657c378b65a、session-b574b669-61a6-4222-b686-c8e985035bc6。普通额度剩89%、余额基准及两卡不变。可信绑定仅允许取消专用A2残留AbZ中文，恢复选择和一次原批准输入，不复活002。
