@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：固定Driver诊断补丁真实CLI验证通过
+
+- 上轮已推进代码并等待原进程；沿原rustup安装4359及cargo构建12948核对，没有因观察超时重启。固定Rust 1.97.1安装在.runtime私有目录，全局PATH不变；安装器下载首次超时，仅完成断点下载并核对官方SHA后执行。固定上游0c69d9a精简源码、原锁文件和补丁；没有更改VM/正式服务。
+- 编译首次缺少cua-telemetry通过include_str使用的libs/images/sandbox-images.json，cargo明确退出101；补取同提交images目录后重新构建成功。没有删依赖、替换版本或绕过编译。保留上游三项常量命名和重复rpath警告；非发布签名构建。
+- 新增可复制至上游tests的cli_error_detail_test.rs，真实编译出的CLI连接临时Unix模拟服务端，核对list→metadata→session_end→唯一call；每次隔离Driver配置/遥测，不启动真实daemon或GUI。首轮因漏接list探测失败，按源码实际协议修正，不放宽单次工具请求断言。
+- 7组输出场景覆盖结构化错误普通/空/Unicode/长文本、无文本错误、仅文本错误及成功，核对stdout/退出码/请求次数/错误详情；上游broken_pipe_cli_test两项也通过。反向移除补丁，同一测试准确失败于stderr为空与期望cause不符；恢复补丁后原命令再次全部通过，最终3 Rust测试（其中1项含7场景）。
+- 命令为固定工作区cargo +1.97.1 test --locked -j 2 -p cua-driver --test cli_error_detail_test --test broken_pipe_cli_test。只证明macOS CLI诊断输出，未证明VM真实点击或跨平台；没有签名打包、部署、重启、授予新租约或调用模型。README/补丁说明同步，原004 UNKNOWN与P5跳过保持不变，下一步审查最小诊断部署与真实取证路径。
+
 ## 2026-10-11：错误详情候选补丁与原执行边界回归
 
 - 沿上一轮实施前方案，在原P7分支新增独立Driver CLI补丁；标签解析到0c69d9a2c8abbb5051a2df4a23f0fa166d5385dc，只在isError且已打印structuredContent时把content文本补至stderr。成功stdout、退出1、daemon/session/权限和调用路径未改，不改变前台激活逻辑；不引入新socket/MCP路径。
