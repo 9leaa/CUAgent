@@ -59,3 +59,36 @@ def test_model_cannot_choose_commit_target(adapter,monkeypatch):
     t,calls,*_=adapter;args=prepare(t,monkeypatch);value=t.input_cell(args)
     with pytest.raises(ValueError):t.commit_cell(dict(snapshot_id=value['state']['snapshot_id'],element_index=12))
     assert len(calls)==5 and t.stopped.is_set()
+
+
+def test_already_selected_requires_second_observation_without_click(adapter):
+    t,calls,*_=adapter;t.observe()
+    result=t.select_cell(dict(snapshot_id=t.snapshot['snapshot_id']))
+    assert result['selectionRoute']=='already-selected' and result['status']=='SELECTION_OBSERVED'
+    assert t.used==2 and [tool for tool,_ in calls]==['get_window_state','get_window_state']
+    assert t.phase=='CONFIRMED' and not t.stopped.is_set()
+
+
+@pytest.mark.parametrize('fault',['changed','same','lease','budget','stopped'])
+def test_current_selection_recheck_never_falls_back_to_click(adapter,monkeypatch,fault):
+    t,calls,s,control,lease,*_=adapter;t.observe();snapshot=t.snapshot['snapshot_id']
+    original=t.transport
+    def transport(tool,args):
+        result=original(tool,args)
+        if fault=='changed':result['elements'][2]['value']='B2'
+        if fault=='same':result['snapshot_id']=snapshot
+        return result
+    monkeypatch.setattr(t,'transport',transport)
+    if fault=='lease':
+        import json
+        control.write_text(json.dumps(dict(lease,stopped=True)))
+    if fault=='budget':t.used=30
+    if fault=='stopped':t.stop()
+    with pytest.raises(Exception):t.select_cell(dict(snapshot_id=snapshot))
+    assert all(tool=='get_window_state' for tool,_ in calls)
+
+
+def test_not_selected_uses_original_screenshot_fallback(adapter):
+    t,calls,s,*_=adapter;s['elements'][2]['value']='B2';t.observe()
+    result=t.select_cell(dict(snapshot_id=t.snapshot['snapshot_id']))
+    assert result['status']=='NEEDS_SCREENSHOT_POINT' and t.used==1 and len(calls)==1

@@ -134,7 +134,10 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
         }
         return {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,inputPermitted:false})}
       }
-      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+2)) throw new Error('Calc raw accounting mismatch')
+      const alreadySelected = value.selectionRoute === 'already-selected'
+      if (alreadySelected && (!inputMode || status!=='SELECTION_OBSERVED' || keys!=='snapshot_id')) throw Error('Calc readonly selection route denied')
+      if (value.selectionRoute!==undefined && !alreadySelected) throw Error('Unknown Calc selection route')
+      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+(alreadySelected?1:2))) throw new Error('Calc raw accounting mismatch')
       if ((status === 'EDIT_CANCEL_ATTEMPT_OBSERVED') !== (args.cancel_edit === true)) throw new Error('Calc cancellation response mismatch')
       const state = value.state
       if (!state || typeof state.snapshot_id !== 'string' || !/^s[0-9a-f]{8}$/.test(state.snapshot_id)

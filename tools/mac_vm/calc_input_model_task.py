@@ -4,7 +4,7 @@ import json
 from calc_input_task import CalcInputTask
 from calc_model_task import CalcModelTask
 from calc_selection import _save
-from calc_targeting import _number
+from calc_targeting import _number, inspect_selected_cell, confirm_selected_cell
 
 
 class CalcInputModelTask(CalcModelTask, CalcInputTask):
@@ -49,6 +49,33 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
             except Exception:
                 self.stop()
                 raise
+
+    def select_cell(self, args):
+        with self.lock:
+            if (self.phase!='NEW' or self.stopped.is_set() or self.uncertain or self.lock_fd is None):
+                raise ValueError('selection stopped or unavailable')
+            self.lease.check()
+            if (isinstance(args,dict) and set(args)=={'snapshot_id'} and self.snapshot
+                    and args['snapshot_id']==self.snapshot['snapshot_id']):
+                try:
+                    inspect_selected_cell(self.snapshot,**self._context(),name_box_index=self._name_box())
+                except ValueError:
+                    return super().select_cell(args)
+                try:
+                    before=self.snapshot['snapshot_id']
+                    self.record(dict(event='current_selection_check',snapshot_id=before,used=self.used))
+                    result=self.observe()
+                    confirmation=confirm_selected_cell(self.snapshot,**self._context(),
+                        previous_snapshot_id=before,name_box_index=self._name_box())
+                    self.record(dict(event='selection_confirmed',route='already-selected',result=confirmation,used=self.used))
+                    self.before_click=before  # Prior observation, no click on this route.
+                    self.phase='CONFIRMED'
+                    return self.envelope(dict(result,status=confirmation['status'],
+                        selectionRoute='already-selected',confirmation=confirmation))
+                except Exception:
+                    self.stop()
+                    raise
+            return super().select_cell(args)
 
     def commit_cell(self, args):
         with self.lock:

@@ -70,6 +70,28 @@ async function inputFixture(t:any) {
   return f
 }
 
+test('already-selected input route requires a fresh image and exactly one observation',async t=>{
+  const f=fixture(t,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
+  f.control.reply=(body:any,{common,state,png}:any,value:any)=>body.op==='select_cell'?{
+    ...common,used:2,status:'SELECTION_OBSERVED',selectionRoute:'already-selected',state:state('s00000002'),png:png.toString('base64'),
+    confirmation:{status:'SELECTION_OBSERVED',cell:'A2',snapshot_id:'s00000002',inputPermitted:false}}:value
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  const result=await f.tool('vm_calc_select').execute({snapshot_id:'s00000001'},f.exec)
+  assert.equal(JSON.parse(result.result).used,2);assert.ok(result.image)
+  assert.equal(f.control.concluded,undefined)
+})
+
+for(const fault of ['legacy','coordinates','accounting','stale'])test(`readonly selection rejects ${fault}`,async t=>{
+  const f=fixture(t,fault==='legacy'?{}:{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
+  f.control.reply=(body:any,{common,state,png}:any,value:any)=>body.op==='select_cell'?{
+    ...common,used:fault==='accounting'?3:2,status:'SELECTION_OBSERVED',selectionRoute:'already-selected',
+    state:state(fault==='stale'?'s00000001':'s00000002'),png:png.toString('base64'),
+    confirmation:{status:'SELECTION_OBSERVED',cell:'A2',snapshot_id:'s00000002',inputPermitted:false}}:value
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  await assert.rejects(()=>f.tool('vm_calc_select').execute({snapshot_id:'s00000001',...(fault==='coordinates'?{x:25,y:30}:{})},f.exec))
+  assert.equal(f.calls.at(-1).op,'stop')
+})
+
 test('explicit input protocol keeps selection alive and ends after one commit image',async t=>{
   const f=await inputFixture(t)
   assert.equal(f.registered.length,5);assert.equal(f.control.concluded,undefined)

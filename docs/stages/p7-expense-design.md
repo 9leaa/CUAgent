@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+已选中目标确认（依据输入001失败，实现前）：仅calc-input-v1的无坐标select请求可走只读确认。当前新鲜名称框和独立子文本均为目标时，再调用一次原observe，要求不同snapshot且同目标再次核对；标selectionRoute=already-selected、原used+1，无click。初次证据缺失/不符仍回原AX/截图路径；第二次不符停止，不追加点击。插件仅对该显式路线接受+1，其他选择仍+2；原selection-v1不变，不凭模型口头说明省略观察或放宽区域。输入仍独立检查目标token/编辑态/预算，不能把选择确认当输入验收。
+
 冻结前命令入口核查：现有session CLI仅按calc-selection分派，需将calc-input显式分派至同一startCalcSession，禁止落入TextEdit入口；profile CLI增加prepare-calc-input并使用新模板。先验证命令分派，再冻结部署，不能用函数级测试代替CLI可达性。
 
 宿主接线细化（实现前）：新增calc-input独立preset/profile模板，原calc-selection禁止输入的提示保留；输入模式使用五工具及新提示，仍禁保存/文件/网络/子Agent。App启动和session创建严格校验协议、批准文字/类型，并与插件ready回执逐字匹配；不沿用只选择的提示结束。仅生成/测试配置，不直接修改正式profile；实机候选后续固定版本部署、互斥切换并恢复。

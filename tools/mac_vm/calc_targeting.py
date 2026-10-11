@@ -140,6 +140,14 @@ def confirm_selected_cell(state, *, cell, previous_snapshot_id, pid, window_id, 
     if (not isinstance(previous_snapshot_id, str) or not previous_snapshot_id
             or previous_snapshot_id == state['snapshot_id']):
         raise ValueError('post-click new snapshot required')
+    return inspect_selected_cell(state,cell=cell,pid=pid,window_id=window_id,title=title,
+                                 observed_at=observed_at,now=now,name_box_index=name_box_index)
+
+
+def inspect_selected_cell(state, *, cell, pid, window_id, title, observed_at, now, name_box_index):
+    """Current local AX evidence only; caller must separately require a new observation."""
+    _cell(cell)
+    _state(state,pid=pid,window_id=window_id,title=title,observed_at=observed_at,now=now)
     indexed = _elements(state)
     if indexed is None or type(name_box_index) is not int:
         raise ValueError('unambiguous name box required')

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：已选中目标的双观察确认，避免不必要点击
+
+- 依据输入001真实失败先补方案。抽取inspect_selected_cell局部AX核对；仅CalcInputModelTask无坐标select在当前名称框及独立子文字一致时，再调用一次原observe、要求不同snapshot和目标再次一致，标already-selected并转CONFIRMED。此路线无click，输入仍走原目标token、编辑态、租约/预算保护。
+- 初次证据不符回原AX/截图路径；第二观察变化/旧snapshot/失权/预算耗尽拒绝，不能改为追加点击。旧selection-v1不启用新路线，原坐标区域不扩大、不告诉模型目标坐标。before_click字段在该路线保存的是前一观察身份，审计明确记录route而不伪造点击。
+- 插件仅显式输入模式、无坐标、SELECTION_OBSERVED/新图时接受already-selected与used+1，其余选择仍要求+2；未知路线、旧模式、混坐标、错误预算或旧图拒绝。新增7项Python与5项插件回归。完整VM工具/部署660通过、256个subtests通过；官方App插件71通过（模拟HTTP/Driver）；git diff --check通过。
+- README同步；输入001保持原2raw失败与原清理回执，不恢复/重发。尚未部署此修订或完成真实输入，下一步冻结新修订候选进行实测，P5继续跳过，完整P7业务仍未验收。
+
 ## 2026-10-11：输入候选001真实DSH运行，坐标越界拒绝，未输入
 
 - 原calc-dsh-input-001/run calc-select-7e306bb8-cb44-4acf-9efe-d0185c9f5f3f，session-7d71efda-c62b-4eac-b8ce-11063ef19aef，固定0f544e2与Driver0.34.1 SHA。只读list_windows确认79126/1250、Untitled 1、768×541与原位置一致；该准备观察单独记录，不计模型任务预算。新实时额度普通可用、剩92%、余额基准和两未用卡不变。
