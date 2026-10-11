@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：官方DSH插件显式保存入口
+
+- 按先行方案支持calc-save-v1，严格六工具，新vm_calc_open_save只提交原snapshot；仍固定Flash/off、原session/run及私有图片审计。原选择/输入协议保持三/五工具和原终止行为。
+- 新模式commit只接受CELL_COMMIT_OBSERVED，确认原cell/text/kind、同新snapshot、提交效果及saved/storageTypeVerified=false；保存入口只允许committed阶段且used≤16，响应必须新增2raw、新PNG、saved/savePermitted=false。错误即原stop且不重试，面板打开后不能再次调用入口。
+- 官方App运行时测试79/79（HTTP及Driver为模拟）：新增正常提交确认→打开新图，以及过早、任意路径、旧snapshot、错误提交值、虚假保存、调用计数和旧图片拒绝。Python完整VM工具/部署753 passed、256 subtests passed，git diff --check通过。测试脚本为agent/harness/test-calc-tools.mjs，使用原固定esbuild及已安装官方App运行时，未启动模型推理。
+- README同步。尚未接宿主profile/会话入口或部署VM；当前只开放面板打开，不提供填写/最终保存。下一步完成宿主接线并冻结新候选，观察真实保存面板后推进落盘/重开/独立ODS；不将此接口测试当P7业务验收。
+
 ## 2026-10-11：保存模式的可信guest启动与runtime冻结
 
 - 先补方案，再新增--approve-save/--save-toolbar-region；必须具备完整输入/提交批准，目标路径只从原run推导，不接受任意目的路径。不完整配置在VM检查/写文件/监听之前拒绝；未启用保存时原选择/输入模式不变。

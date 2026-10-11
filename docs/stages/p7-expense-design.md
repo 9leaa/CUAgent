@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 官方插件保存入口（2026-10-11，实施前）
+
+插件显式calc-save-v1复用批准输入绑定并新增vm_calc_open_save，严格六工具。新模式commit必须收到CELL_COMMIT_OBSERVED与同新图/原cell/text/type、commitEffectVerified=true及saved/storageTypeVerified=false；原输入协议仍仅接受尝试并结束。open_save只允许committed阶段、当前snapshot与used≤16，返回必须新增2raw、新PNG且saved/savePermitted=false，模型不得提供路径/控件。当前入口不包含面板填写或最终保存，观察返回后只能分析/停止，不称业务成功；后续面板能力依据实机证据接入。模型仍固定Flash/off，保留图片审计、停止和UNKNOWN不可重试。
+
 ## 保存启动绑定（2026-10-11，实施前）
 
 guest新增显式approve-save与save-toolbar-region，路径不接受命令行自由输入，只从原run推导。必须已经完整批准输入与提交，否则在VM检查、写文件和监听前拒绝。runtime单独冻结save_binding并验证精确键、原路径、有限区域及提交批准，选择原CalcSaveModelTask；激活意图记录绑定，仍等待原短租约，不自行观察、授权或续期。未指定保存时原选择/输入工厂与协议不变。两种启动路径均写出calc-save-v1；默认文件准入仍在实际任务构造时执行。官方插件尚待单独接线，当前测试不代替真实模型启动。

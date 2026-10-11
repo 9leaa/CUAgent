@@ -56,11 +56,15 @@ function fixture(t: any, change: any = {}) {
     tool:(name:string)=>registered.find(x=>x.name===name)}
 }
 
-async function inputFixture(t:any) {
-  const f=fixture(t,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
+async function inputFixture(t:any, saveMode=false) {
+  const f=fixture(t,{protocol:saveMode?'calc-save-v1':'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
   f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
     if(body.op==='input_cell')return {...common,used:5,status:'INPUT_OBSERVED',state:state('s00000003'),png:png.toString('base64'),
       confirmation:{status:'INPUT_OBSERVED',cell:'A2',snapshot_id:'s00000003',text:'AbZ中文',kind:'text',inputEffectVerified:true,storageTypeVerified:false,commitPermitted:false}}
+    if(body.op==='open_save_dialog')return {...common,used:9,status:'SAVE_DIALOG_ATTEMPT_OBSERVED',state:state('s00000005'),png:png.toString('base64'),saved:false,savePermitted:false}
+    if(body.op==='commit_cell' && saveMode)return {...common,used:7,status:'CELL_COMMIT_OBSERVED',state:state('s00000004'),png:png.toString('base64'),
+      commitEffectVerified:true,saved:false,confirmation:{status:'CELL_COMMIT_OBSERVED',cell:'A2',snapshot_id:'s00000004',
+        text:'AbZ中文',kind:'text',commitEffectVerified:true,saved:false,storageTypeVerified:false}}
     if(body.op==='commit_cell')return {...common,used:7,status:'COMMIT_ATTEMPT_OBSERVED',state:state('s00000004'),png:png.toString('base64'),
       commitEffectVerified:false,storageTypeVerified:false,commitPermitted:false}
     return value
@@ -69,6 +73,41 @@ async function inputFixture(t:any) {
   await f.tool('vm_calc_select').execute({snapshot_id:'s00000001',x:25,y:30},f.exec)
   return f
 }
+
+test('explicit save protocol confirms commit then opens once with new image',async t=>{
+  const f=await inputFixture(t,true)
+  assert.equal(f.registered.length,6)
+  await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
+  const committed=await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
+  assert.equal(JSON.parse(committed.result).status,'CELL_COMMIT_OBSERVED')
+  assert.equal(f.control.concluded,undefined)
+  const opened=await f.tool('vm_calc_open_save').execute({snapshot_id:'s00000004'},f.exec)
+  assert.equal(JSON.parse(opened.result).status,'SAVE_DIALOG_ATTEMPT_OBSERVED');assert.ok(opened.image)
+  assert.equal(JSON.parse(opened.result).businessStatus,'UNVERIFIED')
+  await assert.rejects(()=>f.tool('vm_calc_open_save').execute({snapshot_id:'s00000005'},f.exec))
+  assert.equal(f.calls.filter(c=>c.op==='open_save_dialog').length,1)
+})
+
+for(const fault of ['early','path','old','commit_proof','saved_claim','accounting','image'])test(`save protocol rejects ${fault}`,async t=>{
+  const f=await inputFixture(t,true)
+  if(fault==='early') {
+    await assert.rejects(()=>f.tool('vm_calc_open_save').execute({snapshot_id:'s00000002'},f.exec))
+    assert.equal(f.calls.filter(c=>c.op==='open_save_dialog').length,0);return
+  }
+  await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
+  if(fault==='commit_proof') {
+    f.control.corrupt=(v:any)=>({...v,confirmation:{...v.confirmation,text:'wrong'}})
+    await assert.rejects(()=>f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec));return
+  }
+  await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
+  const args:any={snapshot_id:fault==='old'?'s00000003':'s00000004'}
+  if(fault==='path')args.destination='/tmp/other.ods'
+  if(fault==='saved_claim')f.control.corrupt=(v:any)=>({...v,saved:true})
+  if(fault==='accounting')f.control.corrupt=(v:any)=>({...v,used:8})
+  if(fault==='image')f.control.corrupt=(v:any)=>({...v,state:{...v.state,snapshot_id:'s00000004'}})
+  await assert.rejects(()=>f.tool('vm_calc_open_save').execute(args,f.exec))
+  assert.equal(f.calls.at(-1).op,'stop')
+})
 
 test('already-selected input route requires a fresh image and exactly one observation',async t=>{
   const f=fixture(t,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()

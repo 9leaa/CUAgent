@@ -11,9 +11,10 @@ const BASE_TOOLS = ['vm_calc_observe', 'vm_calc_select', 'vm_calc_stop']
 const UUID = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 
 export function registerCalcTools(ctx: Context, binding: any, configPath: string, auditPath: string): void {
-  const inputMode = binding.protocol === 'calc-input-v1'
-  const PROTOCOL = inputMode ? 'calc-input-v1' : 'calc-selection-v1'
-  const TOOLS = [...BASE_TOOLS,...(inputMode ? ['vm_calc_input','vm_calc_commit'] : [])]
+  const saveMode = binding.protocol === 'calc-save-v1'
+  const inputMode = saveMode || binding.protocol === 'calc-input-v1'
+  const PROTOCOL = saveMode ? 'calc-save-v1' : inputMode ? 'calc-input-v1' : 'calc-selection-v1'
+  const TOOLS = [...BASE_TOOLS,...(inputMode ? ['vm_calc_input','vm_calc_commit'] : []),...(saveMode?['vm_calc_open_save']:[])]
   if (JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(['url','token','caseId','stage','protocol','runId','sessionId','cell',...(inputMode?['approvedText','approvedKind']:[])].sort())
       || !Object.values(binding).every(value => typeof value === 'string')
       || binding.url !== 'http://192.168.64.3:8766' || !/^[\w-]{43}$/.test(binding.token)
@@ -100,7 +101,10 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (stopped) throw new Error('Calc stopped')
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
-      if (op === 'input_cell' || op === 'commit_cell') {
+      if (op === 'open_save_dialog') {
+        if (!saveMode || keys!=='snapshot_id' || args.snapshot_id!==snapshot || typeof snapshot!=='string'
+            || inputPhase!=='committed' || lastUsed>16) throw Error('Confirmed save entry required')
+      } else if (op === 'input_cell' || op === 'commit_cell') {
         if (!inputMode || args.snapshot_id!==snapshot || typeof snapshot!=='string'
             || (op==='input_cell' ? keys!=='kind,snapshot_id,text' || inputPhase!=='selected'
               || args.text!==binding.approvedText || args.kind!==binding.approvedKind
@@ -122,7 +126,8 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || value.sessionId !== binding.sessionId || value.cell !== binding.cell || value.inputPermitted !== false
           || value.businessStatus !== 'UNVERIFIED' || !Number.isInteger(value.used) || value.used < lastUsed || value.used > 30) throw new Error('Calc response unconfirmed')
       const status = op === 'observe' ? 'OBSERVED' : value.status
-      const allowed = op==='observe'?['OBSERVED']:op==='input_cell'?['INPUT_OBSERVED']:op==='commit_cell'?['COMMIT_ATTEMPT_OBSERVED']
+      const allowed = op==='observe'?['OBSERVED']:op==='input_cell'?['INPUT_OBSERVED']:op==='commit_cell'?[saveMode?'CELL_COMMIT_OBSERVED':'COMMIT_ATTEMPT_OBSERVED']
+        :op==='open_save_dialog'?['SAVE_DIALOG_ATTEMPT_OBSERVED']
         :['NEEDS_SCREENSHOT_POINT','NEEDS_EDIT_CANCEL','EDIT_CANCEL_ATTEMPT_OBSERVED','SELECTION_OBSERVED']
       if (!allowed.includes(status)) throw new Error('Calc status denied')
       if (status === 'NEEDS_SCREENSHOT_POINT' || status === 'NEEDS_EDIT_CANCEL') {
@@ -137,7 +142,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       const alreadySelected = value.selectionRoute === 'already-selected'
       if (alreadySelected && (!inputMode || status!=='SELECTION_OBSERVED' || keys!=='snapshot_id')) throw Error('Calc readonly selection route denied')
       if (value.selectionRoute!==undefined && !alreadySelected) throw Error('Unknown Calc selection route')
-      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+(alreadySelected?1:2))) throw new Error('Calc raw accounting mismatch')
+      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED','CELL_COMMIT_OBSERVED','SAVE_DIALOG_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+(alreadySelected?1:2))) throw new Error('Calc raw accounting mismatch')
       if ((status === 'EDIT_CANCEL_ATTEMPT_OBSERVED') !== (args.cancel_edit === true)) throw new Error('Calc cancellation response mismatch')
       const state = value.state
       if (!state || typeof state.snapshot_id !== 'string' || !/^s[0-9a-f]{8}$/.test(state.snapshot_id)
@@ -155,6 +160,12 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || value.confirmation.storageTypeVerified!==false || value.confirmation.commitPermitted!==false)) throw Error('Calc input proof missing')
       if (status==='COMMIT_ATTEMPT_OBSERVED' && (value.commitEffectVerified!==false
           || value.storageTypeVerified!==false || value.commitPermitted!==false)) throw Error('Calc commit evidence boundary missing')
+      if (status==='CELL_COMMIT_OBSERVED' && (value.commitEffectVerified!==true || value.saved!==false
+          || value.confirmation?.status!==status || value.confirmation.snapshot_id!==state.snapshot_id
+          || value.confirmation.cell!==binding.cell || value.confirmation.text!==binding.approvedText
+          || value.confirmation.kind!==binding.approvedKind || value.confirmation.commitEffectVerified!==true
+          || value.confirmation.saved!==false || value.confirmation.storageTypeVerified!==false)) throw Error('Calc committed cell proof missing')
+      if (status==='SAVE_DIALOG_ATTEMPT_OBSERVED' && (value.saved!==false || value.savePermitted!==false)) throw Error('Calc save boundary missing')
       const image = await ctx.get('attachments')!.saveImage({data:new Uint8Array(png),mediaType:'image/png',name:'vm-calc.png'})
       if (!/^sha256:[0-9a-f]{64}$/.test(image.attachmentId) || !['image/png','image/webp'].includes(image.mediaType)
           || ![image.bytes,image.width,image.height].every(v => Number.isInteger(v) && v>0)
@@ -186,6 +197,8 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
         inputPermitted:false,businessStatus:'UNVERIFIED',...(detail?{detail:{...detail.geometry,coordinateSpace:'detail_pixels',originalMapping:'x=left+detail_x/2,y=top+detail_y/2'}}:{})}),image:ref,...(detail?{detailImage:detail.image}:{})}
       if (status==='SELECTION_OBSERVED') inputPhase='selected'
       if (status==='INPUT_OBSERVED') inputPhase='input'
+      if (status==='CELL_COMMIT_OBSERVED') inputPhase='committed'
+      if (status==='SAVE_DIALOG_ATTEMPT_OBSERVED') inputPhase='save-dialog'
       if ((status === 'SELECTION_OBSERVED' && !inputMode) || status==='COMMIT_ATTEMPT_OBSERVED') { stopped=true; exec.concludeTurn() }
       return result
     } catch (error) {
@@ -208,10 +221,13 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
     ctx.tools.register({name:'vm_calc_input',description:'After confirmed selection, input only the approved literal once. Inspect the returned new image; independent edit evidence is not saved business success. Never retry failed input.',
       parameters:{type:'object',additionalProperties:false,required:['snapshot_id','text','kind'],properties:{snapshot_id:{type:'string'},text:{type:'string',enum:[binding.approvedText]},kind:{type:'string',enum:[binding.approvedKind]}}},
       output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('input_cell',args,exec)})
-    ctx.tools.register({name:'vm_calc_commit',description:'After INPUT_OBSERVED, confirm one Accept action using that snapshot. Returns a new image and ends this probe; commit effect, storage type and saved workbook remain unverified.',
+    ctx.tools.register({name:'vm_calc_commit',description:saveMode?'After INPUT_OBSERVED, click Accept once. The VM independently verifies the committed cell on a new image. Only CELL_COMMIT_OBSERVED permits opening the save dialog. This is not file or business success.':'After INPUT_OBSERVED, confirm one Accept action using that snapshot. Returns a new image and ends this probe; commit effect, storage type and saved workbook remain unverified.',
       parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
       output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('commit_cell',args,exec)})
   }
+  if (saveMode) ctx.tools.register({name:'vm_calc_open_save',description:'After CELL_COMMIT_OBSERVED, open Save once for the trusted fixed destination, using only the current snapshot. Inspect the new image, then stop: dialog filling and final save are not yet available. Never retry. A dialog opening attempt is not a saved file or completed business task.',
+    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
+    output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('open_save_dialog',args,exec)})
   record(join(root,'vm-tools-ready.json'), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,toolNames:[...TOOLS].sort(),
     ...(inputMode?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})}, true)
 }
