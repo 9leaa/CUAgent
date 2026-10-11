@@ -11,6 +11,8 @@ PROTOCOL = 'calc-selection-v1'
 
 
 class CalcModelTask(CalcSelectionTask):
+    protocol = PROTOCOL
+    stop_after_selection = True
     def __init__(self, *args, session_id, name_box_grid, edit_cancel=None, **kwargs):
         if not isinstance(session_id,str) or not re.fullmatch(r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',session_id):
             raise ValueError('trusted official session required')
@@ -30,7 +32,7 @@ class CalcModelTask(CalcSelectionTask):
         super().__init__(*args,**kwargs)
         try:
             path=self.directory/'model-binding.json'
-            binding=dict(protocol=PROTOCOL,sessionId=session_id,nameBoxGrid=list(name_box_grid))
+            binding=dict(protocol=self.protocol,sessionId=session_id,nameBoxGrid=list(name_box_grid))
             if edit_cancel is not None:binding['editCancel']=edit_cancel
             if path.exists() or path.is_symlink():
                 if path.is_symlink() or json.loads(path.read_bytes())!=binding:
@@ -41,7 +43,7 @@ class CalcModelTask(CalcSelectionTask):
             raise
 
     def envelope(self, result):
-        return dict(result,protocol=PROTOCOL,runId=self.run_id,sessionId=self.session_id,
+        return dict(result,protocol=self.protocol,runId=self.run_id,sessionId=self.session_id,
                     cell=self.cell,inputPermitted=False,businessStatus='UNVERIFIED',used=self.used)
 
     def observe(self):
@@ -115,7 +117,7 @@ class CalcModelTask(CalcSelectionTask):
             if result['status']=='NEEDS_SCREENSHOT_POINT': return self.envelope(result)
             try:
                 confirmation=super().confirm(name_box_index=self._name_box())
-                self.stop()
+                if self.stop_after_selection:self.stop()
                 return self.envelope(dict(result,status=confirmation['status'],confirmation=confirmation))
             except Exception:
                 self.stop()

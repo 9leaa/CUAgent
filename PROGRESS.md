@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：显式输入协议适配器，未注册HTTP/插件
+
+- 先补方案再新增CalcInputModelTask，以calc-input-v1复用原CalcModelTask及CalcInputTask同一实例、锁、租约和30raw账本。可信启动绑定并持久保存双编辑区域；模型不能传名称框索引、审核区域、PID或任意Driver参数。
+- 原selection-v1保持选中即停止；新模式选中后允许一次批准输入，自动从当前AX独立定位名称框和核对双编辑区；模型随后仅用当前snapshot确认一次提交，返回新观察后停止，业务仍UNVERIFIED。未把新模式加入原HTTP白名单或guest启动，官方插件也尚未开放新工具。
+- 新增6项模拟适配器测试，含模型方法完整7raw链、越权验证目标/进程、不同文本/旧snapshot和提交目标注入拒绝。原backend-venv执行`python -m pytest -q tools/mac_vm/tests/test_calc*.py backend/tests/test_desktop_deploy.py`，289通过，包含旧selection-v1 HTTP回归；git diff --check通过。
+- README同步，无真实模型或VM动作。下一步将显式协议接入HTTP、可信启动及官方插件，冻结部署后真实测试；P5继续跳过，费用输入/保存/重开/独立ODS完整验收仍待完成。
+
 ## 2026-10-11：受限Accept单次提交执行，未接DSH
 
 - 先补方案，再为CalcInputTask增加默认关闭且持久绑定的commit_approved及commit_once。输入确认保存可信审核区域副本，提交前重新核对同snapshot、名称框、双编辑区原文字、Accept身份和时效；预留2raw，独占落盘提交意图，单次点击Accept后取得新观察。不开放Enter、任意点击或保存。
