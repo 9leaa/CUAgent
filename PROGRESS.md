@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：用户确认后的Calc原生AX只读采集
+
+- 用户对“通过现有SSH调用VM内CuaDriver只读采集Calc窗口/控件、不输入保存改权限”的明确方案回复继续。私有一次性诊断限定list_windows/get_window_state、最多2次真实请求，检查普通mvpagent/VirtualMac、未锁屏、原bridge.lock独占及无quarantine、LibreOffice精确可执行路径；不启动应用、不改旧任务或预算、不调用模型。
+- 初次Python模块命令格式错误，未执行采集；改为PYTHONPATH及脚本路径后，第一次采集被锁屏检查拒绝，rawCalls=0。保留calc-ax-inspection-65c2c1db09c74219b1a1414324a454a0回执。屏幕共享新截图确认锁屏；使用此前授权的原测试凭据正常登录，批量输入反馈异常后按当前登录框状态逐字符输入并点击登录，未改认证设置或保存凭据。后续独立会话检查通过。
+- 成功回执calc-ax-inspection-115674bf369c47eba83538a8961007e6/receipt.json位于本工作区.runtime私有目录（目录0700、文件0600）。2raw、0文档动作、0模型请求，原soffice PID79126/窗口1250/Untitled 1，snapshot s000000b7；JSON含原截图及控件树，不上传。进程退出释放诊断持有的原锁。
+- 1140个元素，elements_complete=false；screenshot_frame_valid=true，1536×1082/scale2。A1为AXTextField但无value；单元格内编辑区与公式栏各有值a的AXTextArea，名称框另有值A1的AXTextArea，不能按“唯一文本框”选择输入目标。当前仍为原未保存诊断文档，未输入、提交编辑或保存，不改原失败样本。
+- 本轮取得真实观察能力证据，不是正式模型任务、输入保真或完整表格验收；未运行新的单元测试，不沿用旧104项冒充本轮测试。下一步按这些结构设计受限目标选择，控件树不完整/歧义时拒绝，真实写入须另行限定诊断范围；README及阶段方案同步。
+
 ## 2026-10-10：区分正式Driver与屏幕共享输入，补传输回归
 
 - 源码核对正式路径：HandoffDesktopTask→DesktopTask→RealAppTask.type_text→Task.raw→Calls.cli。正文原样进入JSON，绑定PID/window/session/element_index/element_token；不经宿主屏幕共享，不把文字转换为Shift组合键。checked-draft也汇入同一输入路径。Driver内部采用何种系统输入机制及其Calc实际效果仍未验证。

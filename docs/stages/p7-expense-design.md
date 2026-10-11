@@ -49,6 +49,8 @@
 
 ## 最小测试矩阵
 
+2026-10-11真实只读AX结果：用户明确允许既有SSH调用VM内Driver只读采集。原Untitled 1在解锁与桌面互斥锁内取得窗口/状态共2raw；返回1140元素但elements_complete=false，A1是无value的AXTextField，单元格内编辑区与公式栏各有值a的AXTextArea，名称框是含AXTextArea的AXComboBox。截图坐标校验有效，不等于目标可写或工作簿完整可读。后续适配不得复用TextEdit唯一AXTextArea假设、硬编码本次index/token或把无value当空值；必须结合新观察、窗口身份、目标位置及输入前后状态，无法唯一识别则拒绝。此次没有输入/保存/模型调用，原失败样本保持不变。
+
 2026-10-10正式输入通道核对方案（测试前）：沿HandoffDesktopTask→DesktopTask→RealAppTask→Calls.cli追踪原生产路径。使用模拟transport及模拟subprocess验证AbZ、中文、组合Unicode、换行与括号逐字传递，确认绑定PID/window/session/element身份、单次调用计数与失败UNKNOWN不重发；不启动Driver、不调用模型，不把模拟结果当作Calc兼容性证明。现有适配器只允许TextEdit的AXTextArea，禁止为验证Calc而替换应用身份或放宽原白名单。后续Calc适配需先取得其真实AX/窗口证据，再单独设计受限入口；屏幕共享输入失败不能直接判为正式Driver失败。
 
 2026-10-10输入通道诊断方案：保留001原件及副本不改，另开未保存Calc空白文档，仅在A1用显式Shift+a、b、Shift+z测试大小写。每次按键后重新观察，确认最终显示AbZ才记界面输入成功，不记保存/模型通过；失败保持原样，不反复猜键。该诊断不调用DSH，不注册新工具，不重置旧任务预算。通过后仍须另行固定保存/独立读回和正式执行端验证，不能把人工屏幕共享操作替代受测Agent。
