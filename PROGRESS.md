@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：错误详情候选补丁与原执行边界回归
+
+- 沿上一轮实施前方案，在原P7分支新增独立Driver CLI补丁；标签解析到0c69d9a2c8abbb5051a2df4a23f0fa166d5385dc，只在isError且已打印structuredContent时把content文本补至stderr。成功stdout、退出1、daemon/session/权限和调用路径未改，不改变前台激活逻辑；不引入新socket/MCP路径。
+- 在新临时目录下载该提交原cli.rs，修正首次补丁行数计数错误后，git apply --check及实际应用通过；未触及已安装App。主机PATH及常见位置没有Rust工具链，本轮没有安装依赖、编译/签名/部署或重启Driver，补丁仍是未构建候选。
+- 新增4项无模型回归：错误码与空/普通/长Unicode文本分别留存原摘要和4096字节预览；具体前台错误经Calls.cli进入原Calc聚焦账本，同call_id、原预算4raw、UNKNOWN/停止、零后观察/重试/输入。错误文本不出现在异常消息中，私有账本0600。测试使用模拟subprocess，不代替实际CLI输出或Rust编译验证。
+- 首次单独测试因旧测试依赖导入顺序而收集失败，显式PYTHONPATH=tools/mac_vm后29项通过；完整tools/mac_vm/tests与backend/tests/test_desktop_deploy.py为799 passed、256 subtests passed，git diff --check通过。README和补丁说明同步；原004及P5不恢复，实际前台失败原因和保存/重开仍未验收。
+
 ## 2026-10-11：定位Driver CLI丢失具体错误说明
 
 - 确认上轮b2d22d9已推送，工作区干净后只读核对固定cua-driver-rs-v0.34.1官方源码。pixel_route::foreground_unavailable把cause写入ToolResult的content文本，同时structuredContent仅含code；protocol::ToolResult::error确实保留该文本。cli::run_call打印structuredContent并设置printed=true，只有!printed才输出content文本，最后以isError退出1。

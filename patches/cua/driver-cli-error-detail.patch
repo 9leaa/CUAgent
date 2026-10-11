@@ -1,0 +1,23 @@
+diff --git a/libs/cua-driver/rust/crates/cua-driver/src/cli.rs b/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
+--- a/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
++++ b/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
+@@ -2647,6 +2647,19 @@ pub fn run_call(
+                             }
+                         }
+                         if is_error {
++                            // Keep stdout's structured contract unchanged. When
++                            // it won above, do not discard the separate cause.
++                            if printed {
++                                if let Some(content) = result.get("content").and_then(|v| v.as_array()) {
++                                    for item in content {
++                                        if item.get("type").and_then(|v| v.as_str()) == Some("text") {
++                                            if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
++                                                eprintln!("{text}");
++                                            }
++                                        }
++                                    }
++                                }
++                            }
+                             process::exit(1);
+                         }
+                     }

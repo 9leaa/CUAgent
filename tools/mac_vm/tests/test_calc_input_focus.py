@@ -1,11 +1,43 @@
 """Explicit focus policy/executor with simulated Driver only."""
 import copy
+import json
+from types import SimpleNamespace
 import pytest
 from test_calc_input import fixture
 from test_calc_input_task import formula_setup, input_setup, selected
 from test_calc_targeting import state
 from test_calc_edit import fixture as edit_fixture
 from calc_input import plan_formula_focus
+from driver_smoke import Calls, DriverCallError, StopRun
+
+
+def test_foreground_cli_error_keeps_cause_original_budget_and_stops(formula_setup,monkeypatch):
+    t,calls,s,*_=formula_setup
+    s['elements'].append(dict(element_index=20,parent_index=0,role='AXTextArea',enabled=True,
+        value='a',frame=dict(x=300,y=65,w=10,h=12)))
+    selected(t)
+    snapshot=t.snapshot['snapshot_id'];_,regions=edit_fixture()
+    args=dict(snapshot_id=snapshot,name_box_index=2,point=dict(snapshot_id=snapshot,x=410,y=40),
+        controls_region=regions['controls_region'],editor_regions=[regions['editor_regions'][0],[350,20,700,70]])
+    attempted=[]
+    detail='click failed: foreground HID delivery: exact target window did not become focused'
+    def subprocess_run(argv,**kwargs):
+        attempted.append(argv)
+        return SimpleNamespace(returncode=1,stdout='{"code":"foreground_unavailable"}',stderr=detail)
+    monkeypatch.setattr('driver_smoke.subprocess.run',subprocess_run)
+    monkeypatch.setattr(t,'transport',Calls.cli)
+    with pytest.raises(DriverCallError):t.focus_input_once(**args)
+    assert len(attempted)==1 and attempted[0][1]=='click'
+    assert t.used==4 and t.uncertain and t.stopped.is_set() and not t.inflight
+    rows=[json.loads(line) for line in t.ledger.read_text().splitlines()]
+    error=next(r for r in rows if r['event']=='UNKNOWN')
+    dispatch=[r for r in rows if r['event']=='dispatch'][-1]
+    assert dispatch['tool']=='click' and error['call_id']==dispatch['call_id']
+    assert error['driverDiagnostic']['stderr']['preview']==detail
+    assert t.ledger.stat().st_mode & 0o777==0o600
+    with pytest.raises(StopRun):t.focus_input_once(**args)
+    with pytest.raises(StopRun):t.input_once(snapshot_id=snapshot,name_box_index=2,text='AbZ中文',kind='text')
+    assert len(attempted)==1 and t.used==4
 
 
 @pytest.mark.parametrize('fault',[None,'stale','nan','edge','outside','extra','missing','no_formula','no_value'])

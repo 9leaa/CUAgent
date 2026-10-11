@@ -37,3 +37,20 @@ def test_success_unchanged():
     with patch('driver_smoke.subprocess.run',return_value=SimpleNamespace(
             returncode=0,stdout='{"ok":true}',stderr='')):
         assert Calls.cli('get_window_state',{})=={'ok':True}
+
+
+@pytest.mark.parametrize('detail', ['', 'exact target window did not become focused', '文'*2000])
+def test_foreground_code_and_separate_cause_are_private_and_bounded(detail):
+    out='{"code":"foreground_unavailable"}'
+    with patch('driver_smoke.subprocess.run',return_value=SimpleNamespace(
+            returncode=1,stdout=out,stderr=detail)) as run:
+        with pytest.raises(DriverCallError) as caught:
+            Calls.cli('click',{'pid':10,'window_id':20,'x':410,'y':40,'delivery_mode':'foreground'})
+    assert run.call_count==1
+    d=caught.value.diagnostic
+    assert d['stdout']['preview']==out and d['returncode']==1
+    raw=detail.encode()
+    assert d['stderr']['preview']==raw[:4096].decode('utf-8',errors='replace')
+    assert d['stderr']['sha256']==hashlib.sha256(raw).hexdigest()
+    assert d['stderr']['truncated']==(len(raw)>4096)
+    assert str(caught.value)=='Driver call failed: nonzero_exit'
