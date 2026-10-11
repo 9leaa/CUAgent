@@ -5,8 +5,11 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, realpathSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { createRequire } from 'node:module'
+import { dirname, resolve } from 'node:path'
 import { apply } from './c0-vm-tools.ts'
 import { createImageProbePngFor } from '../image-probe.mjs'
+import { deriveDetail, detailRegion, originalPoint } from './calc-image-detail.ts'
 
 function fixture(t: any, change: any = {}) {
   const root=realpathSync(mkdtempSync(join(tmpdir(),'calc-dsh-')))
@@ -26,7 +29,9 @@ function fixture(t: any, change: any = {}) {
   const ctx:any={logger:{error(){}},inject(){},on:(name:string,fn:any)=>handlers.set(name,fn),
     tools:{register:(tool:any)=>registered.push(tool),guard:(fn:any)=>guards.push(fn)},
     get:(name:string)=>name==='llm'?{resolveModelInfo:async()=>({inputModalities:control.capable?['image','text']:['text']})}
-      :name==='attachments'?{saveImage:async()=>{if(control.failImage)throw Error('attachment failed');control.images++;return image}}:undefined}
+      :name==='attachments'?{saveImage:async(input:any)=>{if(control.failImage)throw Error('attachment failed');control.images++;
+        if(control.dynamicImages){const b=Buffer.from(input.data);return {attachmentId:'sha256:'+createHash('sha256').update(b).digest('hex'),mediaType:'image/png',bytes:b.length,width:b.readUInt32BE(16),height:b.readUInt32BE(20)}}
+        return image}}:undefined}
   const abort=new AbortController()
   const agent={session:{id:binding.sessionId,requestHeader:()=>({config:route})},options:route}
   const exec:any={agent,signal:abort.signal,concludeTurn(){control.concluded=true}}
@@ -72,6 +77,74 @@ test('offered edit cancellation returns fresh image before a separate model sele
   assert.equal(JSON.parse(result.result).used,5);assert.equal(f.control.concluded,true)
   assert.equal(f.control.images,3)
 })
+
+test('official sharp decodes exact source and derives bounded 2x detail',async()=>{
+  const png=createImageProbePngFor({'top-left':'red','top-right':'green','bottom-left':'blue','bottom-right':'yellow'})
+  const result=await deriveDetail(png,{left:0,top:0,width:32,height:16},96,64)
+  assert.equal(result.bytes.readUInt32BE(16),64);assert.equal(result.bytes.readUInt32BE(20),32)
+  assert.equal(result.sourceSha256,createHash('sha256').update(png).digest('hex'))
+  assert.deepEqual(originalPoint(result.geometry,20,10),{x:10,y:5})
+  const sharp=createRequire(resolve(dirname(process.execPath),'../Resources/app.asar/dsh/package.json'))('sharp')
+  const original=await sharp(png).removeAlpha().raw().toBuffer()
+  const zoom=await sharp(result.bytes).removeAlpha().raw().toBuffer()
+  for(let y=0;y<32;y++)for(let x=0;x<64;x++){
+    const source=(Math.floor(y/2)*96+Math.floor(x/2))*3,target=(y*64+x)*3
+    assert.deepEqual(zoom.subarray(target,target+3),original.subarray(source,source+3))
+  }
+  await assert.rejects(deriveDetail(png,{left:0,top:0,width:32,height:16},97,64))
+})
+
+for(const region of [{left:-1,top:0,width:32,height:16},{left:0,top:0,width:97,height:16},
+  {left:0,top:0,width:32,height:15},{left:0,top:0,width:32,height:16,path:'/tmp/other'},
+  {left:0.5,top:0,width:32,height:16},{left:0,top:NaN,width:32,height:16}]) {
+  test('detail region refuses '+JSON.stringify(region),()=>assert.throws(()=>detailRegion(region,96,64)))
+}
+
+test('detail coordinates are finite inside enlarged crop',()=>{
+  const geometry=detailRegion({left:10,top:20,width:32,height:16},96,64)
+  assert.deepEqual(originalPoint(geometry,63,31),{x:41.5,y:35.5})
+  for(const [x,y] of [[64,0],[0,32],[-1,0],[NaN,0],[0,Infinity]])assert.throws(()=>originalPoint(geometry,x,y))
+  assert.throws(()=>originalPoint(undefined,0,0))
+})
+
+test('detail reaches model as a second image and maps only current model-selected pixels',async t=>{
+  const f=fixture(t);f.control.dynamicImages=true;f.init()
+  const args={detail:{left:10,top:20,width:32,height:16}}
+  const result=await f.tool('vm_calc_observe').execute(args,f.exec)
+  assert.deepEqual(f.calls[0].args,{}) // Crop is not a new GUI operation.
+  const blocks=f.tool('vm_calc_observe').output.render({},result)
+  assert.equal(blocks.length,3);assert.equal(blocks[2].attachment.width,64)
+  const stream=f.handlers.get('llm/stream')
+  const options={...f.route,tools:f.registered,messages:[{content:blocks}]}
+  for await(const _ of stream(options,async function*(){yield 'ok'})){}
+  await assert.rejects(async()=>{for await(const _ of stream({...options,messages:[{content:blocks.slice(0,2)}]},async function*(){yield 'bad'})){}},/images denied/)
+  const receipt=JSON.parse(readFileSync(join(f.root,'calc-detail-1.json'),'utf8'))
+  assert.equal(receipt.snapshotId,'s00000001');assert.deepEqual(receipt.geometry,{...args.detail,scale:2})
+  await f.tool('vm_calc_select').execute({snapshot_id:'s00000001',detail_x:30,detail_y:20},f.exec)
+  assert.deepEqual(f.calls[1].args,{snapshot_id:'s00000001',x:25,y:30})
+  assert.equal(f.control.concluded,true)
+})
+
+for(const fault of ['missing','newImage','outside','mixed','stale','badCrop','attachmentSize']) {
+  test('detail mapping refuses unsafe state '+fault,async t=>{
+    const f=fixture(t);f.control.dynamicImages=fault!=='attachmentSize';f.init()
+    if(fault==='badCrop' || fault==='attachmentSize'){
+      await assert.rejects(f.tool('vm_calc_observe').execute({detail:{left:0,top:0,width:fault==='badCrop'?999:32,height:16}},f.exec))
+    }else{
+      await f.tool('vm_calc_observe').execute(fault==='missing'?{}:{detail:{left:10,top:20,width:32,height:16}},f.exec)
+      let snapshot='s00000001'
+      if(fault==='newImage'){
+        f.control.reply=(_b:any,{common,state,png}:any)=>({...common,used:2,state:state('s00000002'),png:png.toString('base64')})
+        await f.tool('vm_calc_observe').execute({},f.exec);snapshot='s00000002'
+      }
+      const args:any={snapshot_id:fault==='stale'?'old':snapshot,detail_x:fault==='outside'?64:20,detail_y:10}
+      if(fault==='mixed')args.x=25
+      await assert.rejects(f.tool('vm_calc_select').execute(args,f.exec))
+    }
+    assert.equal(f.calls.at(-1).op,'stop')
+    assert.equal(f.calls.filter(c=>c.op==='select_cell').length,0)
+  })
+}
 
 for(const fault of ['unoffered','false','mixed','fallback','raw','stale','repeat','newObservation']) {
   test('cancellation boundary stops without replay '+fault,async t=>{

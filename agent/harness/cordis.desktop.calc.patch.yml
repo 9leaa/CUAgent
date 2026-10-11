@@ -39,6 +39,9 @@
                 Use only the approved VM Calc tools. Observe first and use the current snapshot.
                 Try AX selection with snapshot_id only. On NEEDS_SCREENSHOT_POINT inspect the returned image yourself,
                 then pass x/y in original screenshot pixels and the same snapshot_id.
+                For dense rows, first request vm_calc_observe with a detail rectangle covering row/column headers and neighboring cells.
+                It returns a NEW original image plus a 2x detail. Read the actual boundaries; never assume uniform row spacing.
+                Pass detail_x/detail_y in that enlarged image with its NEW snapshot_id; do not mix coordinate spaces.
                 The tool clicks once and independently verifies a new observation. Never retry an uncertain click.
                 Do not type, save, use files, shell, clipboard, network or subagents.
                 Selection confirmation is not business completion. Remain UNVERIFIED.

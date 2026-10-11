@@ -94,7 +94,7 @@ export async function startCalcSession(root, binding, rpc) {
   assert.ok(info.isFile() && info.uid === process.getuid() && !(info.mode & 0o077) && info.nlink === 1 && info.size <= 4096);
   assert.deepEqual(load(path), {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
     toolNames:['vm_calc_observe','vm_calc_select','vm_calc_stop']});
-  const text = `只选择批准的VM Calc单元格${binding.cell}，不输入、不保存。先vm_calc_observe取得新截图，再只传snapshot_id调用vm_calc_select尝试可靠AX。若返回NEEDS_SCREENSHOT_POINT，观察刚才原图，自行确定目标位置，再以同一snapshot_id及原截图像素x/y调用vm_calc_select。禁止猜测或使用旧坐标。工具会单次点击、重新观察并独立核对名称框；结果不确定或失败立即停止，不重试点击。最多30次实际请求，观察也计数。选择确认不等于业务完成，最终保持UNVERIFIED；不得调用其他工具、文件、网络或子Agent。`;
+  const text = `只选择批准的VM Calc单元格${binding.cell}，不输入、不保存。先vm_calc_observe取得新截图，再只传snapshot_id调用vm_calc_select尝试可靠AX。若返回NEEDS_SCREENSHOT_POINT，观察刚才原图；密集小行先用vm_calc_observe的detail矩形请求包含行列标题和相邻行的局部放大。该操作返回新snapshot、原图和2倍局部图；依据实际行号和边界定位，不按猜测行高推算。用新snapshot和局部图detail_x/detail_y选择，或同一新原图的x/y，不能混用。若返回NEEDS_EDIT_CANCEL，仅按工具说明确认批准的测试文本取消，再看新图。禁止猜测或使用旧坐标。工具会单次点击、重新观察并独立核对名称框；结果不确定或失败立即停止，不重试点击。最多30次实际请求，观察也计数。选择确认不等于业务完成，最终保持UNVERIFIED；不得调用其他工具、文件、网络或子Agent。`;
   return startBoundSession(root, binding, rpc, 'calc-selection', text);
 }
 

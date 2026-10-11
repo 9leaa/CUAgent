@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { assertImageCapableRoute } from './image-probe.ts'
+import { deriveDetail, originalPoint } from './calc-image-detail.ts'
 
 const TOOLS = ['vm_calc_observe', 'vm_calc_select', 'vm_calc_stop']
 const PROTOCOL = 'calc-selection-v1'
@@ -39,6 +40,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   let stopped = false, busy = false, lastUsed = 0
   let snapshot: string | undefined
   let latestImage: string | undefined
+  let latestDetail: any
   let cancelRequested = false, cancelAttempted = false
   const images = new Set<string>()
   const watches = new WeakSet<AbortSignal>()
@@ -73,14 +75,16 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
     const refs = options.messages.flatMap(m => Array.isArray(m.content) ? m.content.filter(b => b.type === 'image').map(b => b.attachment?.attachmentId) : [])
     if (stopped || busy || options.provider !== 'deepseek-account' || options.model !== 'deepseek-flash' || options.reasoningEffort !== 'off'
         || JSON.stringify(names) !== JSON.stringify([...TOOLS].sort()) || refs.some(id => typeof id !== 'string' || !images.has(id))
-        || (latestImage !== undefined && !refs.includes(latestImage))) throw new Error('Calc request route/tools/images denied')
+        || (latestImage !== undefined && !refs.includes(latestImage))
+        || (latestDetail && !refs.includes(latestDetail.image.attachmentId))) throw new Error('Calc request route/tools/images denied')
     record(auditPath, {at:new Date().toISOString(),protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,
       toolNames:names,provider:options.provider,model:options.model,reasoningEffort:options.reasoningEffort,imageAttachmentIds:refs})
     yield* next()
   })
-  const output = { schema: {type:'object',additionalProperties:false,required:['result'],properties:{result:{type:'string'},image:{type:'object'}}},
+  const output = { schema: {type:'object',additionalProperties:false,required:['result'],properties:{result:{type:'string'},image:{type:'object'},detailImage:{type:'object'}}},
     render: (_args: unknown, value: any) => [{type:'text',text:value.result}, ...(value.image ? [{type:'image',attachment:{...value.image,
-      attachmentId:AttachmentId(value.image.attachmentId),name:'vm-calc.png'}}] : [])] }
+      attachmentId:AttachmentId(value.image.attachmentId),name:'vm-calc.png'}}] : []), ...(value.detailImage ? [{type:'image',attachment:{...value.detailImage,
+      attachmentId:AttachmentId(value.detailImage.attachmentId),name:'vm-calc-detail.png'}}] : [])] }
   async function execute(op: string, args: any, exec: any) {
     admit(exec)
     // Recheck capability before any VM request, including a selection request.
@@ -91,13 +95,18 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (stopped) throw new Error('Calc stopped')
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
-      if (op === 'observe' ? keys !== '' : !['snapshot_id','snapshot_id,x,y','cancel_edit,snapshot_id'].includes(keys)
+      if (op === 'observe' ? !['','detail'].includes(keys) : !['snapshot_id','snapshot_id,x,y','cancel_edit,snapshot_id','detail_x,detail_y,snapshot_id'].includes(keys)
           || typeof args.snapshot_id !== 'string' || args.snapshot_id !== snapshot || ('x' in args && (!Number.isFinite(args.x) || !Number.isFinite(args.y)))) throw new Error('Calc same-snapshot arguments required')
+      let dispatchedArgs=op==='observe'?{}:args
+      if ('detail_x' in args) {
+        if (!latestDetail || latestDetail.snapshotId!==snapshot) throw new Error('Calc current detail required')
+        dispatchedArgs={snapshot_id:snapshot,...originalPoint(latestDetail.geometry,args.detail_x,args.detail_y)}
+      }
       if ('cancel_edit' in args && (args.cancel_edit !== true || !cancelRequested || cancelAttempted)) throw new Error('Calc cancellation not offered or already attempted')
       if (op === 'select_cell' && cancelRequested && args.cancel_edit !== true) throw new Error('Calc edit requires explicit cancellation')
       if (args.cancel_edit === true) { cancelAttempted=true; cancelRequested=false }
       const response = await fetch(binding.url, {method:'POST',headers:{Authorization:`Bearer ${binding.token}`,'Content-Type':'application/json'},
-        body:JSON.stringify({op,args,runId:binding.runId,sessionId:binding.sessionId}), signal:AbortSignal.any([exec.signal,AbortSignal.timeout(40000)])})
+        body:JSON.stringify({op,args:dispatchedArgs,runId:binding.runId,sessionId:binding.sessionId}), signal:AbortSignal.any([exec.signal,AbortSignal.timeout(40000)])})
       const value = await response.json()
       if (stopped || exec.signal.aborted || !response.ok || value?.protocol !== PROTOCOL || value.runId !== binding.runId
           || value.sessionId !== binding.sessionId || value.cell !== binding.cell || value.inputPermitted !== false
@@ -108,7 +117,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
         if (args.cancel_edit === true) throw new Error('Calc cancellation response mismatch')
         if (value.used !== lastUsed || value.snapshot_id !== snapshot || value.png !== undefined || value.state !== undefined) throw new Error('Calc fallback binding denied')
         if (status === 'NEEDS_EDIT_CANCEL') {
-          if (cancelAttempted || 'x' in args || args.cancel_edit === true) throw new Error('Calc repeated edit cancellation denied')
+          if (cancelAttempted || 'x' in dispatchedArgs || args.cancel_edit === true) throw new Error('Calc repeated edit cancellation denied')
           cancelRequested=true
         }
         return {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,inputPermitted:false})}
@@ -132,13 +141,28 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       exec.signal.throwIfAborted()
       if (stopped) throw new Error('Calc stopped')
       const ref = {attachmentId:image.attachmentId,mediaType:image.mediaType,bytes:image.bytes,width:image.width,height:image.height}
+      let detail:any
+      if (op==='observe' && 'detail' in args) {
+        const derived=await deriveDetail(png,args.detail,state.screenshot_width,state.screenshot_height)
+        const crop=await ctx.get('attachments')!.saveImage({data:new Uint8Array(derived.bytes),mediaType:'image/png',name:'vm-calc-detail.png'})
+        if (!/^sha256:[0-9a-f]{64}$/.test(crop.attachmentId) || !['image/png','image/webp'].includes(crop.mediaType)
+            || !Number.isSafeInteger(crop.bytes) || crop.bytes<=0 || crop.width!==derived.geometry.width*2
+            || crop.height!==derived.geometry.height*2) throw Error('Calc detail attachment mismatch')
+        detail={snapshotId:state.snapshot_id,geometry:derived.geometry,sourceSha256:derived.sourceSha256,sha256:derived.sha256,
+          image:{attachmentId:crop.attachmentId,mediaType:crop.mediaType,bytes:crop.bytes,width:crop.width,height:crop.height}}
+        record(join(root,`calc-detail-${value.used}.json`),detail,true)
+        images.add(crop.attachmentId)
+      }
+      exec.signal.throwIfAborted()
+      if (stopped) throw Error('Calc stopped')
       record(join(root,`calc-image-${value.used}.json`), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,
         snapshotId:state.snapshot_id,used:value.used,sourceSha256:createHash('sha256').update(png).digest('hex'),attachment:ref}, true)
       images.add(image.attachmentId); latestImage=image.attachmentId; snapshot=state.snapshot_id; lastUsed=value.used
+      latestDetail=detail
       cancelRequested=false // Any new image invalidates the previous cancellation offer.
       const result = {result:JSON.stringify({status,cell:binding.cell,snapshot_id:snapshot,used:lastUsed,
         screenshot_width:state.screenshot_width,screenshot_height:state.screenshot_height,elements_complete:state.elements_complete,
-        inputPermitted:false,businessStatus:'UNVERIFIED'}),image:ref}
+        inputPermitted:false,businessStatus:'UNVERIFIED',...(detail?{detail:{...detail.geometry,coordinateSpace:'detail_pixels',originalMapping:'x=left+detail_x/2,y=top+detail_y/2'}}:{})}),image:ref,...(detail?{detailImage:detail.image}:{})}
       if (status === 'SELECTION_OBSERVED') { stopped=true; exec.concludeTurn() }
       return result
     } catch (error) {
@@ -146,11 +170,11 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       throw error
     } finally { busy=false }
   }
-  ctx.tools.register({name:'vm_calc_observe',description:'Observe the approved VM Calc target. Returns the fresh screenshot as an image. Read its pixels; do not infer coordinates from old images. No typing or saving.',
-    parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,
+  ctx.tools.register({name:'vm_calc_observe',description:'Observe the approved VM Calc target. Returns the fresh original screenshot. For dense small rows, request detail:{left,top,width,height} in original pixels covering row/column headers and neighboring cells: this takes a NEW observation and also returns a 2x nearest-neighbor detail of that same image. Read actual row labels and boundaries, not assumed row spacing. Use the new snapshot and detail_x/detail_y for a point in the enlarged image, or x/y in the original. No typing or saving.',
+    parameters:{type:'object',properties:{detail:{type:'object',additionalProperties:false,required:['left','top','width','height'],properties:{left:{type:'integer',minimum:0},top:{type:'integer',minimum:0},width:{type:'integer',minimum:16},height:{type:'integer',minimum:16}}}},additionalProperties:false},output,isConcurrencySafe:()=>false,
     execute:(args,exec)=>execute('observe',args,exec)})
   ctx.tools.register({name:'vm_calc_select',description:'Select the bound target cell once. First pass only snapshot_id: the VM uses reliable AX or returns NEEDS_SCREENSHOT_POINT. Then inspect that image yourself and pass its snapshot_id and x,y in original pixels. If the VM instead returns NEEDS_EDIT_CANCEL, and only then, pass the same snapshot_id and cancel_edit:true (no coordinates) to cancel the explicitly approved disposable test input once. Inspect the new EDIT_CANCEL_ATTEMPT_OBSERVED image, then start selection again with only its new snapshot_id. Cancellation observation is not proof of success. The VM clicks once per distinct approved action, observes again and independently checks the selected address. Never retry failed/unknown actions. Selection confirmation ends this diagnostic turn; it is not business completion.',
-    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'},cancel_edit:{type:'boolean',enum:[true]}}},
+    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'},detail_x:{type:'number'},detail_y:{type:'number'},cancel_edit:{type:'boolean',enum:[true]}}},
     output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('select_cell',args,exec)})
   ctx.tools.register({name:'vm_calc_stop',description:'Stop this original VM selection task without further actions.',
     parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,
