@@ -179,7 +179,9 @@ class CalcSelectionTask(Task):
             self.phase = 'CLICK_ATTEMPTED'
             self.before_click = plan['snapshot_id']
             self.snapshot = None
-            args = dict(pid=self.pid, window_id=self.window, session=self.run_id, **plan['target'], **delivery)
+            target = ({'element_token': plan['target']['element_token']}
+                      if plan['route']=='ax' else plan['target'])
+            args = dict(pid=self.pid, window_id=self.window, session=self.run_id, **target, **delivery)
             try:
                 self._call('click', args)
                 result = self.observe()

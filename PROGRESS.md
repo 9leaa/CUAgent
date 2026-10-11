@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：输入003实机拒绝与Driver AX参数修复
+
+- 固定8bb012b，484份源码冻结、VM34文件独立读回通过；原003/run calc-select-3ea467f4-db7f-428a-b5c2-b657c378b65a、session-b574b669-61a6-4222-b686-c8e985035bc6。普通额度剩89%、余额基准及两卡不变。可信绑定仅允许取消专用A2残留AbZ中文，恢复选择和一次原批准输入，不复活002。
+- 官方Flash/off三次工具为observe、select询问、显式cancel_edit。修正后的恢复优先级实际生效，返回NEEDS_EDIT_CANCEL；第2raw点击被Driver非零拒绝，stdout结构化status=refused、refusal.code=invalid_arguments、message为click: unknown argument element_index，stderr为空。没有取消后观察/输入/提交/保存；本轮执行器仍保守UNKNOWN停止，不倒改原账本。
+- 原trace和PNG/JSON/绑定已独立采集并核对摘要；退出码1与134字节错误stdout SHA 712ac14e069f563cf11f0f837a4b8833bb2f0355d29c4be091251fc10d07a6d2保存完整。收尾pending0、撤权、guest退出0、官方terminal/error、profile恢复，原Worker66224恢复为67032，P5 PAUSED。
+- 先写方案，再修复Calc选择/取消/提交三个AX执行入口，仅发送element_token，审核计划保留element_index。截图x/y路线不变、不扩大工具或绕过停止。三个相关精确参数测试调整以拒绝旧参数；全量VM工具/部署668通过、256个subtests通过，git diff --check通过。修复未部署实测，003保留失败，002原输入原因仍未知。
+- README同步；下一步冻结修复候选，用官方DSH验证取消→新观察→选择→输入及完整错误回执，不能把本次参数修复冒充完整输入或费用业务通过。
+
 ## 2026-10-11：输入模式优先处理明确批准的残留编辑
 
 - 只读检查原Driver1521仍运行，stdout/stderr均/dev/null，缓存目录无错误日志；无法找回002原错误。固定0.34.1的cli.rs run_call先输出structuredContent，否则文本写stdout，isError时退出1，因此仅stderr并不完整。此为源码行为，不是002具体根因证明；新诊断已保存双流，原任务不重发。

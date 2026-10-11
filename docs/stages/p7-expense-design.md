@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## Driver0.34.1 AX点击参数修复（2026-10-11，代码前）
+
+输入003的真实取消请求在执行前被Driver拒绝：invalid_arguments / click: unknown argument element_index；新双流诊断完整留存，原002输入原因仍未知。修复仅Calc的选择、取消、提交三个执行调用：审核计划保留element_index用于证据定位，发往Driver仅携带新鲜element_token，不再透传审计索引。截图路线x/y及foreground不变，原身份/租约/30raw/停止保护不变。精确参数测试覆盖三个入口，不将模拟Driver宽松接受当新版兼容证明；旧003保持失败，不复活重试。
+
 ## 输入模式编辑恢复优先级（2026-10-11，实施前）
 
 原002后独立观察证明批准文字仍在编辑态；只读固定Driver CLI源码确认错误内容可能输出到stdout而非stderr，原进程两流均/dev/null，无证据确定本次原因。禁止重放002。另发现输入模式already-selected快捷路线先于原编辑恢复检查：修为先检测可信edit_cancel绑定的双编辑区文字及按钮，仅命中时回原NEEDS_EDIT_CANCEL流程；不自动取消，不授予未绑定文字的丢弃权限，不新增调用或放宽UNKNOWN。测试实际合成AX编辑证据证明已选中时也须显式取消请求，无批准仍不能取消；原双观察无编辑路线保持。

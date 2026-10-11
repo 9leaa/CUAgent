@@ -241,7 +241,7 @@ def test_single_accept_with_original_budget(input_setup,monkeypatch):
     result=t.commit_once(snapshot_id=args['snapshot_id'])
     assert t.used==7 and len(calls)==7
     assert calls[5]==('click',dict(pid=10,window_id=20,session='input',
-        element_index=12,element_token=args['snapshot_id']+':12'))
+        element_token=args['snapshot_id']+':12'))
     assert result['status']=='COMMIT_ATTEMPT_OBSERVED'
     assert not result['commitEffectVerified'] and not result['storageTypeVerified']
     with pytest.raises(StopRun):t.commit_once(snapshot_id=result['state']['snapshot_id'])

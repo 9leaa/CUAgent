@@ -74,7 +74,8 @@ def test_unique_ax_same_executor(setup):
     task,calls,state,*_ = setup
     state['elements_complete'] = True
     task.observe(); task.select(); task.confirm(name_box_index=2)
-    assert calls[1][1]['element_index'] == 1 and 'x' not in calls[1][1]
+    assert calls[1][1]['element_token'].endswith(':1') and 'x' not in calls[1][1]
+    assert 'element_index' not in calls[1][1]
     assert 'delivery_mode' not in calls[1][1]
 
 

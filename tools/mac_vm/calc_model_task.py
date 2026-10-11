@@ -68,7 +68,8 @@ class CalcModelTask(CalcSelectionTask):
         self.record(dict(event='edit_cancel_intent',plan=plan,used=self.used))
         previous=self.snapshot['snapshot_id'];self.snapshot=None
         try:
-            self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,**plan['target']))
+            self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,
+                element_token=plan['target']['element_token']))
             result=self.observe()
             if result['state']['snapshot_id']==previous:raise ValueError('new cancellation observation required')
             if self._pending_approved_edit() is not None:raise ValueError('approved edit still active after cancellation')

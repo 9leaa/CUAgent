@@ -41,7 +41,7 @@ def test_cancel_then_fresh_model_point_uses_original_five_raw(model_setup,servic
     old=task.transport
     def cancel(tool,args):
         result=old(tool,args)
-        if tool=='click' and 'element_index' in args:
+        if tool=='click' and 'element_token' in args:
             state['elements']=[e for e in state['elements'] if e['element_index']<10]
         return result
     task.transport=cancel
@@ -49,7 +49,7 @@ def test_cancel_then_fresh_model_point_uses_original_five_raw(model_setup,servic
     assert code==200 and result['status']=='EDIT_CANCEL_ATTEMPT_OBSERVED'
     assert result['state']['snapshot_id']=='s2' and result['used']==3 and result['png']
     assert not task.stopped.is_set()
-    assert calls[1][1]['element_index']==11 and calls[1][1]['element_token']=='s1:11'
+    assert calls[1][1]['element_token']=='s1:11' and 'element_index' not in calls[1][1]
     assert service('select_cell',dict(snapshot_id='s2'))[1]['status']=='NEEDS_SCREENSHOT_POINT'
     code,result=service('select_cell',dict(snapshot_id='s2',x=90,y=120))
     assert code==200 and result['status']=='SELECTION_OBSERVED' and task.used==5

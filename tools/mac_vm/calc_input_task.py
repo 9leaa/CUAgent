@@ -127,7 +127,7 @@ class CalcInputTask(CalcSelectionTask):
                 self.record(dict(event='commit_intent',evidence=evidence,used=self.used))
                 self.phase='COMMIT_ATTEMPTED';self.snapshot=None
                 self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,
-                    **evidence['accept']))
+                    element_token=evidence['accept']['element_token']))
                 result=self.observe()
                 if result['state']['snapshot_id']==snapshot_id:
                     raise ValueError('new post-commit observation required')
