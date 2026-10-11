@@ -24,9 +24,10 @@ class CalcSaveModelTask(CalcInputModelTask, CalcSaveTask):
     def open_save_dialog(self, args):
         with self.lock:
             try:
-                if not isinstance(args, dict) or set(args) != {'snapshot_id'}:
+                if not isinstance(args, dict) or set(args) not in ({'snapshot_id'}, {'snapshot_id','x','y'}):
                     raise ValueError('only current committed snapshot allowed')
-                return self.envelope(self.open_save(**args, name_box_index=self._name_box()))
+                return self.envelope(self.open_save(snapshot_id=args['snapshot_id'],
+                    point=args if 'x' in args else None,name_box_index=self._name_box()))
             except Exception:
                 self.stop()
                 raise

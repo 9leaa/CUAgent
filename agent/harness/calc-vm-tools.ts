@@ -102,7 +102,8 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
       if (op === 'open_save_dialog') {
-        if (!saveMode || keys!=='snapshot_id' || args.snapshot_id!==snapshot || typeof snapshot!=='string'
+        if (!saveMode || !['snapshot_id','snapshot_id,x,y'].includes(keys) || args.snapshot_id!==snapshot || typeof snapshot!=='string'
+            || ('x' in args && (!Number.isFinite(args.x) || !Number.isFinite(args.y)))
             || inputPhase!=='committed' || lastUsed>16) throw Error('Confirmed save entry required')
       } else if (op === 'input_cell' || op === 'commit_cell') {
         if (!inputMode || args.snapshot_id!==snapshot || typeof snapshot!=='string'
@@ -225,8 +226,8 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
       output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('commit_cell',args,exec)})
   }
-  if (saveMode) ctx.tools.register({name:'vm_calc_open_save',description:'After CELL_COMMIT_OBSERVED, open Save once for the trusted fixed destination, using only the current snapshot. Inspect the new image, then stop: dialog filling and final save are not yet available. Never retry. A dialog opening attempt is not a saved file or completed business task.',
-    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
+  if (saveMode) ctx.tools.register({name:'vm_calc_open_save',description:'After CELL_COMMIT_OBSERVED, inspect the current screenshot and choose x,y on the main Save icon, not its dropdown arrow, in original screenshot pixels. Pass that snapshot_id and x,y for one foreground click; VM independently requires the point inside the bound Save control. Snapshot-only uses legacy AXPress, which did not show a dialog in the prior probe. Do not try both routes or retry. Inspect the new image then stop: dialog filling and final save are not yet available. This is not a saved file or completed business task.',
+    parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'}}},
     output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('open_save_dialog',args,exec)})
   record(join(root,'vm-tools-ready.json'), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,toolNames:[...TOOLS].sort(),
     ...(inputMode?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})}, true)

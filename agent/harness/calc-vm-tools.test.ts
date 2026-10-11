@@ -81,14 +81,15 @@ test('explicit save protocol confirms commit then opens once with new image',asy
   const committed=await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
   assert.equal(JSON.parse(committed.result).status,'CELL_COMMIT_OBSERVED')
   assert.equal(f.control.concluded,undefined)
-  const opened=await f.tool('vm_calc_open_save').execute({snapshot_id:'s00000004'},f.exec)
+  const opened=await f.tool('vm_calc_open_save').execute({snapshot_id:'s00000004',x:20,y:30},f.exec)
+  assert.deepEqual(f.calls.at(-1).args,{snapshot_id:'s00000004',x:20,y:30})
   assert.equal(JSON.parse(opened.result).status,'SAVE_DIALOG_ATTEMPT_OBSERVED');assert.ok(opened.image)
   assert.equal(JSON.parse(opened.result).businessStatus,'UNVERIFIED')
   await assert.rejects(()=>f.tool('vm_calc_open_save').execute({snapshot_id:'s00000005'},f.exec))
   assert.equal(f.calls.filter(c=>c.op==='open_save_dialog').length,1)
 })
 
-for(const fault of ['early','path','old','commit_proof','saved_claim','accounting','image'])test(`save protocol rejects ${fault}`,async t=>{
+for(const fault of ['early','path','old','commit_proof','saved_claim','accounting','image','nan','partial'])test(`save protocol rejects ${fault}`,async t=>{
   const f=await inputFixture(t,true)
   if(fault==='early') {
     await assert.rejects(()=>f.tool('vm_calc_open_save').execute({snapshot_id:'s00000002'},f.exec))
@@ -102,6 +103,8 @@ for(const fault of ['early','path','old','commit_proof','saved_claim','accountin
   await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
   const args:any={snapshot_id:fault==='old'?'s00000003':'s00000004'}
   if(fault==='path')args.destination='/tmp/other.ods'
+  if(fault==='nan')Object.assign(args,{x:NaN,y:20})
+  if(fault==='partial')args.x=20
   if(fault==='saved_claim')f.control.corrupt=(v:any)=>({...v,saved:true})
   if(fault==='accounting')f.control.corrupt=(v:any)=>({...v,used:8})
   if(fault==='image')f.control.corrupt=(v:any)=>({...v,state:{...v.state,snapshot_id:'s00000004'}})

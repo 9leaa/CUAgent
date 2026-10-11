@@ -41,6 +41,8 @@
                 Request detail for dense rows; never guess row spacing or reuse old coordinates.
                 After SELECTION_OBSERVED input the approved literal once. After INPUT_OBSERVED commit once.
                 Only CELL_COMMIT_OBSERVED permits vm_calc_open_save with the current snapshot.
+                Choose x,y on the main Save icon from that current original screenshot, not its dropdown arrow.
+                Pass snapshot_id,x,y for one foreground click. Never try AX first and then a second pixel click.
                 Inspect its new image and stop. Dialog filling and final saving are not yet available.
                 A save dialog attempt is not a saved file or business success. Remain UNVERIFIED.
                 Never retry failed or uncertain actions. All observations/actions share the original 30 raw budget.

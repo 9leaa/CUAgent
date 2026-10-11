@@ -22,6 +22,22 @@ def test_save_plan_is_not_save_or_path_admission():
     assert s==before and r['commitEvidence']['commitEffectVerified']
 
 
+@pytest.mark.parametrize('fault',[None,'old','outside','edge','nan','partial','extra'])
+def test_model_save_point_must_match_current_control(fault):
+    s,a=setup();point=dict(snapshot_id=s['snapshot_id'],x=140,y=50)
+    if fault=='old':point['snapshot_id']='old'
+    elif fault=='outside':point['x']=400
+    elif fault=='edge':point['x']=120
+    elif fault=='nan':point['x']=float('nan')
+    elif fault=='partial':del point['y']
+    elif fault=='extra':point['element_token']='s00000002:4'
+    if fault:
+        with pytest.raises(ValueError):plan_open_save(s,point=point,**a)
+    else:
+        result=plan_open_save(s,point=point,**a)
+        assert result['route']=='screenshot' and result['target']==dict(x=140,y=50)
+
+
 @pytest.mark.parametrize('fault',['approval','path','run','title','value','edit','dialog','missing','duplicate',
     'disabled','press','token','frame','outside','menu','region','old'])
 def test_save_rejects_uncertain_or_unapproved_target(fault):

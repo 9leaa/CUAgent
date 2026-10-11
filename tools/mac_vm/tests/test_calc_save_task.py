@@ -77,6 +77,14 @@ def test_save_entry_budget_boundary(save_task):
     assert t.used==18 and len(calls)==3 and not result['saved']
 
 
+def test_model_point_sends_one_foreground_click(save_task):
+    t,calls,*_=save_task
+    snapshot=t.snapshot['snapshot_id']
+    t.open_save(snapshot_id=snapshot,name_box_index=2,point=dict(snapshot_id=snapshot,x=140,y=50))
+    assert calls[1][1]==dict(pid=10,window_id=20,session=t.run_id,x=140,y=50,delivery_mode='foreground')
+    assert len(calls)==3 and t.used==3
+
+
 def test_existing_save_intent_prevents_dispatch(save_task):
     t,calls,*_=save_task
     intent=t.directory/'save-open-attempt.json'

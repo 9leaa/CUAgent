@@ -12,7 +12,7 @@ def workbook_destination(run_id):
     return '/Users/mvpagent/Documents/cuagent-'+run_id.removeprefix('calc-select-')+'.ods'
 
 
-def plan_open_save(state, *, run_id, destination, save_approved, toolbar_region, **context):
+def plan_open_save(state, *, run_id, destination, save_approved, toolbar_region, point=None, **context):
     if save_approved is not True or destination!=workbook_destination(run_id):
         raise ValueError('explicit fixed save destination approval required')
     if context.get('title')!='Untitled 1':
@@ -40,7 +40,16 @@ def plan_open_save(state, *, run_id, destination, save_approved, toolbar_region,
     e=found[0]
     if e.get('element_token')!=state['snapshot_id']+':'+str(e['element_index']):
         raise ValueError('fresh Save token required')
+    target=dict(element_token=e['element_token']);route='ax'
+    if point is not None:
+        if (not isinstance(point,dict) or set(point)!={'snapshot_id','x','y'}
+                or point['snapshot_id']!=state['snapshot_id'] or not all(_number(point[k]) for k in ('x','y'))):
+            raise ValueError('same-snapshot finite model Save point required')
+        f=e['frame'];left=(f['x']-bounds['x'])*scale;top=(f['y']-bounds['y'])*scale
+        if not left<point['x']<left+f['w']*scale or not top<point['y']<top+f['h']*scale:
+            raise ValueError('Save point outside grounded control')
+        target=dict(x=point['x'],y=point['y']);route='screenshot'
     return dict(status='SAVE_DIALOG_OPEN_PLANNED',snapshot_id=state['snapshot_id'],
-        target=dict(element_token=e['element_token']),destination=destination,
+        target=target,route=route,destination=destination,
         commitEvidence=proof,requiresPostActionObservation=True,
         filesystemAdmissionVerified=False,savePermitted=False,saved=False,businessStatus='UNVERIFIED')

@@ -53,7 +53,7 @@ class CalcSaveTask(CalcInputTask):
         except Exception:
             self.close();raise
 
-    def open_save(self, *, snapshot_id, name_box_index):
+    def open_save(self, *, snapshot_id, name_box_index, point=None):
         with self.lock:
             try:
                 if (self.phase!='COMMIT_CONFIRMED' or self.stopped.is_set() or self.uncertain
@@ -67,11 +67,12 @@ class CalcSaveTask(CalcInputTask):
                     previous_snapshot_id=self.before_commit,name_box_index=name_box_index,
                     approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region,
-                    run_id=self.run_id,destination=self.destination,save_approved=True,toolbar_region=self.toolbar_region)
+                    run_id=self.run_id,destination=self.destination,save_approved=True,toolbar_region=self.toolbar_region,point=point)
                 _save(self.directory/'save-open-attempt.json',json.dumps(plan).encode())
                 self.record(dict(event='save_open_intent',plan=plan,used=self.used))
                 self.phase='SAVE_OPEN_ATTEMPTED';self.snapshot=None
-                self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,**plan['target']))
+                delivery={'delivery_mode':'foreground'} if plan['route']=='screenshot' else {}
+                self._call('click',dict(pid=self.pid,window_id=self.window,session=self.run_id,**plan['target'],**delivery))
                 result=self.observe()
                 if result['state']['snapshot_id']==snapshot_id:raise ValueError('new save dialog observation required')
                 self.phase='AWAITING_SAVE_DIALOG'

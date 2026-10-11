@@ -1,5 +1,11 @@
 # P7 费用核对：实施前方案
 
+## Save截图点位投递候选（2026-10-11，实施前）
+
+001实机AXPress返回unverifiable且原图/另两次只读检查均未观察到面板。固定0.34.1 click源码明确element_token走AX RPC，x/y走像素事件；不能仅加foreground字段就假定AX变成鼠标。增加显式模型截图点位：open_save_dialog可携带同snapshot的x/y，由DSH看当前提交后新图选择；纯规划器仍先重验原提交证据、唯一Save控件及可信工具栏，然后要求有限点位严格位于该控件新frame内，不自动生成坐标。执行一次foreground像素点击并新观察，默认无点位的旧AX方式保留，不在AX失败后自动补点或恢复001。模型不能扩大区域/路径，菜单箭头与保存面板效果必须由后观察核验；本候选仍只做入口，不称落盘成功。
+
+源码依据：https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs 。本结论仅区分Driver路径，未证明LibreOffice忽略AX的唯一根因。
+
 ## 宿主保存会话入口（2026-10-11，实施前）
 
 新增独立calc-save preset和prepare-calc-save命令，沿原编译/profile暂存与恢复流程，不修改正式配置。宿主App和session按calc-save-v1精确核对六工具ready、原run/session及批准输入，旧输入/选择不变。会话提示要求选择→输入→提交独立确认→打开保存面板→看新图并停止，明确当前不含面板填写或文件成功。文件路径仍只由guest原run推导，宿主不授予任意路径。用固定编译器生成/恢复临时profile、模拟App/session测试和插件测试验证；新真实候选必须单独冻结及账户/VM准入。

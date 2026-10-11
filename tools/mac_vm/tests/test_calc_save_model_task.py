@@ -45,17 +45,21 @@ def input_prerequisite(task):
     task.confirm_input(snapshot_id=task.snapshot['snapshot_id'], name_box_index=2, **task.input_regions)
 
 
-def test_commit_confirm_then_save_over_http(adapter, service):
+@pytest.mark.parametrize('point',[False,True])
+def test_commit_confirm_then_save_over_http(adapter, service, point):
     task, calls, *_ = adapter
     input_prerequisite(task)
     code, committed = service('commit_cell', dict(snapshot_id=task.snapshot['snapshot_id']))
     assert code == 200 and committed['status'] == 'CELL_COMMIT_OBSERVED'
     assert committed['commitEffectVerified'] and not committed['saved']
     assert task.phase == 'COMMIT_CONFIRMED' and not task.stopped.is_set()
-    code, opened = service('open_save_dialog', dict(snapshot_id=committed['state']['snapshot_id']))
+    args=dict(snapshot_id=committed['state']['snapshot_id'])
+    if point:args.update(x=140,y=50)
+    code, opened = service('open_save_dialog', args)
     assert code == 200 and opened['protocol'] == 'calc-save-v1'
     assert opened['status'] == 'SAVE_DIALOG_ATTEMPT_OBSERVED' and not opened['saved']
     assert task.used == 5 and len(calls) == 5
+    if point:assert calls[3][1]['delivery_mode']=='foreground' and 'element_token' not in calls[3][1]
     assert service('open_save_dialog', dict(snapshot_id=opened['state']['snapshot_id']))[0] == 409
     assert len(calls) == 5 and task.stopped.is_set()
 

@@ -97,7 +97,7 @@ export async function startCalcSession(root, binding, rpc) {
   const text = `只选择批准的VM Calc单元格${binding.cell}，不输入、不保存。先vm_calc_observe取得新截图，再只传snapshot_id调用vm_calc_select尝试可靠AX。若返回NEEDS_SCREENSHOT_POINT，观察刚才原图；密集小行先用vm_calc_observe的detail矩形请求包含行列标题和相邻行的局部放大。该操作返回新snapshot、原图和2倍局部图；依据实际行号和边界定位，不按猜测行高推算。用新snapshot和局部图detail_x/detail_y选择，或同一新原图的x/y，不能混用。若返回NEEDS_EDIT_CANCEL，仅按工具说明确认批准的测试文本取消，再看新图。禁止猜测或使用旧坐标。工具会单次点击、重新观察并独立核对名称框；结果不确定或失败立即停止，不重试点击。最多30次实际请求，观察也计数。选择确认不等于业务完成，最终保持UNVERIFIED；不得调用其他工具、文件、网络或子Agent。`;
   const inputText=`在批准的VM测试单元格${binding.cell}完成一次受控输入探测。先观察，使用vm_calc_select按当前snapshot选中目标；需要截图点时自己观察，可请求局部放大，不猜旧坐标。选中确认后调用vm_calc_input，text严格为${JSON.stringify(binding.approvedText)}，kind为${JSON.stringify(binding.approvedKind)}。检查返回的新截图与INPUT_OBSERVED；随后用该snapshot调用vm_calc_commit一次，再检查新截图。最多30raw；任何失败或不确定立即停止，不重输、不重提。禁止保存、其他文件、网络、shell或子Agent。提交尝试不代表提交效果、存储类型或业务已验收，最终保持UNVERIFIED。`;
   const saveText=`在批准的VM单元格${binding.cell}验证保存入口。先观察并选择，必要时按NEEDS_SCREENSHOT_POINT观察新图或请求局部放大，不猜坐标。选中后vm_calc_input只输入text=${JSON.stringify(binding.approvedText)}、kind=${JSON.stringify(binding.approvedKind)}。INPUT_OBSERVED后用当前snapshot调用vm_calc_commit；只有CELL_COMMIT_OBSERVED才可调用vm_calc_open_save。检查返回的新保存面板截图后vm_calc_stop，当前不提供填写或最终保存。全流程原30raw，打开面板前最多使用16raw。失败或UNKNOWN不重试，不用其他工具、文件、shell、网络或子Agent；不得声称已保存或业务通过，最终UNVERIFIED。`;
-  return startBoundSession(root, binding, rpc, calcPreset(binding), binding.protocol==='calc-save-v1'?saveText:input?inputText:text);
+  return startBoundSession(root, binding, rpc, calcPreset(binding), binding.protocol==='calc-save-v1'?saveText+' 打开Save时从当前提交后截图定位主保存图标（不是下拉箭头），向vm_calc_open_save提供同snapshot_id和原图x/y，执行一次前台鼠标点击；不要先AX点击再补点，不猜旧坐标。':input?inputText:text);
 }
 
 async function startBoundSession(root, binding, rpc, preset, text) {

@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：Save截图点位与前台单次投递候选
+
+- 只读核对固定cua-driver-rs-v0.34.1 click.rs：element_token路线为AX RPC，x/y为像素事件；仅给token加foreground不能据此声称已变成鼠标。本轮未证明LibreOffice未显示面板的唯一原因，001保持SAVE_DIALOG_NOT_OBSERVED。
+- 先补技术方案，再允许open_save_dialog显式携带模型从当前原图选择的x/y。纯规划仍先核对提交值、原名称框/窗口、可信工具栏及唯一Save新token；点位必须同snapshot、有限且严格在该控件frame内，拒绝边界、越界、缺字段、额外字段或旧图，不生成模型点位。
+- 执行器仅截图路线带foreground和x/y、不混入AX token，仍一次意图/点击/新观察和原预算。HTTP/插件端到端传递原点位，提示要求主图标而非下拉箭头；旧snapshot-only AX模式保留，不做失败后的自动二次点击，不复活001。是否打开面板仍靠新观察判断，不能提升为保存成功。
+- 新增规划边界、精确前台参数、真实loopback HTTP截图路线及插件非有限/残缺点位拒绝测试。Python完整VM工具/部署762 passed、256 subtests passed；官方App运行时插件81/81，宿主固定编译/profile/session98/98，git diff --check通过。均未调用模型或操作VM。
+- README同步；下一步冻结新候选并按原账户/互斥/恢复要求实测，保存面板适配、落盘/重开/独立ODS及完整P7业务仍待完成。源文件链接已记录实施方案，不将候选测试当真实改善证据。
+
 ## 2026-10-11：保存候选001真实DSH运行，面板未观察到
 
 - 固定1dd3d90及原run/session执行，运行前源代码哈希复核、Driver0.34.1固定哈希/权限、队列/互斥及额度83%准入通过。普通余额和两卡未变；临时停止原空闲Worker67854，沿原profile应用/恢复路径，未恢复P5。
