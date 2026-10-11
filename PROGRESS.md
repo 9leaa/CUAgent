@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：受控单次输入执行层，未接DSH或实机派发
+
+- 先补方案，再新增CalcInputTask；可信构造绑定批准文字、类型及专用测试覆盖许可，原selection-v1及默认工具集不变。已确认的新snapshot再次核对目标，预留输入与新观察共2raw，独占落盘输入意图后只派发一次foreground/element_token type_text；不增加隐式坐标点击、Enter、提交或保存。
+- 复用原持久预算、身份检查、短租约、停止和UNKNOWN；异常停止且禁止重试，重开保留原预算和停止状态。Driver返回后必须获得不同snapshot，只返回INPUT_ATTEMPT_OBSERVED/inputEffectVerified=false，文字、大小写、存储类型及实际编辑效果尚未验证。
+- 新增21项模拟测试：完整链5raw、原文传递、重复/陈旧/越权/错误目标/预算/失权拒绝、超时UNKNOWN、明确拒绝、后观察失败、重开不重置、原始输入入口关闭、批准绑定不能变、审计失败零输入、在途停止不再派发且不提前释放桌面锁。使用原backend-venv；没有真实模型或VM输入，未部署新模块。
+- 完整相关回归命令：`python -m pytest -q tools/mac_vm/tests/test_calc*.py backend/tests/test_desktop_deploy.py`，260/260通过；git diff --check通过。均为本地测试，不替代实际DSH/VM验收。
+- README同步；下一步输入后双编辑区独立核对，再显式接入DSH输入协议和新候选实测。保留005选择成功与001–004失败，不复活旧任务；P5继续跳过，P7输入/保存重开/独立ODS及完整业务仍未验收。
+
 ## 2026-10-11：受限单元格输入规划器，未派发输入
 
 - 读取005原AX证据：A2单元格没有value，公式区value为null；不能以缺值证明空单元格，也不能把名称框确认当输入已获许可。固定Driver0.34.1 describe type_text核实支持element_token及foreground，未执行该工具。

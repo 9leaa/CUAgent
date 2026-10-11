@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+执行层细化（代码前）：新增独立CalcInputTask继承原选择执行器，只有可信构造参数绑定approved_text/kind/overwrite_disposable时可用，不修改selection-v1和原默认工具集。输入方法要求同run已CONFIRMED、当前snapshot匹配、可信name_box_index重新核对，并预留2raw；独占保存单次输入意图后才调用一次带原pid/window/session/新element_token的foreground type_text，再取得新观察。原文字逐字传参，不增加坐标焦点点击或Enter；任何异常停止，副作用超时沿原UNKNOWN保留。返回INPUT_ATTEMPT_OBSERVED及inputEffectVerified=false，不自动提交、保存或提升成功。HTTP/模型接入和双编辑区确认随后实施，旧候选不可复活。
+
 005已证明选择，不证明输入或焦点保持。下一步沿原任务/租约/30raw扩展独立受限输入能力；旧selection-v1默认行为仍只选择并停止，不能把已结束005复活。可信任务绑定单一目标单元格、批准文字/类型和允许覆盖的专用测试单元格；模型不得传目标PID、验证控件或自行授权覆盖。现有AX空value/null不能证明空单元格，因此首个输入探测必须明确允许覆盖专用测试目标，不能以缺值当空值。
 
 先实现无副作用规划器：在当前新截图上独立核对名称框及其子文本，唯一同窗口、批准区域内且携带当前snapshot token的目标AXTextField；有启用的Cancel/Accept编辑控件、名称框变化、区域/身份/时效或token不符则拒绝。仅返回拟用type_text参数，不派发、不提供运行许可、不宣称输入生效。输入通过element_token绑定目标，不采用“默认当前焦点”或额外隐式像素点击。首版仅有界单行原文和严格十进制金额；文本拒绝公式前缀、换行/制表/控制字符及超长，金额仅标准ASCII、最多两位小数，支持负数但不支持表达式/指数。文本不擅自加引号或规范化，保真与单元格存储类型仍需GUI及ODS验证。
