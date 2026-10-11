@@ -2,6 +2,8 @@
 
 ## 单元格受限输入方案（2026-10-11，实现前）
 
+冻结前命令入口核查：现有session CLI仅按calc-selection分派，需将calc-input显式分派至同一startCalcSession，禁止落入TextEdit入口；profile CLI增加prepare-calc-input并使用新模板。先验证命令分派，再冻结部署，不能用函数级测试代替CLI可达性。
+
 宿主接线细化（实现前）：新增calc-input独立preset/profile模板，原calc-selection禁止输入的提示保留；输入模式使用五工具及新提示，仍禁保存/文件/网络/子Agent。App启动和session创建严格校验协议、批准文字/类型，并与插件ready回执逐字匹配；不沿用只选择的提示结束。仅生成/测试配置，不直接修改正式profile；实机候选后续固定版本部署、互斥切换并恢复。
 
 官方插件细化（实现前）：连接配置显式calc-input-v1并增加approvedText/approvedKind两字段；原selection-v1键集合与三工具不变。输入模式增加vm_calc_input与vm_calc_commit，输入只在选择已确认后且文字/类型完全匹配可信绑定时派发，提交只在INPUT_OBSERVED确认之后。每项动作应增加2raw并返回新PNG，核对输入确认中的目标、文字、类型和snapshot，提交结果必须明确effect/type仍未验证；只有提交尝试后的新观察才结束输入探测，不能当业务成功。实际llm流严格要求对应五工具和最新图片，保留Flash/off，不引入模型循环。插件测试模拟HTTP，不替代实机验证。

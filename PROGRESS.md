@@ -1,5 +1,10 @@
 # CUAgent 实际进度
 
+## 2026-10-11：真实候选冻结前修正命令分派遗漏
+
+- 只读核查原005脚本发现session命令仅识别calc-selection，新calc-input会落入TextEdit入口；尚未运行新候选，没有模型/GUI误派发。补实施方案后增加明确sessionStarter分派和prepare-calc-input profile命令，原入口保留。
+- 新增3项命令分派测试通过，git diff --check通过；README同步。当前Codex普通可用、剩93%、余额基准未变、两卡仍未用，未购买/使用重置卡。下一步固定修复提交部署新候选，不复活005，不改P5状态；实机输入及完整业务仍未验收。
+
 ## 2026-10-11：输入宿主profile/App/session生命周期接通
 
 - 先补方案，新增calc-input独立preset模板；profile切换删除旧受控preset但保留无关配置，输入提示允许一次批准输入/提交、禁止保存及其他工具。旧calc-selection仍只选择，新工具说明同步消除“选择结束全部模式”的歧义。

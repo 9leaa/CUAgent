@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 
 try {
   const [mode, root, home, buildTools] = process.argv.slice(2);
-  if (process.argv.length !== 6 || !['prepare', 'prepare-handoff', 'prepare-calc', 'apply', 'restore'].includes(mode)) throw Error('arguments');
+  if (process.argv.length !== 6 || !['prepare', 'prepare-handoff', 'prepare-calc', 'prepare-calc-input', 'apply', 'restore'].includes(mode)) throw Error('arguments');
   let parseYaml;
   if (mode === 'restore') {
     const info = lstatSync(buildTools);
@@ -15,7 +15,7 @@ try {
     parseYaml = (await import(pathToFileURL(join(buildTools, 'node_modules/js-yaml/index.js')).href)).load;
   }
   const result = mode.startsWith('prepare') ? await prepareDesktopProfile(root, home, buildTools,
-      mode === 'prepare-calc' ? 'calc-selection' : mode === 'prepare-handoff' ? 'project-handoff' : 'desktop-textedit')
+      mode === 'prepare-calc-input' ? 'calc-input' : mode === 'prepare-calc' ? 'calc-selection' : mode === 'prepare-handoff' ? 'project-handoff' : 'desktop-textedit')
     : mode === 'apply' ? applyDesktopProfile(root, home) : restoreDesktopProfile(root, home, undefined, parseYaml);
   console.log(JSON.stringify(result));
 } catch {

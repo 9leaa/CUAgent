@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { createDesktopRpc, startDesktopSession, startHandoffSession, startCalcSession, cancelDesktopSession } from './desktop-session.mjs';
 import { officialSessionReader, inspectAndArchiveDesktopSession } from './desktop-session-evidence.mjs';
 
+export function sessionStarter(kind) {
+  if (kind === 'calc-selection' || kind === 'calc-input') return startCalcSession;
+  return kind === 'project-handoff' ? startHandoffSession : startDesktopSession;
+}
+
 export async function sessionCommand(args) {
   const [mode, root, home, cookie] = args;
   assert.equal(args.length, 4);
@@ -21,8 +26,7 @@ export async function sessionCommand(args) {
     const info = lstatSync(path);
     assert.ok(info.isFile() && info.size <= 16384 && !(info.mode & 0o077));
     const binding = JSON.parse(readFileSync(path, 'utf8'));
-    if (binding.kind === 'calc-selection') return startCalcSession(root, binding, rpc);
-    return binding.kind === 'project-handoff' ? startHandoffSession(root, binding, rpc) : startDesktopSession(root, binding, rpc);
+    return sessionStarter(binding.kind)(root, binding, rpc);
   }
   if (mode === 'inspect') return inspectAndArchiveDesktopSession(root, rpc, reader);
   return cancelDesktopSession(root, rpc, sessionId => reader(sessionId).rows);
