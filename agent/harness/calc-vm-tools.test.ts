@@ -74,9 +74,54 @@ async function inputFixture(t:any, saveMode=false) {
   return f
 }
 
+for (const fault of [null,'nan','partial','extra','proof','accounting','stale','repeat','observe']) test(`focus tool bounded chain ${fault}`,async t=>{
+  const f=await inputFixture(t,true)
+  const prior=f.control.reply
+  f.control.reply=(body:any,helpers:any,value:any)=>{
+    const {common,state,png}=helpers
+    if(body.op==='focus_input')return {...common,used:fault==='accounting'?4:5,
+      status:'INPUT_FOCUS_OBSERVED',state:state(fault==='stale'?'s00000002':'s00000003'),png:png.toString('base64'),
+      inputEffectVerified:false,commitPermitted:false,
+      confirmation:{status:'INPUT_FOCUS_OBSERVED',cell:'A2',snapshot_id:'s00000003',inputEffectVerified:fault==='proof',inputPermitted:false,commitPermitted:false}}
+    if(body.op==='observe')return {...common,used:6,state:state('s00000004'),png:png.toString('base64')}
+    const result=prior(body,helpers,value)
+    if(['input_cell','commit_cell','open_save_dialog'].includes(body.op)) {
+      result.used+=2
+      result.state.snapshot_id='s'+(Number.parseInt(result.state.snapshot_id.slice(1),16)+1).toString(16).padStart(8,'0')
+      if(result.confirmation)result.confirmation.snapshot_id=result.state.snapshot_id
+    }
+    return result
+  }
+  const args:any={snapshot_id:'s00000002',x:25,y:30}
+  if(fault==='nan')args.x=NaN
+  if(fault==='partial')delete args.y
+  if(fault==='extra')args.expected_text='a'
+  if(fault && !['repeat','observe'].includes(fault)) {
+    await assert.rejects(()=>f.tool('vm_calc_focus').execute(args,f.exec))
+    assert.equal(f.calls.at(-1).op,'stop');return
+  }
+  const focused=await f.tool('vm_calc_focus').execute(args,f.exec)
+  assert.equal(JSON.parse(focused.result).status,'INPUT_FOCUS_OBSERVED');assert.ok(focused.image)
+  assert.deepEqual(f.calls.at(-1).args,args)
+  if(fault==='repeat') {
+    await assert.rejects(()=>f.tool('vm_calc_focus').execute({...args,snapshot_id:'s00000003'},f.exec))
+    assert.equal(f.calls.filter(c=>c.op==='focus_input').length,1);return
+  }
+  if(fault==='observe') {
+    await f.tool('vm_calc_observe').execute({},f.exec)
+    await assert.rejects(()=>f.tool('vm_calc_input').execute({snapshot_id:'s00000004',text:'AbZ中文',kind:'text'},f.exec))
+    assert.equal(f.calls.filter(c=>c.op==='input_cell').length,0);return
+  }
+  await f.tool('vm_calc_input').execute({snapshot_id:'s00000003',text:'AbZ中文',kind:'text'},f.exec)
+  await f.tool('vm_calc_commit').execute({snapshot_id:'s00000004'},f.exec)
+  const opened=await f.tool('vm_calc_open_save').execute({snapshot_id:'s00000005',x:20,y:30},f.exec)
+  assert.equal(JSON.parse(opened.result).used,11)
+  assert.equal(JSON.parse(opened.result).businessStatus,'UNVERIFIED')
+})
+
 test('explicit save protocol confirms commit then opens once with new image',async t=>{
   const f=await inputFixture(t,true)
-  assert.equal(f.registered.length,6)
+  assert.equal(f.registered.length,7)
   await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
   const committed=await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
   assert.equal(JSON.parse(committed.result).status,'CELL_COMMIT_OBSERVED')
@@ -136,7 +181,7 @@ for(const fault of ['legacy','coordinates','accounting','stale'])test(`readonly 
 
 test('explicit input protocol keeps selection alive and ends after one commit image',async t=>{
   const f=await inputFixture(t)
-  assert.equal(f.registered.length,5);assert.equal(f.control.concluded,undefined)
+  assert.equal(f.registered.length,6);assert.equal(f.control.concluded,undefined)
   const value=await f.tool('vm_calc_input').execute({snapshot_id:'s00000002',text:'AbZ中文',kind:'text'},f.exec)
   assert.equal(JSON.parse(value.result).status,'INPUT_OBSERVED');assert.ok(value.image)
   assert.equal(f.control.concluded,undefined)

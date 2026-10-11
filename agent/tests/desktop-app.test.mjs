@@ -63,7 +63,7 @@ for (const input of [false,true,'save']) for (const fault of [undefined,'session
     if(input)Object.assign(connection,{protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});
     if(input==='save')connection.protocol='calc-save-v1';
     const ready = {protocol:connection.protocol,runId:connection.runId,sessionId:connection.sessionId,
-      toolNames:[...(input?['vm_calc_commit','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
+      toolNames:[...(input?['vm_calc_commit','vm_calc_focus','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
       ...(input?{approvedText:connection.approvedText,approvedKind:connection.approvedKind}:{})};
     if (fault === 'session') ready.sessionId = 'other';
     if (fault === 'tools') ready.toolNames.push('shell');

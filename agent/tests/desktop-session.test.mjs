@@ -58,7 +58,7 @@ for (const input of [false,true,'save']) for (const fault of [undefined, 'ready'
     if(input)Object.assign(binding,{kind:'calc-input',protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});
     if(input==='save')Object.assign(binding,{kind:'calc-save',protocol:'calc-save-v1'});
     const ready = {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
-      toolNames:[...(input?['vm_calc_commit','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
+      toolNames:[...(input?['vm_calc_commit','vm_calc_focus','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
       ...(input?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})};
     if (fault === 'ready') ready.sessionId = 'other';
     writeFileSync(join(f.root,'vm-tools-ready.json'),JSON.stringify(ready),{mode:0o600});

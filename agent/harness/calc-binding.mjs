@@ -19,6 +19,6 @@ export function calcPreset(binding) {
 export function calcReady(binding) {
   const input=calcInput(binding);
   return {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
-    toolNames:[...(input?['vm_calc_commit','vm_calc_input']:[]),'vm_calc_observe',...(binding.protocol==='calc-save-v1'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
+    toolNames:[...(input?['vm_calc_commit','vm_calc_focus','vm_calc_input']:[]),'vm_calc_observe',...(binding.protocol==='calc-save-v1'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
     ...(input?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})};
 }

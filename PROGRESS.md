@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-11：官方插件聚焦工具与宿主名单同步
+
+- 先补方案；输入/保存模式新增vm_calc_focus，精确snapshot_id/x/y、finite、selected阶段及used≤24才允许请求。响应严格核对INPUT_FOCUS_OBSERVED、原身份、新PNG、增加2raw和未输入/未提交边界；进入focused后可继续原输入，重复聚焦拒绝，新观察使聚焦证明失效。选择模式保持三工具，不增加通用键鼠能力。
+- 官方ready名单、宿主calc-binding及对应App/session测试同步：输入六工具、保存七工具。保存preset及原会话prompt要求DSH从当前公式栏截图自主选点，先聚焦再输入，不提供固定坐标、不补跑旧任务。输入preset保留非公式栏旧路线，明确公式栏可用聚焦入口；正式profile未修改。
+- 官方App内置运行时90/90测试通过，含模拟聚焦→输入→提交→保存入口11raw及NaN/残缺参数/额外字段、伪确认、错误计数、陈旧图、重复聚焦、观察后旧证明拒绝；宿主固定编译/profile/App/session98/98通过，git diff --check通过。HTTP/Driver仍模拟，不声称本轮实际GUI或保存成功。
+- README同步；下一步固定新源码、部署和实时账户/VM准入后实跑，保留001/002原失败。真实聚焦、文字是否正确替换、保存面板/落盘/重开/ODS仍须独立证据；P7未完成，P5继续跳过。本轮没有改变VM服务或调用模型。
+
 ## 2026-10-11：显式聚焦模型适配及鉴权HTTP接线
 
 - 先写方案；CalcInputModelTask新增focus_input，只接受snapshot_id/x/y，自行定位名称框并使用原启动冻结的controls/editor区域。保存子类继承入口；模型不能提交expected_text、验证区域、内部聚焦证明、PID或其他目标。

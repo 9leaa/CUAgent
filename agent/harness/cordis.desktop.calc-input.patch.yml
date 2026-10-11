@@ -41,6 +41,7 @@
                 For dense rows request detail covering headers and neighboring cells, then use the new snapshot and detail coordinates.
                 Never guess row spacing or reuse old coordinates. Selection is not terminal in this input protocol.
                 After SELECTION_OBSERVED use vm_calc_input once with the exact approved text and kind.
+                For an explicitly approved formula-editor task, first inspect the current original image and call vm_calc_focus with snapshot_id,x,y inside the formula editor. Continue only after INPUT_FOCUS_OBSERVED using its new snapshot; never repeat focus or input.
                 Inspect the new image and INPUT_OBSERVED evidence. Then use vm_calc_commit once with that snapshot.
                 Inspect its new image. COMMIT_ATTEMPT_OBSERVED is not proof of commit effect, storage type or business success.
                 Remain UNVERIFIED. Never retry failed or uncertain actions. All observations/actions share the original 30 raw budget.

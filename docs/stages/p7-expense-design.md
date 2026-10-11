@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 官方聚焦工具接线（2026-10-11，实施前）
+
+输入/保存preset新增vm_calc_focus，工具名单和宿主ready校验同步（选择模式不变）。只能在selected阶段携当前snapshot和有限x/y调用，used≤24；响应须为新PNG、原身份、严格增加2raw及INPUT_FOCUS_OBSERVED确认，且不宣称输入或提交成功。成功进入focused阶段，之后仅原input工具可推进；拒绝重复聚焦及观察后旧证明，失败停止。原不聚焦输入路径保留，提示仅公式栏候选先自主截图选点聚焦，不自动产生坐标、不重试旧任务。更新独立临时profile/会话测试及官方App运行时插件测试；无部署/模型调用测试不算真实聚焦通过。
+
 ## 聚焦模型协议接线（2026-10-11，代码前）
 
 在显式输入/保存模型适配器增加focus_input，只接受snapshot_id/x/y；可信适配器自己解析名称框并使用启动时冻结的双编辑区/控件区域，外部不能指定原文字、验证区域或批准。沿原鉴权HTTP仅CalcInputModelTask及其保存子类开放，selection-v1拒绝。返回新PNG及INPUT_FOCUS_OBSERVED确认，必须明确inputEffectVerified=false和commitPermitted=false；仍需原input_cell核验新文字。异常停止，同run不重发。本步先验证真实loopback HTTP+模拟Driver完整聚焦/输入链，官方插件工具名单/profile须另行同步后才能部署，不提前改正式配置。
