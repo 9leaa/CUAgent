@@ -1,5 +1,7 @@
 # P7 费用核对：实施前方案
 
+2026-10-11编辑态前置恢复方案（实现前）：002实际模型点位位于A2内，foreground点击后仍A1；原图/AX同时存在启用的Cancel、Accept以及值为a的单元格编辑区和公式输入区。该证据支持先检查未结束编辑，不能声称已证明Driver无问题。新增无副作用的取消编辑规划器：可信调用方显式批准丢弃指定测试文本，绑定原窗口、新snapshot和审核过的工具栏/两个编辑区像素范围；只有同窗口唯一可操作Cancel/Accept、两个独立编辑区的值均与批准文本逐字一致，才返回原Cancel的AX token。未批准、文字变化、区域/身份/时效错误、菜单/多匹配/缺证据一律拒绝；不使用Accept、Enter、任意Escape或模型提供的控件身份。取消后必须再观察并证明批准编辑区消失或已退出，再让模型在新截图上定位；实际取消与再观察都计原30raw，失败/UNKNOWN不重发。先完成纯规划与反例验证，后续才在可信guest与DSH接入显式批准字段，默认选择工具不扩大；旧002保持失败，不追加动作、恢复或清预算。P5不恢复、原工作簿不保存。
+
 2026-10-11真实DSH首次启动拒绝后的修复方案（代码前）：原候选001官方会话已显式选Flash/off，但首个pre-step先于request/header生成，插件错误地把未解析的agent.options当作实际请求配置而拒绝；官方安装包0.2.0-rc.2的dsh-agent-loop和dsh-session实现及原model/selection事件已核对。将pre-step限定为原会话/根Agent/停止状态准入；实际每次llm/stream仍严格检查已解析Flash/off、工具及图片，工具执行前必须有真实requestHeader并再次检查，不能用options替代缺失证据。增加首轮无header、选定配置与默认options不同、缺header工具调用拒绝及错误实际路由拒绝回归。原失败保留终态与0raw，不恢复或重发原prompt，修复通过不等于实机选择或费用业务验收。
 
 2026-10-11可信控制接线（实现前）：复用原LeaseController、loopback control_server和DesktopControlClient协议，增加Calc专用runtime适配器。构造仅绑定原session/窗口/网格，不授予租约、不构造GUI Task；/activate必须先有宿主短租约，独占激活意图，创建原CalcModelTask/固定模型HTTP监听。/status返回原身份、累计raw和在途；/revoke先撤租约再停止Task，取消不等模型锁；/shutdown只在停止零在途后释放桌面锁。禁止P6/P7业务激活/材料/应用清理，不给模型control token。先以真实loopback控制HTTP＋原租约文件测试宿主client续租/激活/撤权，不以mock GUI冒充真实DSH；后续才接启动命令并冻结同一候选的新源码版本，旧冻结回执保留。
