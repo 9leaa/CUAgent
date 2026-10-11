@@ -87,6 +87,38 @@ test('scope and route guards deny before dispatch',async t=>{
   assert.ok(f.guards.some(g=>g({...f.exec,name:'vm_type'})))
 })
 
+test('first pre-step has no request header; resolved stream and tool header remain mandatory',async t=>{
+  const f=fixture(t);f.init()
+  f.exec.agent.session.requestHeader=()=>undefined
+  f.exec.agent.options={provider:'default',model:'default',reasoningEffort:'high'}
+  let entered=false
+  await f.handlers.get('agent/pre-step')({agent:f.exec.agent,signal:f.exec.signal},async()=>{entered=true})
+  assert.equal(entered,true)
+  await assert.rejects(f.tool('vm_calc_observe').execute({},f.exec),/Flash/)
+  assert.equal(f.calls.length,0)
+  let streamed=false
+  const stream=f.handlers.get('llm/stream')
+  const options={...f.route,tools:f.registered,messages:[]}
+  for await(const _ of stream(options,async function*(){streamed=true;yield 'ok'})){}
+  assert.equal(streamed,true)
+  f.exec.agent.session.requestHeader=()=>({config:f.route})
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  assert.equal(f.calls.length,1)
+})
+
+test('first pre-step does not permit wrong resolved model requests or another session',async t=>{
+  const f=fixture(t);f.init();f.exec.agent.session.requestHeader=()=>undefined
+  const pre=f.handlers.get('agent/pre-step')
+  await assert.rejects(pre({agent:{session:{id:'other'}},signal:f.exec.signal},async()=>{}),/unauthorized/)
+  const stream=f.handlers.get('llm/stream')
+  for(const change of [{reasoningEffort:'high'},{reasoningEffort:undefined},{provider:'other'},{model:'other'}]) {
+    let called=false
+    await assert.rejects(async()=>{for await(const _ of stream({...f.route,...change,tools:f.registered,messages:[]},async function*(){called=true})){}},/denied/)
+    assert.equal(called,false)
+  }
+  assert.equal(f.calls.length,0)
+})
+
 test('cancel sends bound stop and prevents a later coordinate call',async t=>{
   const f=fixture(t);f.init();await f.tool('vm_calc_observe').execute({},f.exec)
   f.abort.abort();await new Promise(r=>setImmediate(r))

@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-11：原Calc候选首次官方会话拒绝与生命周期修复
+
+- 新查Codex普通窗口剩14%，余额未变、两张重置卡仍可用；按用户3%停止线准入。VM执行端确认解锁，原队列空/P5 PAUSED；临时停止原空闲Worker后取得共享锁，应用原候选profile，激活VM控制并启动原官方DSH会话。
+- 原session-8f2a3ced-b798-4285-97d2-a07aa8951465的model/selection确为deepseek-account/deepseek-flash、reasoningEffort=off。随后pre-step报Calc requires Flash/off，官方会话终态error；guest rawCalls=0/pendingCalls=0，无实际模型流或GUI调用。完整原事件仍由DSH持久保存；通用session归档器因没有正式user message而拒绝，不能将该归档失败冒充会话未终止或重发prompt。
+- finally确认撤权、shutdown closed=true、guest exit=0、原profile恢复；原Worker以同源码/环境恢复为PID52143，P5保持PAUSED。未清理旧失败、未复用预算、未输入或保存。
+- 对照安装包0.2.0-rc.2的dsh-agent-loop及dsh-session：pre-step在首个request/header之前，agent.options不代表已组装的实际请求。先补技术方案，后拆分scope准入与工具route准入；llm/stream仍逐请求强制Flash/off及原图片/三工具，工具执行要求已持久化requestHeader，不以options兜底。
+- `node agent/harness/test-calc-tools.mjs <固定esbuild> <官方App>`通过33/33，新增首轮无header、默认options与已选路由不同、缺header工具拒绝、错误实际路由拒绝反例。测试使用官方App运行时但HTTP/GUI模拟；修复尚未部署，真实选择和费用业务仍UNVERIFIED。原候选不重发、不覆盖；后续修复验证必须显式保留该失败及候选谱系。
+
 ## 2026-10-11：按用户要求跳过P5观察
 
 - 用户明确“p5先跳过吧”。通过原ScheduleService.pause暂停唯一正式计划，独立读回PAUSED；原6条occurrence内容未变，未补跑、未删除证据，P5仍未验收。

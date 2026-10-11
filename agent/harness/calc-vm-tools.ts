@@ -52,15 +52,20 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
     watches.add(signal)
     signal.addEventListener('abort', () => { void stop().catch(() => ctx.logger.error('Calc stop delivery unconfirmed')) }, {once:true})
   }
-  function admit(exec: any) {
+  function admitScope(exec: any) {
     if (stopped || busy || exec.signal.aborted || exec.parent !== undefined || exec.agent?.session.id !== binding.sessionId) throw new Error('Calc session stopped or unauthorized')
-    const config = exec.agent.session.requestHeader()?.config ?? exec.agent.options
-    if (config?.provider !== 'deepseek-account' || config?.model !== 'deepseek-flash' || config?.reasoningEffort !== 'off') throw new Error('Calc requires Flash/off')
     watch(exec.signal)
+  }
+  function admit(exec: any) {
+    admitScope(exec)
+    // pre-step precedes request assembly on the first turn. Only a persisted
+    // resolved request header proves the route when a tool actually executes.
+    const config = exec.agent.session.requestHeader()?.config
+    if (config?.provider !== 'deepseek-account' || config?.model !== 'deepseek-flash' || config?.reasoningEffort !== 'off') throw new Error('Calc requires Flash/off')
   }
   ctx.tools.guard(exec => stopped || busy || exec.signal.aborted || exec.parent !== undefined
     || exec.agent?.session.id !== binding.sessionId || !TOOLS.includes(exec.name) ? 'Calc tool not authorized' : undefined)
-  ctx.on('agent/pre-step', async ({agent,signal}, next) => { admit({agent,signal}); return next() }, {global:true})
+  ctx.on('agent/pre-step', async ({agent,signal}, next) => { admitScope({agent,signal}); return next() }, {global:true})
   ctx.on('agent/error', () => { void stop().catch(() => {}) }, {global:true})
   ctx.on('llm/stream', async function* (options, next) {
     const names = (options.tools ?? []).map(tool => tool.name).sort()
