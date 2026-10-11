@@ -148,3 +148,6 @@ def test_input_launch_binding_validation(fault):
         value=input_binding(args)
         assert value['approved_text']=='AbZ中文' and value['commit_approved'] is True
         assert input_binding(SimpleNamespace()) is None
+        args.input_target='formula'
+        assert input_binding(args)['formula_region']==args.input_formula_region
+        with pytest.raises(ValueError):input_binding(SimpleNamespace(input_target='formula'))

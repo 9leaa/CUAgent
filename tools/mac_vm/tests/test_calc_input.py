@@ -47,6 +47,27 @@ def test_plan_is_not_authority_or_storage_confirmation():
     assert result['businessStatus']=='UNVERIFIED' and s==before
 
 
+@pytest.mark.parametrize('fault',[None,'missing','duplicate','token','outside','window','disabled','region','selected'])
+def test_explicit_formula_target(fault):
+    s,a=fixture();a['formula_region']=[200,40,700,90]
+    editor=dict(element_index=4,parent_index=0,role='AXTextArea',enabled=True,
+                element_token='s00000002:4',frame=dict(x=220,y=75,w=1,h=12))
+    if fault!='missing':s['elements'].append(editor)
+    if fault=='duplicate':s['elements'].append(dict(editor,element_index=5,element_token='s00000002:5'))
+    if fault=='token':editor['element_token']='s00000001:4'
+    if fault=='outside':editor['frame']['w']=400
+    if fault=='window':editor['parent_index']=99
+    if fault=='disabled':editor['enabled']=False
+    if fault=='region':a['formula_region']=[200,40,900,90]
+    if fault=='selected':s['elements'][2]['value']='B2'
+    if fault:
+        with pytest.raises(ValueError):plan_cell_input(s,**a)
+    else:
+        result=plan_cell_input(s,**a)
+        assert result['target']==dict(element_token='s00000002:4')
+        assert result['text']=='AbZ中文' and not result['inputEffectVerified']
+
+
 @pytest.mark.parametrize('fault',['approval','overwrite','payload','kind','namebox','child',
     'old_snapshot','expired','pid','token','frame','grid','duplicate','missing','menu','edit'])
 def test_uncertain_target_or_authority_refused(fault):

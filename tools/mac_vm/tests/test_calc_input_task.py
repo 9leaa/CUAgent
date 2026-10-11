@@ -52,6 +52,27 @@ def selected(task):
     task.confirm(name_box_index=2)
 
 
+@pytest.fixture
+def formula_setup(tmp_path,state,request,monkeypatch):
+    from functools import partial
+    monkeypatch.setattr(sys.modules[__name__],'CalcInputTask',partial(CalcInputTask,formula_region=[350,20,700,70]))
+    yield from input_setup.__wrapped__(tmp_path,state,request)
+
+
+def test_formula_target_persisted_and_single_dispatch(formula_setup):
+    t,calls,s,*_=formula_setup
+    s['elements'].append(dict(element_index=20,parent_index=0,role='AXTextArea',enabled=True,
+        frame=dict(x=300,y=65,w=1,h=12)))
+    selected(t);result=write(t)
+    assert calls[3][1]['element_token']=='s00000002:20'
+    assert calls[3][1]['text']=='AbZ中文' and 'element_index' not in calls[3][1]
+    assert t.used==5 and result['status']=='INPUT_ATTEMPT_OBSERVED'
+    binding=json.loads((t.directory/'input-binding.json').read_text())
+    assert binding['formulaRegion']==[350,20,700,70]
+    with pytest.raises(StopRun):write(t)
+    assert t.used==5
+
+
 def write(task,**changes):
     args=dict(snapshot_id=task.snapshot['snapshot_id'] if task.snapshot else '',name_box_index=2,text='AbZ中文',kind='text')
     args.update(changes)

@@ -34,12 +34,15 @@ class CalcGuestRuntime:
         # Freeze caller-owned nested arrays as well as the outer dictionary.
         self.selection = json.loads(json.dumps(selection,allow_nan=False))
         if input_binding is not None:
-            if (not isinstance(input_binding,dict) or set(input_binding)!={
+            if (not isinstance(input_binding,dict) or set(input_binding)-{'formula_region'}!={
                     'input_approved','overwrite_disposable','approved_text','approved_kind',
                     'commit_approved','controls_region','editor_regions'}
                     or input_binding['input_approved'] is not True
                     or input_binding['overwrite_disposable'] is not True):
                 raise ValueError('explicit trusted input binding required')
+            if ('formula_region' in input_binding and
+                    input_binding['formula_region']!=input_binding['editor_regions'][1]):
+                raise ValueError('formula target must match trusted verification region')
             if task_factory is not CalcModelTask:
                 raise ValueError('input mode uses original input factory')
             task_factory=CalcInputModelTask

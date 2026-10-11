@@ -95,7 +95,8 @@ def test_bad_tokens_and_test_injection_are_rejected(runtime):
         with pytest.raises(ValueError): CalcGuestRuntime(value.directory,value.controller,**args)
 
 
-def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,monkeypatch):
+@pytest.mark.parametrize('formula',[False,True])
+def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,monkeypatch,formula):
     import json
     value,_,_,task=runtime
     factory=Mock(return_value=task)
@@ -103,9 +104,11 @@ def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,mon
     binding=dict(input_approved=True,overwrite_disposable=True,approved_text='AbZ',approved_kind='text',
         commit_approved=True,controls_region=[200,90,320,130],
         editor_regions=[[0,190,80,240],[370,90,420,130]])
+    if formula:binding['formula_region']=[370,90,420,130]
     candidate=CalcGuestRuntime(value.directory,value.controller,model_token='m'*43,control_token='c'*43,
         selection=value.selection,input_binding=binding,port=0,loopback_test=True)
     binding['approved_text']='changed';binding['editor_regions'][0][0]=99
+    if formula:binding['formula_region'][0]=0
     factory.assert_not_called()
     assert value.controller.existing() is None
     value.controller.renew(1)
@@ -113,6 +116,7 @@ def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,mon
         assert candidate.activate()['active']
         kwargs=factory.call_args.kwargs
         assert kwargs['approved_text']=='AbZ' and kwargs['editor_regions'][0][0]==0
+        if formula:assert kwargs['formula_region']==[370,90,420,130]
         intent=json.loads((value.directory/'calc-activation-intent.json').read_text())
         assert intent['inputBinding']['commit_approved'] is True and task.used==0
     finally:candidate.close()

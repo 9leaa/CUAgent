@@ -34,7 +34,9 @@ def input_binding(args):
     approved=getattr(args,'approve_input',False)
     overwrite=getattr(args,'overwrite_disposable',False)
     commit=getattr(args,'approve_commit',False)
-    if not approved and not overwrite and not commit and all(v is None for v in fields):return None
+    target=getattr(args,'input_target','cell')
+    if target not in ('cell','formula'):raise ValueError('reviewed input target mode required')
+    if not approved and not overwrite and not commit and target=='cell' and all(v is None for v in fields):return None
     if not approved or not overwrite or any(v is None for v in fields):
         raise ValueError('explicit input approval, disposable overwrite, payload and regions required')
     text,kind,controls,body,formula=fields
@@ -45,8 +47,10 @@ def input_binding(args):
             raise ValueError('valid input verification regions required')
     if not (body[2]<=formula[0] or formula[2]<=body[0] or body[3]<=formula[1] or formula[3]<=body[1]):
         raise ValueError('independent input editor regions required')
-    return dict(input_approved=True,overwrite_disposable=True,approved_text=text,approved_kind=kind,
+    result=dict(input_approved=True,overwrite_disposable=True,approved_text=text,approved_kind=kind,
                 commit_approved=commit,controls_region=controls,editor_regions=[body,formula])
+    if target=='formula':result['formula_region']=list(formula)
+    return result
 
 
 def credential(path):
@@ -99,6 +103,7 @@ def main(argv=None):
     parser.add_argument('--approve-commit',action='store_true')
     parser.add_argument('--input-text')
     parser.add_argument('--input-kind',choices=('text','decimal'))
+    parser.add_argument('--input-target',choices=('cell','formula'),default='cell')
     for name in ('input-controls-region','input-body-region','input-formula-region'):
         parser.add_argument('--'+name,type=float,nargs=4)
     parser.add_argument('--approve-cancel-edit', action='store_true')

@@ -26,6 +26,8 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
         if not (a[2]<=b[0] or b[2]<=a[0] or a[3]<=b[1] or b[3]<=a[1]):
             raise ValueError('independent editor regions required')
         self.input_regions=regions
+        if kwargs.get('formula_region') is not None and list(kwargs['formula_region'])!=regions['editor_regions'][1]:
+            raise ValueError('formula target must match trusted verification region')
         super().__init__(*args, **kwargs)
         try:
             path=self.directory/'input-verifier-binding.json'

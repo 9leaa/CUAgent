@@ -13,7 +13,14 @@ class CalcInputTask(CalcSelectionTask):
     SIDE_EFFECT_TOOLS = CalcSelectionTask.SIDE_EFFECT_TOOLS | {'type_text'}
 
     def __init__(self, *args, input_approved=False, overwrite_disposable=False,
-                 approved_text=None, approved_kind=None, commit_approved=False, **kwargs):
+                 approved_text=None, approved_kind=None, commit_approved=False,
+                 formula_region=None, **kwargs):
+        self.formula_region=None if formula_region is None else tuple(formula_region)
+        if self.formula_region is not None:
+            from calc_targeting import _number
+            r=self.formula_region
+            if len(r)!=4 or not all(_number(v) for v in r) or not 0<=r[0]<r[2] or not 0<=r[1]<r[3]:
+                raise ValueError('valid trusted formula editor region required')
         if type(commit_approved) is not bool:
             raise ValueError('explicit boolean commit approval required')
         self.commit_approved=commit_approved
@@ -26,6 +33,7 @@ class CalcInputTask(CalcSelectionTask):
             binding=dict(cell=self.cell,approvedText=approved_text,approvedKind=approved_kind,
                          inputApproved=True,overwriteDisposable=True)
             if commit_approved:binding['commitApproved']=True
+            if self.formula_region is not None:binding['formulaRegion']=list(self.formula_region)
             path=self.directory/'input-binding.json'
             if path.exists() or path.is_symlink():
                 if path.is_symlink() or json.loads(path.read_bytes())!=binding:
@@ -52,7 +60,8 @@ class CalcInputTask(CalcSelectionTask):
                 plan=plan_cell_input(self.snapshot,**self._context(),grid=self.grid,
                     previous_snapshot_id=self.before_click,name_box_index=name_box_index,
                     approved=True,overwrite_disposable=True,text=text,kind=kind,
-                    approved_text=self.input_text,approved_kind=self.input_kind)
+                    approved_text=self.input_text,approved_kind=self.input_kind,
+                    formula_region=self.formula_region)
                 # Exclusive intent survives even an exception before raw dispatch.
                 _save(self.directory/'input-attempt.json',json.dumps(plan,ensure_ascii=False).encode())
                 self.phase='INPUT_ATTEMPTED'
