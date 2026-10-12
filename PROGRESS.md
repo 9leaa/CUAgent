@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-12：006真实激活通过，后续聚焦未通过
+
+- 固定7817a0c，499份源码冻结，37个guest文件独立读回摘要/私有权限通过；新run calc-select-aa14d9f3-83db-4974-b7d1-8e2a5c20c0fb、新官方session-a52826b0-dae6-4599-b0f6-380035d988f6。两端activationApproved显式绑定，原005不恢复。新查普通额度剩69%、余额62494.0260570000、两张重置卡未使用；VM执行端解锁核验通过，无需本轮手工解锁。
+- 官方DSH Flash/off实际4次模型工具、6raw：get_window_state→只读选择复核→bring_to_front→get_window_state→click→get_window_state。激活原响应为bring_to_front_exact_window_verified，PID79126/window1250、frontmost/focused/process-front/visible均匹配；新snapshot s00000025仍A2，独立复核通过。模型随后自主点(520,234)，Driver报foreground/global_input已投递、effect=unverifiable，不再出现005精确焦点错误，无UNKNOWN底层调用。
+- 后snapshot s00000026仍旧AbZ中文，无Cancel/Accept及双编辑区；离线原验证器重现unique enabled edit controls required。因此focus不通过，未派发type_text、commit或save，不补点。会话最终error是保护停止，不是业务完成。原state-04图彩色窗口按钮、state-06灰色，点击后前台状态变化是新线索，但不能仅凭图归因于Driver恢复或外部抢焦点。
+- 独立采集19份原文件（含4组JSON/PNG、意图、绑定、账本），逐文件SHA核对，原前后PNG人工视觉核验；私有independent-save-review.json为ACTIVATION_OBSERVED_FOCUS_UNVERIFIED，usage未知保留null。原账本停止后无派发；pendingCalls=0、lease stopped、guest exit0、renewErrors空、profile恢复。空闲Worker81949受控切出后恢复为82758，官方running=[]，P5仍PAUSED。
+- 核对固定上游with_foreground_hid_activation：精确焦点已存在则直接执行，否则临时激活并在动作后恢复prior process。当前原响应不记录实际走哪分支或prior身份，故根因未定；下一步先查会话焦点抑制及调用前后身份，不取消精确窗口保护、不重试006。不替换/重启原Driver或改权限。README同步；P7最终保存/重开/ODS及完整费用业务仍未验收。
+
 ## 2026-10-12：官方DSH窗口激活工具及宿主接线
 
 - 上轮b293066已推送guest/model接口，为有效进展。本轮先补方案，再在官方插件增加显式activationApproved:true绑定及vm_calc_activate；选择协议携带批准、false/字符串/数字等拒绝，省略时原工具范围不变。App及session严格核对同批准、ready和工具名单，不通过模型参数授权。
