@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import stat
 import sys
 import time
 import uuid
@@ -99,8 +100,12 @@ class Calls:
 
     @staticmethod
     def cli(tool, args):
+        return Calls._cli([DRIVER], tool, args)
+
+    @staticmethod
+    def _cli(command, tool, args):
         try:
-            result = subprocess.run([DRIVER, tool, json.dumps(args)], capture_output=True,
+            result = subprocess.run([*command, tool, json.dumps(args)], capture_output=True,
                                     text=True, timeout=35,
                                     env=dict(os.environ, CUA_DRIVER_RS_TELEMETRY_ENABLED='false'))
         except subprocess.TimeoutExpired as exc:
@@ -183,6 +188,49 @@ class Calls:
         # actionable nodes are indexed. Require positive button/display evidence
         # below; never interpret an absent node as proof it does not exist.
         return state
+
+
+DIAGNOSTIC_SHA256 = '1c86beeaaf07d0deb43fa232961606ea8984ca1202e7e3e102e6c924ac6a2104'
+DIAGNOSTIC_DRIVER = '/Users/mvpagent/CUAgentDriverDiagnostic-' + DIAGNOSTIC_SHA256 + '/cua-driver'
+DIAGNOSTIC_SOCKET = '/Users/mvpagent/Library/Caches/cua-driver/cua-driver.sock'
+
+
+def diagnostic_cli_binding():
+    return dict(path=DIAGNOSTIC_DRIVER, sha256=DIAGNOSTIC_SHA256, socket=DIAGNOSTIC_SOCKET)
+
+
+def diagnostic_cli(tool, args):
+    """Trusted opt-in transport only; Task still owns authorization and accounting."""
+    require_vm()
+    path = Path(DIAGNOSTIC_DRIVER)
+    parent = path.parent
+    if parent.resolve(strict=True) != parent:
+        raise StopRun('BLOCKED', 'Diagnostic CLI parent is not canonical')
+    info = parent.stat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+        raise StopRun('BLOCKED', 'Diagnostic CLI directory is not private')
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_mode & 0o077 or not info.st_mode & stat.S_IXUSR
+                or not 0 < info.st_size <= 180 * 1024 * 1024):
+            raise StopRun('BLOCKED', 'Diagnostic CLI file identity rejected')
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        after = os.fstat(stream.fileno())
+    def identity(value):
+        return (value.st_dev,value.st_ino,value.st_mode,value.st_uid,value.st_nlink,
+                value.st_size,value.st_mtime_ns,value.st_ctime_ns)
+    if (digest != DIAGNOSTIC_SHA256 or identity(info) != identity(after)
+            or identity(path.lstat()) != identity(after)):
+        raise StopRun('BLOCKED', 'Diagnostic CLI changed or hash mismatch')
+    socket = Path(DIAGNOSTIC_SOCKET)
+    si = socket.lstat()
+    if (socket.resolve(strict=True) != socket or not stat.S_ISSOCK(si.st_mode)
+            or si.st_uid != os.getuid()):
+        raise StopRun('BLOCKED', 'Original daemon socket required')
+    # run_call refuses a missing/incompatible daemon; never serves or restarts it.
+    return Calls._cli([str(path), '--socket', str(socket)], tool, args)
 
 
 def execute(calls):

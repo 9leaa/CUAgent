@@ -13,11 +13,16 @@ from calc_targeting import _number
 from calc_selection import SHARED_LOCK, _save
 from desktop_lease import LeaseGate
 from desktop_tools_http import tools_server
+from driver_smoke import diagnostic_cli, diagnostic_cli_binding
 
 
 class CalcGuestRuntime:
     def __init__(self, directory, controller, *, model_token, control_token, selection,
-                 port=8766, loopback_test=False, task_factory=CalcModelTask, input_binding=None, save_binding=None):
+                 port=8766, loopback_test=False, task_factory=CalcModelTask, input_binding=None, save_binding=None,
+                 diagnostic_driver=False):
+        if type(diagnostic_driver) is not bool:
+            raise ValueError('explicit diagnostic boolean required')
+        self.diagnostic_driver = diagnostic_driver
         self.directory = Path(directory).absolute()
         if self.directory.resolve(strict=True) != self.directory or self.directory.name != controller.gate.run_id:
             raise ValueError('original canonical run required')
@@ -90,10 +95,12 @@ class CalcGuestRuntime:
             try:
                 _save(self.directory/'calc-activation-intent.json',
                       json.dumps(dict(binding=self.status()['binding'],selection=self.selection,
-                                      inputBinding=self.input_binding,saveBinding=self.save_binding)).encode())
+                                      inputBinding=self.input_binding,saveBinding=self.save_binding,
+                                      diagnosticDriver=diagnostic_cli_binding() if self.diagnostic_driver else None)).encode())
                 self.controller.gate.check()
                 self.task = self.factory(self.directory,lease=self.controller.gate,approved=True,
-                                         **self.selection,**(self.input_binding or {}),**(self.save_binding or {}))
+                                         **self.selection,**(self.input_binding or {}),**(self.save_binding or {}),
+                                         **({'transport':diagnostic_cli} if self.diagnostic_driver else {}))
                 if not isinstance(self.task,CalcModelTask):
                     raise ValueError('original Calc task required')
                 self.controller.gate.check()

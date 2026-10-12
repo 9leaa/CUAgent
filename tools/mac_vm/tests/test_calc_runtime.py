@@ -43,6 +43,7 @@ def test_host_owned_renew_activate_stop_shutdown(runtime):
     assert not first['stopped']
     assert client.activate(lambda:time.monotonic()+10)['active']
     factory.assert_called_once()
+    assert 'transport' not in factory.call_args.kwargs
     assert task.used==0
     assert client.renew(2,lambda:time.monotonic()+10)['sequence']==2
     assert client.revoke()['stopped']
@@ -60,6 +61,19 @@ def test_no_lease_or_replay_activation(runtime):
     with pytest.raises(ControlUnconfirmed): client.renew(1,lambda:time.monotonic()+10)
     with pytest.raises(ControlUnconfirmed): client.request('POST','/activate',{})
     assert (value.directory/'calc-activation-intent.json').exists()
+
+
+def test_diagnostic_transport_only_explicit_activation(runtime):
+    import json
+    from driver_smoke import diagnostic_cli,diagnostic_cli_binding
+    value,client,factory,task=runtime
+    value.diagnostic_driver=True
+    client.renew(1,lambda:time.monotonic()+10)
+    client.activate(lambda:time.monotonic()+10)
+    assert factory.call_args.kwargs['transport'] is diagnostic_cli
+    intent=json.loads((value.directory/'calc-activation-intent.json').read_text())
+    assert intent['diagnosticDriver']==diagnostic_cli_binding()
+    assert task.used==0
 
 
 @pytest.mark.parametrize('path',['/activate-handoff','/handoff-input','/cleanup-app'])

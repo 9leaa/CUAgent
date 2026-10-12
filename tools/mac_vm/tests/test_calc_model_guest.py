@@ -68,6 +68,7 @@ def test_no_approval_never_checks_vm(monkeypatch):
 
 
 @pytest.mark.parametrize('extra',[
+    ['--diagnostic-driver'],
     ['--approve-cancel-edit'],['--pending-edit-text','a'],
     ['--edit-controls-region','1','2','3','4'],
     ['--approve-cancel-edit','--pending-edit-text','a'],

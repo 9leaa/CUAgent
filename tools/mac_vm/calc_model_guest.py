@@ -21,6 +21,7 @@ from desktop_tools_http import tools_server
 from desktop_control_http import control_server
 from calc_runtime import CalcGuestRuntime
 from real_app_bridge import require_unlocked
+from driver_smoke import diagnostic_cli_binding
 
 UUID = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 
@@ -112,6 +113,8 @@ def main(argv=None):
     for name in ('grid', 'name-box-grid'):
         parser.add_argument('--'+name, required=True, type=float, nargs=4)
     parser.add_argument('--approve-selection', action='store_true')
+    parser.add_argument('--diagnostic-driver', action='store_true',
+                        help='Use the fixed independently deployed diagnostic CLI, original daemon only')
     parser.add_argument('--approve-input',action='store_true')
     parser.add_argument('--overwrite-disposable',action='store_true')
     parser.add_argument('--approve-commit',action='store_true')
@@ -130,6 +133,8 @@ def main(argv=None):
     parser.add_argument('--controlled', action='store_true',
                         help='Wait for trusted host control; do not require or grant an initial lease')
     args = parser.parse_args(argv)
+    if args.diagnostic_driver and not args.controlled:
+        parser.error('diagnostic driver requires trusted controlled lifecycle')
     try:
         inputs=input_binding(args)
         saves=save_binding(args,inputs)
@@ -216,9 +221,11 @@ def controlled(directory, controller, model_token, control_token, args):
     selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
                      grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid,**edit_binding(args))
     _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
-          sessionId=args.session,selection=selection,inputBinding=inputs,saveBinding=saves)).encode())
+          sessionId=args.session,selection=selection,inputBinding=inputs,saveBinding=saves,
+          diagnosticDriver=diagnostic_cli_binding() if getattr(args,'diagnostic_driver',False) else None)).encode())
     runtime = CalcGuestRuntime(directory,controller,model_token=model_token,
-                               control_token=control_token,selection=selection,input_binding=inputs,save_binding=saves)
+                               control_token=control_token,selection=selection,input_binding=inputs,save_binding=saves,
+                               diagnostic_driver=getattr(args,'diagnostic_driver',False))
     server = None
     previous = {}
     stopping = threading.Event()
