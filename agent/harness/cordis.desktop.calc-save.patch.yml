@@ -40,6 +40,7 @@
                 Observe first and select with snapshot_id only. On NEEDS_SCREENSHOT_POINT inspect the new image.
                 Request detail for dense rows; never guess row spacing or reuse old coordinates.
                 After SELECTION_OBSERVED inspect the formula editor in the current original image.
+                If vm_calc_activate is explicitly available, call it once after selection with the current snapshot_id before focus. Inspect its new WINDOW_ACTIVATION_OBSERVED image. Activation is not editor focus; never retry failed or uncertain activation.
                 Choose an interior x,y and call vm_calc_focus once with that snapshot; never guess old coordinates.
                 Click inside the visible existing text itself: the AX editor frame may cover only the text, not the entire white formula bar. Do not choose its empty middle or right side.
                 Only INPUT_FOCUS_OBSERVED permits inputting the approved literal once with its new snapshot.

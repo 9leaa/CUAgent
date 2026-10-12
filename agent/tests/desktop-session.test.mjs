@@ -7,6 +7,16 @@ import { join } from 'node:path';
 import { startDesktopSession, startHandoffSession, startCalcSession, inspectDesktopSession, cancelDesktopSession } from '../harness/desktop-session.mjs';
 import { HANDOFF_TOOLS, handoffTools } from '../harness/handoff-prompt.mjs';
 import { DAILY_MODEL } from '../harness/daily-report-runner.mjs';
+import { calcReady } from '../harness/calc-binding.mjs';
+
+for (const protocol of ['calc-selection-v1','calc-input-v1','calc-save-v1']) {
+  for (const activationApproved of [false,'true',1,null]) test(`host rejects invalid activation ${protocol}/${activationApproved}`,()=>{
+    assert.throws(()=>calcReady({protocol,activationApproved,approvedText:'a',approvedKind:'text'}));
+  });
+}
+test('host selection binding never grants activation',()=>{
+  assert.throws(()=>calcReady({protocol:'calc-selection-v1',activationApproved:true}));
+});
 
 function fixture(t, fault) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'cuagent-session-')));
@@ -49,7 +59,7 @@ function fixture(t, fault) {
   return { root, binding, rpc, calls, readSession: async () => rows };
 }
 
-for (const input of [false,true,'save']) for (const fault of [undefined, 'ready', 'cell', 'create', 'model', 'prompt']) {
+for (const input of [false,true,'save']) for (const activation of (input?[false,true]:[false])) for (const fault of [undefined, 'ready', 'cell', 'create', 'model', 'prompt']) {
   test(`Calc official session binding and no replay: ${fault}`, async t => {
     const f = fixture(t, fault);
     const binding = {kind:'calc-selection',protocol:'calc-selection-v1',
@@ -57,8 +67,10 @@ for (const input of [false,true,'save']) for (const fault of [undefined, 'ready'
       sessionId:f.binding.sessionId,cwd:f.binding.cwd,cell:fault === 'cell' ? 'A0' : 'A2'};
     if(input)Object.assign(binding,{kind:'calc-input',protocol:'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});
     if(input==='save')Object.assign(binding,{kind:'calc-save',protocol:'calc-save-v1'});
+    if(activation)binding.activationApproved=true;
     const ready = {protocol:binding.protocol,runId:binding.runId,sessionId:binding.sessionId,
-      toolNames:[...(input?['vm_calc_commit','vm_calc_focus','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
+      toolNames:[...(activation?['vm_calc_activate']:[]),...(input?['vm_calc_commit','vm_calc_focus','vm_calc_input']:[]),'vm_calc_observe',...(input==='save'?['vm_calc_open_save']:[]),'vm_calc_select','vm_calc_stop'],
+      ...(activation?{activationApproved:true}:{}),
       ...(input?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})};
     if (fault === 'ready') ready.sessionId = 'other';
     writeFileSync(join(f.root,'vm-tools-ready.json'),JSON.stringify(ready),{mode:0o600});
@@ -72,6 +84,8 @@ for (const input of [false,true,'save']) for (const fault of [undefined, 'ready'
       assert.match(prompt,/A2/);
       assert.match(prompt,input?/AbZ中文/:/不输入、不保存/);
       if(input==='save')assert.match(prompt,/vm_calc_open_save/);
+      if(activation)assert.match(prompt,/vm_calc_activate/);
+      else assert.doesNotMatch(prompt,/vm_calc_activate/);
     }
     const count = f.calls.length;
     await assert.rejects(startCalcSession(f.root,binding,rpc));

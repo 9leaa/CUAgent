@@ -83,7 +83,7 @@ export async function startHandoffSession(root, binding, rpc) {
 export async function startCalcSession(root, binding, rpc) {
   privateRoot(root);
   const input=calcInput(binding);
-  assert.deepEqual(Object.keys(binding).sort(), [...(input?['approvedKind','approvedText']:[]),'cell','cwd','kind','protocol','runId','sessionId']);
+  assert.deepEqual(Object.keys(binding).sort(), [...(binding.activationApproved?['activationApproved']:[]),...(input?['approvedKind','approvedText']:[]),'cell','cwd','kind','protocol','runId','sessionId']);
   assert.equal(binding.kind, calcPreset(binding));
   assert.match(binding.runId, /^calc-select-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
   assert.match(binding.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
@@ -101,6 +101,7 @@ export async function startCalcSession(root, binding, rpc) {
 }
 
 async function startBoundSession(root, binding, rpc, preset, text) {
+  if (binding.activationApproved === true) text = '本任务已显式批准一次窗口激活：SELECTION_OBSERVED后先用当前snapshot_id调用vm_calc_activate；仅WINDOW_ACTIVATION_OBSERVED后看其新图，再独立调用vm_calc_focus并核对编辑态，不能跳过聚焦直接输入。激活前used必须≤22；失败或UNKNOWN立即停止，不重试。以下流程中的选中后动作应在上述步骤之后执行。\n'+text;
   const { runId, sessionId, cwd } = binding;
   assert.ok(!existsSync(join(root, 'create-request.json')), 'creation attempted; inspect original session, never replay');
   save(root, 'desktop-session-binding.json', binding);

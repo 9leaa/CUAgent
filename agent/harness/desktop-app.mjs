@@ -92,7 +92,7 @@ export async function startDesktop(root, home, cookie, mode, launchFile, depende
     assert.equal(connection.caseId, mode === 'calc' ? 'calc_selection' : mode === 'p7' ? 'project_handoff' : 'real_textedit');
     if (mode === 'calc') {
       const input=calcInput(connection);
-      assert.deepEqual(Object.keys(connection).sort(), [...(input?['approvedKind','approvedText']:[]),'caseId','cell','protocol','runId','sessionId','stage','token','url']);
+      assert.deepEqual(Object.keys(connection).sort(), [...(connection.activationApproved?['activationApproved']:[]),...(input?['approvedKind','approvedText']:[]),'caseId','cell','protocol','runId','sessionId','stage','token','url']);
       assert.equal(connection.stage, 'p7');
       assert.match(connection.runId, /^calc-select-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
       assert.match(connection.sessionId, /^session-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);

@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-12：官方DSH窗口激活工具及宿主接线
+
+- 上轮b293066已推送guest/model接口，为有效进展。本轮先补方案，再在官方插件增加显式activationApproved:true绑定及vm_calc_activate；选择协议携带批准、false/字符串/数字等拒绝，省略时原工具范围不变。App及session严格核对同批准、ready和工具名单，不通过模型参数授权。
+- 插件仅选择确认/current snapshot/used≤22时接受一次激活，在HTTP前标记attempted；要求WINDOW_ACTIVATION_OBSERVED、精确新增2raw、新PNG、同单元格/新snapshot确认以及未输入/提交边界。重复、陈旧、错误证明及未知传输停止，不自动重发。激活保持selected阶段，仍需单独focus。输入/保存persona及批准会话提示同步，明确先激活后新图聚焦，非保存完成。
+- 官方工具运行时测试104/104，使用固定esbuild与官方App的test-calc-tools.mjs入口，新增14项模拟HTTP/附件回归；宿主desktop-session/profile/app/calc-command-routing测试133/133，含原/批准模式会话与App、非法授权、固定编译及profile恢复。Python全套858 passed、256 subtests passed；git diff --check通过。首次两组为102/120，补早期/预算及宿主授权反例后为104/133。
+- 未部署、改变正式profile或调用真实模型/VM，原005仍UNKNOWN且不恢复。下一步将新提交和显式两端绑定冻结到新候选，核实当前额度/VM/服务后通过官方DSH验证；实际激活、聚焦可靠性、保存落盘/重开/ODS及P7全业务仍待验收。README同步，P5保持跳过。
+
 ## 2026-10-12：激活启动绑定与模型HTTP接口
 
 - 先补技术方案，再接guest显式--approve-window-activation；只有完整输入批准可生成activation_approved=true，默认省略，不因输入/保存协议自动授权。runtime校验严格布尔并冻结原绑定，激活意图留存；构造和授权本身不调用Driver。

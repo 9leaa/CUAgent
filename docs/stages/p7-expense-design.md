@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 官方DSH显式激活工具（2026-10-12，实施前）
+
+宿主私有绑定可选activationApproved:true，必须为输入/保存协议，省略保持原工具名单；显式false、字符串和选择协议携带该字段拒绝。插件仅此模式注册vm_calc_activate，ready及宿主App/session精确核对相同批准。模型只传当前snapshot，限选择确认后、used≤22、一次请求；先标记已尝试再发出HTTP，未知不重放。要求WINDOW_ACTIVATION_OBSERVED、2raw、新PNG和未输入/提交证明，返回后仍需独立focus，不把激活当编辑态。提示只在工具存在时要求选择→激活→新图→聚焦。原默认协议保持兼容，验证使用官方App工具运行时和模拟VM，实机效果单独待验。
+
 ## 激活启动授权与模型接口（2026-10-12，实施前）
 
 可信guest新增--approve-window-activation，仅在完整输入批准下生成activation_approved=true；默认不增加字段，单独使用或非布尔值拒绝。runtime冻结并记录该绑定，不自动执行激活。模型activate_window只接受当前snapshot_id，PID/window/session和名称框均由执行端决定；HTTP仅在输入/保存任务明确批准时开放。沿原单次执行器、账本、许可、停止及UNKNOWN规则，成功返回新图与WINDOW_ACTIVATION_OBSERVED，不代表输入或保存成功。验证采用原任务账本、真实loopback HTTP和模拟Driver，覆盖默认拒绝、参数越权、旧图、重复、超时及绑定冻结；官方DSH工具注册和实机验收仍须另行接通，不扩大旧协议默认权限。

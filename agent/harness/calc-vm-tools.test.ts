@@ -56,8 +56,8 @@ function fixture(t: any, change: any = {}) {
     tool:(name:string)=>registered.find(x=>x.name===name)}
 }
 
-async function inputFixture(t:any, saveMode=false) {
-  const f=fixture(t,{protocol:saveMode?'calc-save-v1':'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text'});f.init()
+async function inputFixture(t:any, saveMode=false, activation=false) {
+  const f=fixture(t,{protocol:saveMode?'calc-save-v1':'calc-input-v1',approvedText:'AbZ中文',approvedKind:'text',...(activation?{activationApproved:true}:{})});f.init()
   f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
     if(body.op==='input_cell')return {...common,used:5,status:'INPUT_OBSERVED',state:state('s00000003'),png:png.toString('base64'),
       confirmation:{status:'INPUT_OBSERVED',cell:'A2',snapshot_id:'s00000003',text:'AbZ中文',kind:'text',inputEffectVerified:true,storageTypeVerified:false,commitPermitted:false}}
@@ -73,6 +73,65 @@ async function inputFixture(t:any, saveMode=false) {
   await f.tool('vm_calc_select').execute({snapshot_id:'s00000001',x:25,y:30},f.exec)
   return f
 }
+
+for (const fault of [null,'extra','stale-args','stale-image','proof','accounting','repeat','timeout']) test(`explicit activation ${fault}`,async t=>{
+  const f=await inputFixture(t,true,true)
+  assert.equal(f.registered.length,8)
+  const ready=JSON.parse(readFileSync(join(f.root,'vm-tools-ready.json'),'utf8'))
+  assert.equal(ready.activationApproved,true);assert.ok(ready.toolNames.includes('vm_calc_activate'))
+  f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
+    if(body.op==='activate_window') {
+      if(fault==='timeout')throw Error('unknown delivery')
+      return {...common,used:fault==='accounting'?4:5,status:'WINDOW_ACTIVATION_OBSERVED',
+        state:state(fault==='stale-image'?'s00000002':'s00000003'),png:png.toString('base64'),inputEffectVerified:false,commitPermitted:false,
+        confirmation:{status:'WINDOW_ACTIVATION_OBSERVED',cell:'A2',snapshot_id:'s00000003',inputEffectVerified:fault==='proof',inputPermitted:false,commitPermitted:false}}
+    }
+    if(body.op==='focus_input')return {...common,used:7,status:'INPUT_FOCUS_OBSERVED',state:state('s00000004'),png:png.toString('base64'),
+      inputEffectVerified:false,commitPermitted:false,confirmation:{status:'INPUT_FOCUS_OBSERVED',cell:'A2',snapshot_id:'s00000004',inputEffectVerified:false,inputPermitted:false,commitPermitted:false}}
+    return value
+  }
+  const args:any={snapshot_id:fault==='stale-args'?'old':'s00000002'}
+  if(fault==='extra')args.pid=10
+  if(fault && fault!=='repeat') {
+    await assert.rejects(()=>f.tool('vm_calc_activate').execute(args,f.exec))
+    assert.equal(f.calls.at(-1).op,'stop');return
+  }
+  const out=await f.tool('vm_calc_activate').execute(args,f.exec)
+  assert.equal(JSON.parse(out.result).status,'WINDOW_ACTIVATION_OBSERVED');assert.ok(out.image)
+  if(fault==='repeat') {
+    await assert.rejects(()=>f.tool('vm_calc_activate').execute({snapshot_id:'s00000003'},f.exec))
+    assert.equal(f.calls.filter(c=>c.op==='activate_window').length,1);return
+  }
+  const focused=await f.tool('vm_calc_focus').execute({snapshot_id:'s00000003',x:25,y:30},f.exec)
+  assert.equal(JSON.parse(focused.result).used,7)
+})
+
+for (const binding of [
+  {activationApproved:true},
+  {protocol:'calc-input-v1',approvedText:'a',approvedKind:'text',activationApproved:false},
+  {protocol:'calc-input-v1',approvedText:'a',approvedKind:'text',activationApproved:'true'},
+]) test(`invalid activation binding ${JSON.stringify(binding)}`,t=>{
+  const f=fixture(t,binding);assert.throws(()=>f.init());assert.equal(f.calls.length,0)
+})
+
+test('default input has no activation tool',async t=>{
+  const f=await inputFixture(t)
+  assert.equal(f.tool('vm_calc_activate'),undefined)
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(f.root,'vm-tools-ready.json'),'utf8')),'activationApproved'),false)
+})
+
+for (const fault of ['early','budget']) test(`activation pre-dispatch guard ${fault}`,async t=>{
+  const f=fixture(t,{protocol:'calc-input-v1',approvedText:'a',approvedKind:'text',activationApproved:true});f.init()
+  f.control.reply=(body:any,_helpers:any,value:any)=>{
+    if(fault==='budget')value.used=body.op==='observe'?21:23
+    return value
+  }
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  if(fault==='budget')await f.tool('vm_calc_select').execute({snapshot_id:'s00000001',x:25,y:30},f.exec)
+  await assert.rejects(()=>f.tool('vm_calc_activate').execute({snapshot_id:fault==='early'?'s00000001':'s00000002'},f.exec))
+  assert.equal(f.calls.filter(c=>c.op==='activate_window').length,0)
+  assert.equal(f.calls.at(-1).op,'stop')
+})
 
 for (const fault of [null,'nan','partial','extra','proof','accounting','stale','repeat','observe']) test(`focus tool bounded chain ${fault}`,async t=>{
   const f=await inputFixture(t,true)

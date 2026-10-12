@@ -13,10 +13,11 @@ const UUID = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 export function registerCalcTools(ctx: Context, binding: any, configPath: string, auditPath: string): void {
   const saveMode = binding.protocol === 'calc-save-v1'
   const inputMode = saveMode || binding.protocol === 'calc-input-v1'
+  const activationMode = inputMode && binding.activationApproved === true
   const PROTOCOL = saveMode ? 'calc-save-v1' : inputMode ? 'calc-input-v1' : 'calc-selection-v1'
-  const TOOLS = [...BASE_TOOLS,...(inputMode ? ['vm_calc_input','vm_calc_commit','vm_calc_focus'] : []),...(saveMode?['vm_calc_open_save']:[])]
-  if (JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(['url','token','caseId','stage','protocol','runId','sessionId','cell',...(inputMode?['approvedText','approvedKind']:[])].sort())
-      || !Object.values(binding).every(value => typeof value === 'string')
+  const TOOLS = [...BASE_TOOLS,...(activationMode?['vm_calc_activate']:[]),...(inputMode ? ['vm_calc_input','vm_calc_commit','vm_calc_focus'] : []),...(saveMode?['vm_calc_open_save']:[])]
+  if (JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(['url','token','caseId','stage','protocol','runId','sessionId','cell',...(activationMode?['activationApproved']:[]),...(inputMode?['approvedText','approvedKind']:[])].sort())
+      || !Object.entries(binding).every(([key,value]) => key==='activationApproved' ? value===true : typeof value === 'string')
       || binding.url !== 'http://192.168.64.3:8766' || !/^[\w-]{43}$/.test(binding.token)
       || binding.caseId !== 'calc_selection' || binding.stage !== 'p7' || binding.protocol !== PROTOCOL
       || !new RegExp('^calc-select-'+UUID+'$').test(binding.runId)
@@ -48,6 +49,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
   let latestDetail: any
   let cancelRequested = false, cancelAttempted = false
   let inputPhase = 'selection'
+  let activationAttempted = false
   const images = new Set<string>()
   const watches = new WeakSet<AbortSignal>()
   async function stop() {
@@ -101,7 +103,11 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       if (stopped) throw new Error('Calc stopped')
       if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Calc argument object required')
       const keys = Object.keys(args).sort().join(',')
-      if (op === 'focus_input') {
+      if (op === 'activate_window') {
+        if (!activationMode || activationAttempted || keys!=='snapshot_id' || typeof snapshot!=='string'
+            || args.snapshot_id!==snapshot || inputPhase!=='selected' || lastUsed>22) throw Error('Single approved window activation required')
+        activationAttempted=true
+      } else if (op === 'focus_input') {
         if (!inputMode || keys!=='snapshot_id,x,y' || typeof snapshot!=='string' || args.snapshot_id!==snapshot
             || !Number.isFinite(args.x) || !Number.isFinite(args.y) || inputPhase!=='selected'
             || lastUsed>24) throw Error('Current selected focus point required')
@@ -132,7 +138,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || value.businessStatus !== 'UNVERIFIED' || !Number.isInteger(value.used) || value.used < lastUsed || value.used > 30) throw new Error('Calc response unconfirmed')
       const status = op === 'observe' ? 'OBSERVED' : value.status
       const allowed = op==='observe'?['OBSERVED']:op==='input_cell'?['INPUT_OBSERVED']:op==='commit_cell'?[saveMode?'CELL_COMMIT_OBSERVED':'COMMIT_ATTEMPT_OBSERVED']
-        :op==='open_save_dialog'?['SAVE_DIALOG_ATTEMPT_OBSERVED']:op==='focus_input'?['INPUT_FOCUS_OBSERVED']
+        :op==='open_save_dialog'?['SAVE_DIALOG_ATTEMPT_OBSERVED']:op==='focus_input'?['INPUT_FOCUS_OBSERVED']:op==='activate_window'?['WINDOW_ACTIVATION_OBSERVED']
         :['NEEDS_SCREENSHOT_POINT','NEEDS_EDIT_CANCEL','EDIT_CANCEL_ATTEMPT_OBSERVED','SELECTION_OBSERVED']
       if (!allowed.includes(status)) throw new Error('Calc status denied')
       if (status === 'NEEDS_SCREENSHOT_POINT' || status === 'NEEDS_EDIT_CANCEL') {
@@ -147,7 +153,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
       const alreadySelected = value.selectionRoute === 'already-selected'
       if (alreadySelected && (!inputMode || status!=='SELECTION_OBSERVED' || keys!=='snapshot_id')) throw Error('Calc readonly selection route denied')
       if (value.selectionRoute!==undefined && !alreadySelected) throw Error('Unknown Calc selection route')
-      if (value.used <= lastUsed || (['SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_FOCUS_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED','CELL_COMMIT_OBSERVED','SAVE_DIALOG_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+(alreadySelected?1:2))) throw new Error('Calc raw accounting mismatch')
+      if (value.used <= lastUsed || (['WINDOW_ACTIVATION_OBSERVED','SELECTION_OBSERVED','EDIT_CANCEL_ATTEMPT_OBSERVED','INPUT_FOCUS_OBSERVED','INPUT_OBSERVED','COMMIT_ATTEMPT_OBSERVED','CELL_COMMIT_OBSERVED','SAVE_DIALOG_ATTEMPT_OBSERVED'].includes(status) && value.used !== lastUsed+(alreadySelected?1:2))) throw new Error('Calc raw accounting mismatch')
       if ((status === 'EDIT_CANCEL_ATTEMPT_OBSERVED') !== (args.cancel_edit === true)) throw new Error('Calc cancellation response mismatch')
       const state = value.state
       if (!state || typeof state.snapshot_id !== 'string' || !/^s[0-9a-f]{8}$/.test(state.snapshot_id)
@@ -159,7 +165,7 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
           || png.readUInt32BE(16) !== state.screenshot_width || png.readUInt32BE(20) !== state.screenshot_height) throw new Error('Calc PNG mismatch')
       if (status === 'SELECTION_OBSERVED' && (value.confirmation?.status !== status || value.confirmation.cell !== binding.cell
           || value.confirmation.snapshot_id !== state.snapshot_id || value.confirmation.inputPermitted !== false)) throw new Error('Calc selection proof missing')
-      if (status==='INPUT_FOCUS_OBSERVED' && (value.confirmation?.status!==status || value.confirmation.cell!==binding.cell
+      if (['WINDOW_ACTIVATION_OBSERVED','INPUT_FOCUS_OBSERVED'].includes(status) && (value.confirmation?.status!==status || value.confirmation.cell!==binding.cell
           || value.confirmation.snapshot_id!==state.snapshot_id || value.confirmation.inputEffectVerified!==false
           || value.confirmation.inputPermitted!==false || value.confirmation.commitPermitted!==false
           || value.inputEffectVerified!==false || value.commitPermitted!==false)) throw Error('Calc focus proof missing')
@@ -227,6 +233,9 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
     parameters:{type:'object',properties:{},additionalProperties:false},output,isConcurrencySafe:()=>false,
     async execute(args,exec) { admit(exec); if (!args || Object.keys(args).length) throw new Error('No stop arguments'); await stop(); exec.concludeTurn(); return {result:JSON.stringify({stopped:true,businessStatus:'UNVERIFIED'})} }})
   if (inputMode) {
+    if (activationMode) ctx.tools.register({name:'vm_calc_activate',description:'After SELECTION_OBSERVED, explicitly activate only the bound VM window once using its current snapshot_id. Costs two raw calls including a fresh independent observation. Inspect WINDOW_ACTIVATION_OBSERVED and its new image, then independently focus the editor. This does not permit typing or prove input/save success. Never retry a failed, partial or uncertain activation.',
+      parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'}}},
+      output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('activate_window',args,exec)})
     ctx.tools.register({name:'vm_calc_focus',description:'After confirmed selection in an explicitly bound formula-input task, inspect the current original screenshot and choose an interior point on the visible existing formula text itself. AX bounds may cover only that text, not the full white bar: never choose the empty middle or right side. Send snapshot_id,x,y for one foreground focus click and independent new edit-state observation. Only INPUT_FOCUS_OBSERVED permits continuing with approved input; focus is not typing, commit or save. Never repeat failed or uncertain focus, and do not choose coordinates from old images.',
       parameters:{type:'object',additionalProperties:false,required:['snapshot_id','x','y'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'}}},
       output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('focus_input',args,exec)})
@@ -243,5 +252,6 @@ export function registerCalcTools(ctx: Context, binding: any, configPath: string
     parameters:{type:'object',additionalProperties:false,required:['snapshot_id'],properties:{snapshot_id:{type:'string'},x:{type:'number'},y:{type:'number'}}},
     output,isConcurrencySafe:()=>false,execute:(args,exec)=>execute('open_save_dialog',args,exec)})
   record(join(root,'vm-tools-ready.json'), {protocol:PROTOCOL,runId:binding.runId,sessionId:binding.sessionId,toolNames:[...TOOLS].sort(),
+    ...(activationMode?{activationApproved:true}:{}),
     ...(inputMode?{approvedText:binding.approvedText,approvedKind:binding.approvedKind}:{})}, true)
 }
