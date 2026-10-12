@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-12：核实签名身份与启动子进程原因
+
+- 上轮补丁/462项测试及服务恢复为有效进展。本轮只读核对实际VM：原daemon8776仍指向原App；codesign显示原App标识com.trycua.driver、Developer ID Application厂商签名、TeamIdentifier=YCK386LBJ7，候选为linker-signed adhoc、无TeamIdentifier、无绑定Info.plist。以identifier/Apple anchor/厂商Team要求执行codesign --verify -R，原App退出0、候选退出3/code failed to satisfy specified code requirements。首次命令遗漏内联要求的等号前缀，两端均参数失败；补正后取得上述有效对照，不把参数失败算身份结论。
+- 固定源码responsibility.rs在裸CLI且非embedded/已disclaimed/App包时，通过posix_spawn派生disclaimed子进程，父进程waitpid等待，子进程共享进程组；main.rs在serve权限门禁前调用此函数。这解释了上轮只对Popen父PID发TERM后实际子服务未退出，不是未知第二任务。原App包路径跳过该派生，但包路径检查本身不是签名/TCC授权证明。
+- 没有读取/编辑TCC数据库、导出签名私钥、尝试同名冒充、设置embedded借其他程序权限、重启服务或调用模型。下一步独立诊断App需单独的明确辅助功能与录屏授权，现有“不新增权限”边界不允许实施；先补实施前方案并请求用户决定。未证明原006失焦根因，P7仍未验收。
+
 ## 2026-10-12：焦点诊断候选与失败切换的完整恢复
 
 - 用户批准一次可恢复的诊断daemon切换后，先补方案，再对固定上游0c69d9a增加driver-focus-diagnostic.patch（MIT）。CUAGENT_FOCUS_DIAGNOSTICS=1才采样：光标动画前后、HID入口、原/目标PSN、精确AX焦点、实际preserve/temporary分支及动作/恢复结果；不记录文档、修改原动作或取消焦点保护。AX采样及同步日志可能影响时序，不称无扰动。
