@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-12：显式精确窗口激活执行层，尚未接DSH
+
+- 上轮005取得具体错误，属于有效证据进展。本轮核对固定上游bring_to_front：与点击内部400ms短暂激活不同，独立持久置前使用NSRunningApplication及精确AX操作，900ms内核验并要求100ms稳定。它会改变VM前台，不冒充只读检查；不能据源码宣称已修复LibreOffice。
+- 先补方案，再在CalcInputTask增加activation_approved（严格bool、默认false）与activate_window_once；只对可信批准实例开放bring_to_front，固定原PID/window/session，原共享锁/许可/30raw不变。确认新鲜选择且used≤22后独占落盘意图，单次激活和新观察分别计数；全部精确事实通过、原单元格新观察一致才返回WINDOW_ACTIVATION_OBSERVED，不代表编辑器聚焦或输入许可。
+- partial/不一致的结果保留并置uncertain/停止；超时沿原UNKNOWN，停止后禁止后观察。既有intent拒绝再次激活；不以request_accepted或全局层级第一单独判断成功，不改变默认选择/输入实例工具范围，没有自动click回退。
+- 新增25项测试，用真实私有文件/原Task账本配模拟Driver，覆盖正常、默认关闭、15种错误/缺失事实、超时、预算/失权/停止/陈旧快照/审计失败、在途停止及重复调用。完整tools/mac_vm/tests与backend/tests/test_desktop_deploy.py为838 passed、256 subtests passed，git diff --check通过。
+- 本轮未部署、调用模型或改变VM前台，原005及原服务保持不变。下一步接可信guest批准、HTTP/model协议及官方DSH显式工具，再冻结新候选验证；仍需真实保存面板、落盘/重开和ODS独立核验，P7未验收。
+
 ## 2026-10-12：005取得精确窗口焦点错误，原会话安全结束
 
 - 固定bd201846cf62a9fae077068de38aa5d41d30efbe，497份源码冻结、37个VM文件独立读回一致。普通额度最新剩71%，积分仍62494.0260570000、重置卡未用；私有新记录0600，按最新3%门槛。原空闲Worker70928受控切出，原P5仍PAUSED；Flash/off新run/session各一个，未恢复004。

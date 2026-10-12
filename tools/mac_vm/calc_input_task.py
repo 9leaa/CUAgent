@@ -8,13 +8,42 @@ from calc_selection import CalcSelectionTask, _save
 from driver_smoke import StopRun
 
 
+def verify_window_activation(value, pid, window_id):
+    """A native request receipt is not a verified exact-window activation."""
+    if not isinstance(value,dict):
+        raise ValueError('exact activation response required')
+    effect=value.get('exact_window_effect')
+    observed=value.get('observed')
+    if (value.get('status')!='activated'
+            or value.get('code')!='bring_to_front_exact_window_verified'
+            or value.get('activated') is not True or value.get('process_activated') is not True
+            or type(value.get('pid')) is not int or value['pid']!=pid
+            or type(value.get('window_id')) is not int or value['window_id']!=window_id
+            or not isinstance(effect,dict) or not isinstance(observed,dict)
+            or any(effect.get(k) is not True for k in (
+                'verified','focused','front_in_process_on_display','target_visible_ordinary'))
+            or any(type(observed.get(k)) is not int or observed[k]!=expected for k,expected in (
+                ('frontmost_pid',pid),('focused_window_id',window_id),
+                ('process_front_window_on_display',window_id)))
+            or observed.get('front_process_matches_target') is False):
+        raise ValueError('exact window activation unverified')
+    return dict(pid=pid,window_id=window_id,status='WINDOW_ACTIVATION_OBSERVED',
+                inputEffectVerified=False,businessStatus='UNVERIFIED')
+
+
 class CalcInputTask(CalcSelectionTask):
     RAW_TOOLS = CalcSelectionTask.RAW_TOOLS | {'type_text'}
     SIDE_EFFECT_TOOLS = CalcSelectionTask.SIDE_EFFECT_TOOLS | {'type_text'}
 
     def __init__(self, *args, input_approved=False, overwrite_disposable=False,
                  approved_text=None, approved_kind=None, commit_approved=False,
-                 formula_region=None, **kwargs):
+                 formula_region=None, activation_approved=False, **kwargs):
+        if type(activation_approved) is not bool:
+            raise ValueError('explicit activation approval required')
+        self.activation_approved=activation_approved
+        if activation_approved:
+            self.RAW_TOOLS=self.RAW_TOOLS|{'bring_to_front'}
+            self.SIDE_EFFECT_TOOLS=self.SIDE_EFFECT_TOOLS|{'bring_to_front'}
         self.formula_region=None if formula_region is None else tuple(formula_region)
         if self.formula_region is not None:
             from calc_targeting import _number
@@ -33,6 +62,7 @@ class CalcInputTask(CalcSelectionTask):
             binding=dict(cell=self.cell,approvedText=approved_text,approvedKind=approved_kind,
                          inputApproved=True,overwriteDisposable=True)
             if commit_approved:binding['commitApproved']=True
+            if activation_approved:binding['activationApproved']=True
             if self.formula_region is not None:binding['formulaRegion']=list(self.formula_region)
             path=self.directory/'input-binding.json'
             if path.exists() or path.is_symlink():
@@ -45,6 +75,47 @@ class CalcInputTask(CalcSelectionTask):
         except Exception:
             self.close()
             raise
+
+    def validate_raw(self, tool, args):
+        if tool=='bring_to_front' and (not self.activation_approved or args!={
+                'pid':self.pid,'window_id':self.window,'session':self.run_id}):
+            raise StopRun('BLOCKED','Only original exact-window activation allowed')
+        return super().validate_raw(tool,args)
+
+    def activate_window_once(self, *, snapshot_id, name_box_index):
+        """Explicit foreground change, never an automatic click fallback."""
+        with self.lock:
+            try:
+                if (not self.activation_approved or self.phase!='CONFIRMED'
+                        or self.stopped.is_set() or self.uncertain or self.lock_fd is None
+                        or not self.snapshot or snapshot_id!=self.snapshot['snapshot_id']):
+                    raise StopRun('BLOCKED','Approved fresh selection required for activation')
+                self.environment();self.lease.check();self.identity(self.pid)
+                if self.used>22:
+                    raise StopRun('BLOCKED','Reserve activation, focus, input and commit observations')
+                confirm_selected_cell(self.snapshot,**self._context(),
+                    previous_snapshot_id=self.before_click,name_box_index=name_box_index)
+                intent=dict(snapshot_id=snapshot_id,pid=self.pid,window_id=self.window,
+                            used=self.used,persistentForeground=True)
+                _save(self.directory/'window-activation-attempt.json',json.dumps(intent).encode())
+                self.record(dict(event='window_activation_intent',plan=intent))
+                self.phase='WINDOW_ACTIVATION_ATTEMPTED';self.snapshot=None
+                value=self._call('bring_to_front',dict(pid=self.pid,window_id=self.window,session=self.run_id))
+                try:
+                    proof=verify_window_activation(value,self.pid,self.window)
+                except Exception:
+                    self.uncertain=True
+                    self.record(dict(event='window_activation_unverified',used=self.used))
+                    raise
+                result=self.observe()
+                confirm_selected_cell(self.snapshot,**self._context(),
+                    previous_snapshot_id=snapshot_id,name_box_index=name_box_index)
+                self.record(dict(event='window_activation_observed',proof=proof,used=self.used))
+                self.phase='CONFIRMED'
+                return dict(result,**proof,inputPermitted=False,commitPermitted=False)
+            except Exception:
+                self.stop()
+                raise
 
     def focus_input_once(self, *, snapshot_id, name_box_index, point, controls_region, editor_regions):
         """Trusted adapter regions; one screenshot click and independent edit check."""

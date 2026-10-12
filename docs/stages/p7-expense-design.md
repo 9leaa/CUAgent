@@ -1,5 +1,11 @@
 # P7 费用核对：实施前方案
 
+## 精确窗口显式激活（2026-10-12，实施前）
+
+005证明像素点通过但点击内部400ms的AXFocusedWindow确认失败；未证明AX读取错误，也未证明窗口无法通过其他正常激活方法置前。固定上游已有bring_to_front：NSRunningApplication激活及精确AX窗口操作，最长900ms核对进程、精确焦点和同显示器内该进程前窗，连续100ms稳定才确认。该动作会持久改变VM前台，不能隐藏在click重试或当只读查询；不替换daemon、不放宽焦点判断。
+
+先在CalcInputTask新增默认关闭的可信activation_approved及独立activate_window_once。仅原已确认单元格/新鲜快照、固定PID/window、原锁/租约有效且used≤22时可用；独占意图防重复，bring_to_front及新观察分别计原预算。核对activated/code、进程与精确窗口事实全部一致，再以新图/名称框复核原单元格；partial/未知/异常停止，绝不据request_accepted单独放行。不以该证明代替公式栏聚焦或输入验证，不自动点击。原selection/默认input不开放raw工具；先验证模拟执行、停止/失权/超时/篡改，再接可信guest与官方DSH显式工具。旧005不恢复，新真实调用另按新候选准入。
+
 ## 独立诊断CLI接线（2026-10-12，代码前）
 
 用户已批准独立部署诊断CLI并经原DSH运行一次新候选。原004保持UNKNOWN/停止，原App、daemon及权限不变。已将仅补stderr的候选放到VM私有摘要命名目录，字节SHA256为1c86beeaaf07d0deb43fa232961606ea8984ca1202e7e3e102e6c924ac6a2104；status连接原socket成功，原PID1521及原App摘要不变。这仅证明装载及状态查询，不证明工具协议兼容或前台点击有效。
