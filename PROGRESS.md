@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-12：排除本次前台调用的焦点抑制，确认历史日志缺口
+
+- 上轮006提供真实激活/点击后状态，是有效进展。本轮仅检查固定上游源码和原daemon文件描述符，未追加模型、点击或恢复006。click.rs的pixel_activation_policy在effective_foreground=true时返回ForegroundAssist，调用snapshot_without_suppression；with_focus_suppressed传target=None，因此本次前台路径不建立通配或目标抑制租约。后台AllowTargetWithoutRaise的额外恢复分支也不适用，不能以其源码解释006。
+- 精确HID helper仍可能走preserves_exact_existing_focus直接action，或激活/核验/action/恢复prior；cursor overlay动画发生在prior_front捕获前，窗口检测只报告是否变化而不保存完整身份。尚无证据证明overlay、外部应用或临时恢复中的哪一个导致实际失焦，不把可能性写成根因。源码检查不能证明已安装二进制的某次分支。
+- 通过原SSH只读确认PID1521仍是/Applications/CuaDriver.app/Contents/MacOS/cua-driver，lsof仅查询fd1/2，二者均/dev/null。原006回执也没有prior/target PSN或实际preserve/restore分支；当前无法补回这些历史事实。list_apps虽可读当前active，但不能证明历史点击瞬间，未用无关当前状态代替原证据。
+- 下一步最小诊断必须在实际执行daemon内记录点击前后前台PID/精确焦点及实际分支，不能只改CLI。已有授权为独立CLI连接原daemon、不替换/重启daemon；因此本轮不擅自升级或启动替代服务。需用户明确批准一次可恢复的诊断daemon切换（不改权限/SIP），再编写补丁、编译测试及原App/服务恢复核对。当前只读证据已同步README；无新实机任务成功、P7仍未完成。
+
 ## 2026-10-12：006真实激活通过，后续聚焦未通过
 
 - 固定7817a0c，499份源码冻结，37个guest文件独立读回摘要/私有权限通过；新run calc-select-aa14d9f3-83db-4974-b7d1-8e2a5c20c0fb、新官方session-a52826b0-dae6-4599-b0f6-380035d988f6。两端activationApproved显式绑定，原005不恢复。新查普通额度剩69%、余额62494.0260570000、两张重置卡未使用；VM执行端解锁核验通过，无需本轮手工解锁。
