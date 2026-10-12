@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-12：005取得精确窗口焦点错误，原会话安全结束
+
+- 固定bd201846cf62a9fae077068de38aa5d41d30efbe，497份源码冻结、37个VM文件独立读回一致。普通额度最新剩71%，积分仍62494.0260570000、重置卡未用；私有新记录0600，按最新3%门槛。原空闲Worker70928受控切出，原P5仍PAUSED；Flash/off新run/session各一个，未恢复004。
+- 官方DSH自主观察、已选中A2只读复核后，选当前文字内部(530,234)执行一次focus。3raw依次get_window_state/get_window_state/click；原call_id b719dd2f-9b54-43ac-8744-87612a072c79返回UNKNOWN。固定诊断CLI/原socket真实工具链可用，stderr保留142字节：click failed: foreground HID delivery to window 1250 was not possible: exact target window did not become focused for foreground HID delivery。无文本截断，未输入、提交或保存，没有补点或换通道重试。
+- 固定上游skylight.rs::with_foreground_hid_activation在make_exact_window_key之后等待AXFocusedWindow映射到目标CGWindowID；400ms内未匹配便返回该错误，位于动作闭包之前。故本轮具体失败是精确焦点证明缺失，不是点位拒绝；不能据此区分真实激活失败与AX焦点读回不兼容，也不回填004原因或取消保护。
+- 原会话terminal、pendingCalls=0、lease stopped、guest退出0，profile字节恢复，Worker81949恢复；原Driver服务未替换/重启。私有原图、绑定、激活意图及trace独立采集校验；原图确认点位位于文字内。另新只读诊断2raw取原窗口及新图，A2/公式栏仍旧AbZ中文、未见编辑控件，无业务副作用派发；不冒充原任务后观察或新输入成功。
+- 独立审核保存于.runtime/calc-dsh-save-005/calc-select-4f20044c-2233-440b-bf94-26bd3fd40fd9/independent-save-review.json。原3raw与额外2raw分别报告。一次额外官方查询因相对路径被本机参数检查拒绝，未重发模型请求；原生命周期终态回执及恢复核对已成功。完整本地813项及256子测试通过；P7仍UNVERIFIED，下一步设计只读焦点身份核验及受控精确窗口激活，不再盲调坐标、不重复005。
+
 ## 2026-10-12：独立诊断CLI部署与显式传输
 
 - 用户允许部署独立诊断CLI并经原DSH取证一次。固定0c69d9a补丁构建SHA256为1c86beeaaf07d0deb43fa232961606ea8984ca1202e7e3e102e6c924ac6a2104，124961224字节；VM新私有摘要目录独占写入并读回一致，status退出0，原daemon1521及App摘要不变。没有替换App、启动新daemon或改权限。私有部署意图/输出留.runtime/driver-diagnostic-deploy-001。

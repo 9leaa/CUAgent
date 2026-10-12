@@ -1,6 +1,8 @@
 # Cua / Lume 隔离补丁
 
-## Driver CLI错误诊断候选（隔离CLI验证通过，未安装）
+## Driver CLI错误诊断候选（独立CLI已实机取证，原App未替换）
+
+2026-10-12更新：固定候选SHA256 `1c86beeaaf07d0deb43fa232961606ea8984ca1202e7e3e102e6c924ac6a2104`独立部署到VM私有目录，显式连接原socket。status及官方DSH005真实工具传输通过，失败stderr保留完整精确窗口焦点说明；原daemon/App/权限未改。该补丁只完成诊断输出，未修复焦点或实现保存重开。下方未安装描述为构建时记录。
 
 `driver-cli-error-detail.patch`独立于下方Lume补丁，基点为Driver标签`cua-driver-rs-v0.34.1`解析的提交`0c69d9a2c8abbb5051a2df4a23f0fa166d5385dc`，同MIT许可。仅在工具失败且stdout已输出结构化响应时，把原content中的文本写入stderr；成功stdout、退出码、daemon调用、权限、会话、派发次数不变。CUAgent已有私有审计对每个输出流保留最多4096字节预览和完整摘要，文本不得作为模型指令。
 
