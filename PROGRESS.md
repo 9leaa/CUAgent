@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-12：焦点诊断候选与失败切换的完整恢复
+
+- 用户批准一次可恢复的诊断daemon切换后，先补方案，再对固定上游0c69d9a增加driver-focus-diagnostic.patch（MIT）。CUAGENT_FOCUS_DIAGNOSTICS=1才采样：光标动画前后、HID入口、原/目标PSN、精确AX焦点、实际preserve/temporary分支及动作/恢复结果；不记录文档、修改原动作或取消焦点保护。AX采样及同步日志可能影响时序，不称无扰动。
+- 固定Rust1.97.1、原Cargo.lock：cargo test --locked -j2 -p platform-macos --lib结果462 passed、6 ignored；其中新增2项验证JSON单行/未知值及输出失败不panic。cargo build --locked -j2 -p cua-driver成功；保留上游警告。候选SHA256为1534ee0e0fef90c05e41a0177bef5c9173cc768cbc3d6d498a3cadbf45092bb7，独立部署并读回一致，不覆盖原App；这些不是GUI焦点验收。
+- 在队列空闲、P5暂停、DSH无运行会话后，停止原Worker82758及原daemon1521，尝试单个候选服务。候选未继承原App TCC权限，权限门禁自动打开系统设置；没有新增权限、绕过门禁、模型请求或业务GUI调用。未创建007业务样本，006仍原终态。
+- 启动实际由父进程8422派生daemon8425，初版supervisor只清理父进程，首次恢复未成功，故未自动恢复Worker。核对实际二进制身份后退出8425，确认候选消失，再通过原App启动；原服务恢复为8776，原摘要12d4f43b9db80af6fe1dc295f362a50891121be964ec52b032f84b0ffd50640a不变，daemon自身辅助功能/录屏权限均true。恢复脚本初次进程计数遇到尚在退出的查询CLI，改为核对serve进程，不重复启动服务。
+- 新私有recovery-service.json与worker-recovered.json独占保存，不覆盖失败receipt；原环境Worker恢复为92378，任务活动数0、desktop资源无owner、共享锁可取、DSH running为空、P5仍PAUSED。证据位于.runtime/driver-focus-smoke-001及driver-focus-diagnostic-deploy-001，均不公开。
+- 下步先审查候选App签名/责任进程与TCC身份兼容，并修正生命周期跟踪以实际daemon/socket身份为准；本次授权不包含新权限授予，不盲目再次切换。真正失焦根因、编辑聚焦、保存重开/ODS和完整P7仍未完成。README同步。
+
 ## 2026-10-12：排除本次前台调用的焦点抑制，确认历史日志缺口
 
 - 上轮006提供真实激活/点击后状态，是有效进展。本轮仅检查固定上游源码和原daemon文件描述符，未追加模型、点击或恢复006。click.rs的pixel_activation_policy在effective_foreground=true时返回ForegroundAssist，调用snapshot_without_suppression；with_focus_suppressed传target=None，因此本次前台路径不建立通配或目标抑制租约。后台AllowTargetWithoutRaise的额外恢复分支也不适用，不能以其源码解释006。

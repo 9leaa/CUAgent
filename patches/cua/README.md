@@ -1,5 +1,11 @@
 # Cua / Lume 隔离补丁
 
+## Driver焦点诊断候选（实机权限准入未通过）
+
+`driver-focus-diagnostic.patch`基于下方相同Driver 0.34.1提交及MIT许可，只改macOS平台日志；在隔离源码目录应用，不覆盖已授权App。`CUAGENT_FOCUS_DIAGNOSTICS=1`记录私有stderr JSON行，包括光标前后、精确焦点与前台身份、HID的preserve/temporary分支及恢复事实。默认不采样，不修改原动作、等待或返回值；读取AX和同步日志仍可能改变时序。日志不含文档内容，但含进程身份，应私有保存。
+
+固定Rust1.97.1：`cargo test --locked -j2 -p platform-macos --lib`为462通过/6忽略；`cargo build --locked -j2 -p cua-driver`通过。新增两项为JSON单行及输出错误不panic，不代表完整日志分支实机覆盖。2026-10-12临时服务准入发现独立候选没有原App权限，未执行业务动作或授予新权限。启动会派生daemon，不能只清理Popen父PID；须核对实际可执行文件和socket所有者后退出确切候选，再恢复原App。原服务/权限/Worker现已恢复，原失败回执保留；未修复或验收真实聚焦。
+
 ## Driver CLI错误诊断候选（独立CLI已实机取证，原App未替换）
 
 2026-10-12更新：固定候选SHA256 `1c86beeaaf07d0deb43fa232961606ea8984ca1202e7e3e102e6c924ac6a2104`独立部署到VM私有目录，显式连接原socket。status及官方DSH005真实工具传输通过，失败stderr保留完整精确窗口焦点说明；原daemon/App/权限未改。该补丁只完成诊断输出，未修复焦点或实现保存重开。下方未安装描述为构建时记录。
