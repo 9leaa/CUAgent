@@ -61,7 +61,7 @@ def test_official_envelope_through_http_to_executor(model_setup,service,ax):
 @pytest.mark.parametrize('op,args,changes',[
     ('observe',{},dict(sessionId='other')),('observe',{},dict(runId='other')),
     ('type_text',{},{}),('save',{},{}),('confirm',dict(nameBoxIndex=2),{}),
-    ('input_cell',{},{}),('commit_cell',{},{}),('focus_input',{},{}),
+    ('input_cell',{},{}),('commit_cell',{},{}),('focus_input',{},{}),('activate_window',{},{}),
     ('select_cell',dict(snapshot_id='stale',x=90,y=120),{}),
     ('select_cell',dict(snapshot_id='s1',x=90),{}),
     ('select_cell',dict(snapshot_id='s1',x=90,y=120,pid=10),{}),

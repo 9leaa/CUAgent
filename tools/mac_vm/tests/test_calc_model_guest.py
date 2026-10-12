@@ -72,7 +72,7 @@ def test_no_approval_never_checks_vm(monkeypatch):
     ['--approve-cancel-edit'],['--pending-edit-text','a'],
     ['--edit-controls-region','1','2','3','4'],
     ['--approve-cancel-edit','--pending-edit-text','a'],
-    ['--approve-input'],['--approve-commit'],['--input-text','AbZ'],
+    ['--approve-input'],['--approve-commit'],['--approve-window-activation'],['--input-text','AbZ'],
     ['--overwrite-disposable'],
     ['--approve-save'],['--save-toolbar-region','100','20','250','90'],
     ['--approve-save','--save-toolbar-region','100','20','250','90'],
@@ -151,6 +151,13 @@ def test_input_launch_binding_validation(fault):
         value=input_binding(args)
         assert value['approved_text']=='AbZ中文' and value['commit_approved'] is True
         assert input_binding(SimpleNamespace()) is None
+        assert 'activation_approved' not in value
+        args.approve_window_activation=True
+        assert input_binding(args)['activation_approved'] is True
+        with pytest.raises(ValueError):input_binding(SimpleNamespace(approve_window_activation=True))
+        args.approve_window_activation=1
+        with pytest.raises(ValueError):input_binding(args)
+        args.approve_window_activation=False
         args.input_target='formula'
         assert input_binding(args)['formula_region']==args.input_formula_region
         with pytest.raises(ValueError):input_binding(SimpleNamespace(input_target='formula'))

@@ -37,9 +37,11 @@ def input_binding(args):
     approved=getattr(args,'approve_input',False)
     overwrite=getattr(args,'overwrite_disposable',False)
     commit=getattr(args,'approve_commit',False)
+    activation=getattr(args,'approve_window_activation',False)
+    if type(activation) is not bool:raise ValueError('explicit activation boolean required')
     target=getattr(args,'input_target','cell')
     if target not in ('cell','formula'):raise ValueError('reviewed input target mode required')
-    if not approved and not overwrite and not commit and target=='cell' and all(v is None for v in fields):return None
+    if not approved and not overwrite and not commit and not activation and target=='cell' and all(v is None for v in fields):return None
     if not approved or not overwrite or any(v is None for v in fields):
         raise ValueError('explicit input approval, disposable overwrite, payload and regions required')
     text,kind,controls,body,formula=fields
@@ -53,6 +55,7 @@ def input_binding(args):
     result=dict(input_approved=True,overwrite_disposable=True,approved_text=text,approved_kind=kind,
                 commit_approved=commit,controls_region=controls,editor_regions=[body,formula])
     if target=='formula':result['formula_region']=list(formula)
+    if activation:result['activation_approved']=True
     return result
 
 
@@ -116,6 +119,8 @@ def main(argv=None):
     parser.add_argument('--diagnostic-driver', action='store_true',
                         help='Use the fixed independently deployed diagnostic CLI, original daemon only')
     parser.add_argument('--approve-input',action='store_true')
+    parser.add_argument('--approve-window-activation',action='store_true',
+                        help='Allow one explicit activation of the bound input window')
     parser.add_argument('--overwrite-disposable',action='store_true')
     parser.add_argument('--approve-commit',action='store_true')
     parser.add_argument('--approve-save',action='store_true')

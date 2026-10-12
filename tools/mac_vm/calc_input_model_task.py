@@ -39,6 +39,21 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
             self.close()
             raise
 
+    def activate_window(self, args):
+        with self.lock:
+            try:
+                if not isinstance(args,dict) or set(args)!={'snapshot_id'}:
+                    raise ValueError('only current activation snapshot allowed')
+                result=self.activate_window_once(snapshot_id=args['snapshot_id'],
+                    name_box_index=self._name_box())
+                confirmation=dict(status='WINDOW_ACTIVATION_OBSERVED',cell=self.cell,
+                    snapshot_id=result['state']['snapshot_id'],inputEffectVerified=False,
+                    inputPermitted=False,commitPermitted=False)
+                return self.envelope(dict(result,confirmation=confirmation))
+            except Exception:
+                self.stop()
+                raise
+
     def focus_input(self, args):
         with self.lock:
             try:

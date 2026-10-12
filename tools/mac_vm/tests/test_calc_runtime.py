@@ -110,7 +110,8 @@ def test_bad_tokens_and_test_injection_are_rejected(runtime):
 
 
 @pytest.mark.parametrize('formula',[False,True])
-def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,monkeypatch,formula):
+@pytest.mark.parametrize('activation',[None,False,True])
+def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,monkeypatch,formula,activation):
     import json
     value,_,_,task=runtime
     factory=Mock(return_value=task)
@@ -119,9 +120,11 @@ def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,mon
         commit_approved=True,controls_region=[200,90,320,130],
         editor_regions=[[0,190,80,240],[370,90,420,130]])
     if formula:binding['formula_region']=[370,90,420,130]
+    if activation is not None:binding['activation_approved']=activation
     candidate=CalcGuestRuntime(value.directory,value.controller,model_token='m'*43,control_token='c'*43,
         selection=value.selection,input_binding=binding,port=0,loopback_test=True)
     binding['approved_text']='changed';binding['editor_regions'][0][0]=99
+    binding['activation_approved']=not activation
     if formula:binding['formula_region'][0]=0
     factory.assert_not_called()
     assert value.controller.existing() is None
@@ -131,9 +134,24 @@ def test_input_runtime_freezes_binding_and_only_activates_with_lease(runtime,mon
         kwargs=factory.call_args.kwargs
         assert kwargs['approved_text']=='AbZ' and kwargs['editor_regions'][0][0]==0
         if formula:assert kwargs['formula_region']==[370,90,420,130]
+        if activation is None:assert 'activation_approved' not in kwargs
+        else:assert kwargs['activation_approved'] is activation
         intent=json.loads((value.directory/'calc-activation-intent.json').read_text())
         assert intent['inputBinding']['commit_approved'] is True and task.used==0
+        assert intent['inputBinding'].get('activation_approved') is activation
     finally:candidate.close()
+
+
+@pytest.mark.parametrize('activation',[1,'true',None,[],{}])
+def test_runtime_rejects_nonboolean_activation_before_task(runtime,activation):
+    value,_,_,task=runtime
+    binding=dict(input_approved=True,overwrite_disposable=True,approved_text='AbZ',approved_kind='text',
+        commit_approved=True,controls_region=[200,90,320,130],
+        editor_regions=[[0,190,80,240],[370,90,420,130]],activation_approved=activation)
+    with pytest.raises(ValueError,match='activation boolean'):
+        CalcGuestRuntime(value.directory,value.controller,model_token='m'*43,control_token='c'*43,
+            selection=value.selection,input_binding=binding,port=0,loopback_test=True)
+    assert value.controller.existing() is None and task.used==0
 
 
 @pytest.mark.parametrize('failure',[False,True])

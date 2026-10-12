@@ -1,5 +1,9 @@
 # P7 费用核对：实施前方案
 
+## 激活启动授权与模型接口（2026-10-12，实施前）
+
+可信guest新增--approve-window-activation，仅在完整输入批准下生成activation_approved=true；默认不增加字段，单独使用或非布尔值拒绝。runtime冻结并记录该绑定，不自动执行激活。模型activate_window只接受当前snapshot_id，PID/window/session和名称框均由执行端决定；HTTP仅在输入/保存任务明确批准时开放。沿原单次执行器、账本、许可、停止及UNKNOWN规则，成功返回新图与WINDOW_ACTIVATION_OBSERVED，不代表输入或保存成功。验证采用原任务账本、真实loopback HTTP和模拟Driver，覆盖默认拒绝、参数越权、旧图、重复、超时及绑定冻结；官方DSH工具注册和实机验收仍须另行接通，不扩大旧协议默认权限。
+
 ## 精确窗口显式激活（2026-10-12，实施前）
 
 005证明像素点通过但点击内部400ms的AXFocusedWindow确认失败；未证明AX读取错误，也未证明窗口无法通过其他正常激活方法置前。固定上游已有bring_to_front：NSRunningApplication激活及精确AX窗口操作，最长900ms核对进程、精确焦点和同显示器内该进程前窗，连续100ms稳定才确认。该动作会持久改变VM前台，不能隐藏在click重试或当只读查询；不替换daemon、不放宽焦点判断。

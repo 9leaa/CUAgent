@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-12：激活启动绑定与模型HTTP接口
+
+- 先补技术方案，再接guest显式--approve-window-activation；只有完整输入批准可生成activation_approved=true，默认省略，不因输入/保存协议自动授权。runtime校验严格布尔并冻结原绑定，激活意图留存；构造和授权本身不调用Driver。
+- CalcInputModelTask增加activate_window，只收当前snapshot_id，可信名称框和原PID/window/session不可由模型改写。原HTTP仅对明确批准输入/保存实例开放，选择及默认输入拒绝。沿原执行器单次激活→新观察→独立复核，不授予编辑/提交或业务成功。
+- 新增真实loopback鉴权HTTP/原账本回归，Driver为模拟：新图与2raw、重复拒绝、参数越权、陈旧快照、默认关闭及超时UNKNOWN无后观察；另覆盖启动孤立批准、非布尔拒绝、绑定冻结与旧选择协议拒绝。完整命令：`/Users/zhangchengjie/CUAgent/.runtime/backend-venv/bin/python -m pytest -q tools/mac_vm/tests backend/tests/test_desktop_deploy.py`，858 passed、256 subtests passed。针对集先65通过，全量首次857通过，补选择拒绝反例后为858；不是实机结果。
+- 本轮未部署、启动模型或改变VM/正式profile，005保持原UNKNOWN，不重放。官方DSH插件/宿主工具名单仍待显式接线；下一步接通并测试这些边界，再冻结新候选验证激活和聚焦，最终保存/重开/ODS仍未完成。README同步，P5不恢复。
+
 ## 2026-10-12：显式精确窗口激活执行层，尚未接DSH
 
 - 上轮005取得具体错误，属于有效证据进展。本轮核对固定上游bring_to_front：与点击内部400ms短暂激活不同，独立持久置前使用NSRunningApplication及精确AX操作，900ms内核验并要求100ms稳定。它会改变VM前台，不冒充只读检查；不能据源码宣称已修复LibreOffice。
