@@ -117,7 +117,9 @@ diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs b/libs/
 index 123289a..2e14ed6 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
-@@ -9,6 +9,7 @@
+@@ -7,10 +7,11 @@
+ //!    to the target pid. Prefers `SLEventPostToPid` (SkyLight SPI) over the
+ //!    public `CGEventPostToPid` to reach Catalyst/Chromium apps and trigger
  //!    the activity-monitor tickle required for live-input detection.
  
  pub mod ax_actions;
@@ -125,11 +127,15 @@ index 123289a..2e14ed6 100644
  pub mod interactive;
  pub mod keyboard;
  pub mod mouse;
+ pub mod pointer_toolkit;
+ pub mod skylight;
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
-index bc75ce5..7988e74 100644
+index bc75ce5..a1ec759 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
-@@ -834,9 +834,8 @@ const ACTIVATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_
+@@ -832,13 +832,12 @@ const ACTIVATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_
+ /// the target was demonstrably being fronted, so a frontmost-based wait always
+ /// burns its whole timeout and never actually gates on anything. `AXFocusedWindow`
  /// is the same proof [`preserves_exact_existing_focus`] already trusts to decide
  /// whether a window is focused.
  ///
@@ -141,7 +147,11 @@ index bc75ce5..7988e74 100644
  fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
      let deadline = std::time::Instant::now() + ACTIVATION_WAIT_TIMEOUT;
      loop {
-@@ -850,6 +849,55 @@ fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
+         if crate::ax::bindings::focused_window_id_of_pid(pid) == Some(window_id) {
+             return true;
+@@ -848,10 +847,59 @@ fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
+         }
+         std::thread::sleep(ACTIVATION_POLL_INTERVAL);
      }
  }
  
@@ -197,7 +207,11 @@ index bc75ce5..7988e74 100644
  /// Activate an exact target window for a global HID keyboard action.
  ///
  /// Unlike [`with_menu_shortcut_activation`], this helper must not run `action`
-@@ -877,38 +925,108 @@ pub fn with_foreground_hid_activation(
+ /// when the private foreground SPI is unavailable: a global HID event has no
+ /// pid addressing and would otherwise land in whichever application is
+@@ -875,42 +923,134 @@ pub fn with_foreground_hid_activation(
+     if !get_process_psn_for_window(target_wid, target_pid, &mut target_psn) {
+         anyhow::bail!("could not resolve target window for foreground HID delivery");
      }
  
      let focused_window_id = crate::ax::bindings::focused_window_id_of_pid(target_pid);
@@ -243,6 +257,12 @@ index bc75ce5..7988e74 100644
 +                serde_json::json!({"ready":ready}));
 +            ready
 +        },
++        || {
++            let raised = crate::tools::raise_exact_ax_window_for_hid(target_pid, target_wid);
++            focus_diagnostic("raise_exact_returned", target_pid, target_wid,
++                serde_json::json!({"raised":raised}));
++            raised
++        },
 +        || await_window_focused(target_pid, target_wid),
 +        || { action_attempted = true; action() },
 +    );
@@ -265,11 +285,15 @@ index bc75ce5..7988e74 100644
 +// hit-testing or rule out a focus change after the check.
 +fn run_after_exact_focus(
 +    establish: impl FnOnce() -> bool,
++    raise: impl FnOnce() -> bool,
 +    focused: impl FnOnce() -> bool,
 +    action: impl FnOnce() -> anyhow::Result<()>,
 +) -> anyhow::Result<()> {
 +    if !establish() {
 +        anyhow::bail!("exact target window could not become key for foreground HID delivery");
++    }
++    if !raise() {
++        anyhow::bail!("exact target window could not be raised for foreground HID delivery");
 +    }
 +    if !focused() {
 +        anyhow::bail!("exact target window did not become focused for foreground HID delivery");
@@ -286,6 +310,7 @@ index bc75ce5..7988e74 100644
 +    fn failed_make_key_never_checks_stale_focus_or_delivers() {
 +        let error = run_after_exact_focus(
 +            || false,
++            || panic!("failed make-key must not raise"),
 +            || panic!("stale focus must not admit input"),
 +            || panic!("input must not be sent"),
 +        ).unwrap_err();
@@ -293,8 +318,18 @@ index bc75ce5..7988e74 100644
 +    }
 +
 +    #[test]
++    fn failed_raise_never_checks_stale_focus_or_delivers() {
++        let error = run_after_exact_focus(
++            || true, || false,
++            || panic!("stale focus must not admit input"),
++            || panic!("input must not be sent"),
++        ).unwrap_err();
++        assert_eq!(error.to_string(), "exact target window could not be raised for foreground HID delivery");
++    }
++
++    #[test]
 +    fn missing_focus_never_delivers() {
-+        let error = run_after_exact_focus(|| true, || false, || panic!("input must not be sent"))
++        let error = run_after_exact_focus(|| true, || true, || false, || panic!("input must not be sent"))
 +            .unwrap_err();
 +        assert_eq!(error.to_string(), "exact target window did not become focused for foreground HID delivery");
 +    }
@@ -304,23 +339,68 @@ index bc75ce5..7988e74 100644
 +        let events = RefCell::new(Vec::new());
 +        let error = run_after_exact_focus(
 +            || { events.borrow_mut().push("key"); true },
++            || { events.borrow_mut().push("raise"); true },
 +            || { events.borrow_mut().push("focus"); true },
 +            || { events.borrow_mut().push("action"); anyhow::bail!("original action failure") },
 +        ).unwrap_err();
 +        assert_eq!(error.to_string(), "original action failure");
-+        assert_eq!(*events.borrow(), ["key", "focus", "action"]);
-+        assert!(run_after_exact_focus(|| true, || true, || Ok(())).is_ok());
++        assert_eq!(*events.borrow(), ["key", "raise", "focus", "action"]);
++        assert!(run_after_exact_focus(|| true, || true, || true, || Ok(())).is_ok());
 +    }
 +}
 +
  fn preserves_exact_existing_focus(
      previous_process_known: bool,
      previous_psn: [u8; 8],
+     target_psn: [u8; 8],
+     focused_window_id: Option<u32>,
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/bring_to_front.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/bring_to_front.rs
+index 9b28bdc..be946c9 100644
+--- a/libs/cua-driver/rust/crates/platform-macos/src/tools/bring_to_front.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/bring_to_front.rs
+@@ -236,10 +236,22 @@ fn wait_for_exact_window(pid: i32, window_id: u32) -> ExactWindowObservation {
+ }
+ 
+ /// Best-effort completion of the one exact-window request. This addresses only
+ /// the requested AX window; it never orders every window owned by the process.
+ fn raise_exact_ax_window(pid: i32, window_id: u32) -> bool {
++    raise_exact_ax_window_with_policy(pid, window_id, false)
++}
++
++/// HID admission requires AXRaise itself to succeed, not merely stale focus.
++pub(crate) fn raise_exact_ax_window_for_hid(pid: i32, window_id: u32) -> bool {
++    if pid <= 0 || window_id == 0 {
++        return false;
++    }
++    raise_exact_ax_window_with_policy(pid, window_id, true)
++}
++
++fn raise_exact_ax_window_with_policy(pid: i32, window_id: u32, require_raise: bool) -> bool {
+     unsafe {
+         let app = AXUIElementCreateApplication(pid);
+         if app.is_null() {
+             return false;
+         }
+@@ -257,11 +269,11 @@ fn raise_exact_ax_window(pid: i32, window_id: u32) -> bool {
+         };
+         let raised = perform_action(target, "AXRaise") == 0;
+         let main = set_bool_attr_true(target, "AXMain") == 0;
+         let focused = set_bool_attr_true(target, "AXFocused") == 0;
+         CFRelease(target as CFTypeRef);
+-        raised || main || focused
++        if require_raise { raised } else { raised || main || focused }
+     }
+ }
+ 
+ fn exact_result(
+     pid: i32,
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
 index 70c0946..d35f498 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
-@@ -1030,6 +1030,10 @@ impl Tool for ClickTool {
+@@ -1028,18 +1028,28 @@ impl Tool for ClickTool {
+             // Pin the overlay above the target window BEFORE animating so
+             // the cursor is already sandwiched correctly while it glides in.
              // Both PX deliveries below (AX hit-test and routed events) share
              // this glide, so the cursor shows whichever one lands the click.
              if let Some(wid) = window_id {
@@ -331,7 +411,8 @@ index 70c0946..d35f498 100644
                  crate::cursor::overlay::send_command(
                      cursor_key.clone(),
                      cursor_overlay::OverlayCommand::PinAbove(wid as u64),
-@@ -1038,6 +1042,12 @@ impl Tool for ClickTool {
+                 );
+             }
              // Animate the visual cursor to the click point and wait for it to
              // arrive — mirrors Swift's `AgentCursor.shared.animateAndWait(to:)`.
              crate::cursor::overlay::animate_cursor_to(cursor_key.clone(), screen_x, screen_y).await;
@@ -344,7 +425,11 @@ index 70c0946..d35f498 100644
              // Keep the registry in sync with the overlay (see AX path above).
              self.state
                  .cursor_registry
-@@ -1210,13 +1220,15 @@ impl Tool for ClickTool {
+                 .update_position(&cursor_key, screen_x, screen_y);
+             self.state
+@@ -1208,17 +1218,19 @@ impl Tool for ClickTool {
+                             if route == PixelClickRoute::ForegroundHid {
+                                 // Warp the hardware pointer to the mapped global
                                  // point and post at the HID tap. The pointer stays
                                  // at the target, as on Windows and X11, so apps that
                                  // read the pointer when handling the event see it.
@@ -362,3 +447,19 @@ index 70c0946..d35f498 100644
                              }
                              match button_kind.as_str() {
                                  "right" => {
+                                     if let Some(wid) = window_id {
+                                         return crate::input::mouse::right_click_at_xy_with_window_local(
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/mod.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/mod.rs
+index e0bcc43..2b62812 100644
+--- a/libs/cua-driver/rust/crates/platform-macos/src/tools/mod.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/mod.rs
+@@ -1,8 +1,9 @@
+ //! MCP tool implementations for macOS.
+ 
+ mod bring_to_front;
++pub(crate) use bring_to_front::raise_exact_ax_window_for_hid;
+ mod capture_binding;
+ mod click;
+ mod clipboard;
+ mod double_click;
+ mod drag;
