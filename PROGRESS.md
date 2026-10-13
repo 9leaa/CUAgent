@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：直接截图准入纯校验与反例测试
+
+- 固定上游check_permissions.rs确认prompt=false永不运行直接截图探测；prompt=true且录屏已授予才通过ScreenCaptureKit查询可捕获显示器，10秒有界，可能触发独立系统确认。公开调用拒绝prompt=true，只能用可信设置通道，不绕过此限制。ready是捕获能力证据，仍不是Calc业务成功或像素正确性。
+- 先提交方案9bc1c24，再新增backend/diagnostic_admission.py：固定独立bundle/路径、严格PID/布尔值、ready、无探测/验证错误、同身份permissions_grant证据及带时区时间。无副作用，不授予执行权；调用方必须从当前生命周期取得实时报告，函数本身不证明报告来源或新鲜度。尚未接入新的实机候选，不改变已冻结007。
+- 四项unittest含缺失字段、错误身份、布尔冒充、not_checked/超时/失败、错误授权证据及PID反例通过；首轮测试把正常direct_capture_error=null误列为拒绝项，修正测试后通过。git diff --check通过。未新增权限、切换服务或调用模型；直接截图确认及新受控业务仍待执行。
+
 ## 2026-10-13：007真实失败与直接截图系统弹窗证据
 
 - 实时额度51%、普通可用、余额不变且重置卡未使用后，核对空闲DSH/队列，停止Worker28966，按原锁切换Driver2430的前身2195至独立诊断daemon2341。候选自身AX/录屏true、路径/bundle/摘要及run/session准入通过；官方请求记录deepseek-account/deepseek-flash、reasoningEffort=off。
