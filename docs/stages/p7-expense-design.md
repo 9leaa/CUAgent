@@ -269,6 +269,8 @@ HTTP接线细化（实现前）：仅实际CalcInputModelTask实例在原鉴权/
 
 ## 最小测试矩阵
 
+2026-10-13的008后续诊断方案（代码前）：原008停止于3raw/A3不变。日志证明前台切换发生在动作返回前，但尚未证明鼠标事件实际接收者。下一步保留既有焦点保护，记录make_exact_window_key是否成功；失败不得继续全局输入。对精确目标窗口补充动作前可命中/遮挡证据，区分应用内部AXFocusedWindow与桌面实际前台、窗口层级和点击接收者。仅凭AX记忆值、API返回0或窗口截图可见均不得声称命中；如果不能可靠判定，停止而非扩大到全桌面点击。新增检查先做无GUI反例，再冻结独立诊断版，在原互斥锁/当前权限准入/30raw下创建新候选；008不重放。确有新观察支持时才考虑显式前置精确窗口，仍需点击后的A2名称框核验，不能用输入结果反推选择成功。
+
 2026-10-11前台错误诊断方案（实现前）：保存004已保留为UNKNOWN，禁止恢复或重放。固定Driver 0.34.1的[pixel_route.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/platform-macos/src/tools/pixel_route.rs)把具体cause放入错误content文本，structuredContent只有code；[cli.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/cua-driver/src/cli.rs)的run_call优先打印structuredContent，printed=true后不再输出content。CUAgent现有stdout/stderr捕获无法恢复上游已经丢弃的信息。下一步先评估保留原完整错误文本的最小兼容方案：优先保持官方CLI/daemon授权、会话命名空间及一次派发不变，错误文本只进入有界私有审计，不交给模型当指令。不得直接改成私有socket或新MCP传输绕过原身份/权限，不未经审查升级/替换Driver。离线验证至少覆盖同时含code与cause、成功响应不变、缺文本、超长文本、非零退出、超时UNKNOWN、失败零重试及原预算；冻结部署兼容性确认后才允许新候选。具体前台失败分支仍未知，不能先改激活时限、强制前置窗口或放宽焦点检查。此方案不新增动作授权、不修改004证据，也不把诊断完成当保存业务完成。
 
 2026-10-11用户纠偏后的DSH主链接线方案（代码前）：不再将操作者手填坐标视为CUAgent能力。沿原c0-vm-tools官方插件入口，新增显式calc-selection-v1分支，仅在可信连接同时绑定caseId/stage/run/session/cell时注册vm_calc_observe、vm_calc_select、vm_calc_stop；原TextEdit/交接工具不混入。截图通过官方附件服务返回真实image block，记录原PNG摘要与附件ID；模型从截图自行给出同snapshot像素坐标，禁止由操作者预填。模型请求固定Flash/off，取消/错误立即本地封闭并请求原任务stop，不重试动作。

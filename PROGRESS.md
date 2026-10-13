@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-13：008真实失败与前台切换定位
+
+- 固定15590b3源码，run calc-select-84739ea4-2ccd-4eb9-b344-e716bd04c194、官方session-13719ddd-f140-4226-9ae6-90d0c1add61b，Flash/off。当前独立权限助手与daemon准入通过，额外1次准备截图有效；窗口绑定另有2次只读准备调用，不混入业务3raw。首次生命周期启动因导入路径失败发生在停止Worker/业务派发前；修正私有启动脚本后才执行唯一业务请求，保留首次失败目录。
+- 业务观察→模型截图坐标(105,348)点击→后观察共3raw，名称框仍A3，目标A2未确认。原会话终态UNKNOWN、停止、零在途，无输入/提交/保存；独立采集原state-01/state-03图片、trace与绑定文件并核对摘要。失败原件不覆盖、不恢复预算、不重放。
+- 新daemon日志记录temporary_activation时前台Calc PID468，temporary_action_returned时已为System Settings PID450，随后才temporary_restore_returned。只读ps核对进程身份；本轮未观察到新的直接截图授权弹窗。源码ForegroundAssist不启用目标焦点抑制租约；因此不应盲目删除FocusGuard或把原因全归给权限弹窗。make_exact_window_key返回值未检查，await_window_focused只查应用自己的AXFocusedWindow；动作前系统设置在前台时该值也已是123，不能证明全局点击路由正确。遮挡、实际接收者与切换触发源尚未证实。
+- 清理回执核实诊断PID2759退出、独立bundle辅助功能/录屏撤销、原Driver2857恢复权限、Worker31137恢复，profileRestored=true。另查官方session/list无运行会话、Worker命令为原backend.worker。权限设置时一次界面输入焦点错误已清除并纠正，敏感屏幕内容不纳入公开证据；不将设置操作算业务成功。
+- 下一步先补输入前原窗口可命中证据及make-key结果检查，再新候选验证；不得复用008失败请求。当前是故障范围收窄，不是点击修复、保存成功或P7验收。
+
 ## 2026-10-13：008冻结部署和启动前准入接线
 
 - 固定15590b3f4be7dbf81f60a7af84fbd9dc92fc3a64的502份跟踪文件摘要，新独立guest目录37文件部署完成，逐文件权限/所有者/摘要及部署manifest独立读回一致。私有calc-dsh-save-008独占记录，不覆盖007。
