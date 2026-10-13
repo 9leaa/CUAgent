@@ -173,7 +173,7 @@ node agent/harness/configure-desktop.mjs --a1
 VM侧须由可信启动器构造`CalcModelTask`（原租约、窗口/网格、官方session、可信名称框截图区域）并交给既有`tools_server`；HTTP请求额外携带原runId/sessionId，仅开放observe/select_cell/stop。模型不创建或续租。当前只完成插件/协议代码和测试、部署依赖清单；正式启动器及profile尚未切换，不能直接把旧TextEdit部署视为Calc可用。
 
 本地插件测试（无模型、VM或App界面操作）：`node agent/harness/test-calc-tools.mjs /absolute/esbuild/lib/main.js "/Applications/DeepSeek Harness.app"`。测试在官方App的Electron Node模式载入实际工具库；HTTP、附件和Driver模拟，不是端到端验收。源码包额外包含calc_model_task/calc_selection/calc_targeting，私有安装及隔离导入回归覆盖依赖完整性。真实验证仍需冻结部署、原会话/图片审计、实际VM后观察及独立结果核验。
-# 显式无任务空闲配置
+
+## 显式无任务空闲配置
 
 迁移后启动管理界面而不恢复历史任务时，可使用私有0600配置`{"version":1,"mode":"idle","tasks":[]}`。必须是这三个字段；它没有任何获准session，模型请求及所有A1工具调用均拒绝。不能用空闲模式重置、迁移或续跑旧账本。运行时须部署包含该分支的固定插件，旧插件不支持此配置；App启动与profile切换仍要求桌面锁和独立验证。本模式不是业务任务或P7验收。
-
