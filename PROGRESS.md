@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：012截图证据格式拒绝，安全恢复
+
+- 当前Calc只读观察及可信prepare完成；临时PointGuard辅助功能/录屏授权生效，助手与daemon4096准入及窗口预览完成。关闭设置窗口后全桌面目视没有阻塞提示，真实截图保存并绑定原run/session/daemon；本次未点击新的直接捕获Allow提示。
+- 实时额度普通可用、剩余84%、余额未变、重置卡未使用。监督收到run后，在交锁和启动runner之前因PNG签名检查拒绝。file独立确认原desktop-review.png实际为JPEG/JFIF（2310×1836），扩展名不是格式证明；无diagnostic-admission.json、无run-attempt.json，零模型与业务动作，未输入/保存。不重放012，也不把提前拒绝算作Calc执行失败。
+- finally停止候选4096，撤销两项临时权限，原Driver4140权限正常，Worker94962完整命令现场核对，官方DSH running=[]。本轮只验证监督前置拒绝的恢复路径，不证明runner内部提前拒绝分支。
+- 保留原JPEG和审阅记录不改；sips另存desktop-review-normalized.png，独立格式检查为2310×1836 RGB PNG，仅用于格式诊断，不生成新许可或复用旧审阅时间。补JPEG即使摘要匹配也必须拒绝的回归，原7项及桌面5项共12通过。后续采集先规范化、查看最终字节再记录，P7仍未完成。
+
 ## 2026-10-13：012新门禁接线与冻结
 
 - 冻结a8fc48a02b13dd3e4b77ad0330d20d2f0943ab82的504份源码摘要，VM37文件独立读回核验一致。新run calc-select-9bf60d48-662c-4fa0-9fb6-aef9d531a73e、session-045d5b41-0c2d-4fc9-af33-91e5708aa7c5；仅暂存profile，原profile字节不变，无租约或模型调用。

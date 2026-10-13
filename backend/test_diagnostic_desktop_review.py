@@ -76,6 +76,13 @@ class DesktopReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check()
 
+    def test_rejects_jpeg_even_when_digest_matches(self):
+        # 012: screenshot APIs may return JPEG despite a caller's .png filename.
+        jpeg = b'\xff\xd8\xff\xe0JFIF\x00fixture\xff\xd9'
+        review = {**self.review, 'pngSha256': hashlib.sha256(jpeg).hexdigest()}
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DESKTOP_REVIEW_UNCONFIRMED'):
+            self.check(desktop_review=review, desktop_png=jpeg)
+
 
 if __name__ == '__main__':
     unittest.main()
