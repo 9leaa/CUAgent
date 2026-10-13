@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：007新窗口与连接材料准备完成
+
+- 对新建Untitled 1的A2经屏幕共享输入probe并回车，只作为可覆盖的测试初始状态，不输入正式预期AbZ中文、不保存、不替代模型动作。原历史文档未打开或修改。
+- 新只读inspect-calc-007沿VM身份/解锁/guest共享锁检查，以list_windows和get_window_state共2raw取得OBSERVATION_COLLECTED：实际LibreOffice PID468、window123、A2值probe；A2截图frame=(66,330,132,24)，名称框当前A3。原始回执位于私有calc-ax-inspection-0db4c851c5e2493aa41a248c9925ddd6，模型未调用、Driver未派发写动作。这两次为明确记录的准备观察，不充作007业务证据或抹去任何旧计数。
+- 基于新观察建立007独立窗口/区域绑定，不沿用旧PID79126/window1250；可信prepare实际完成，guest回应prepared=true、leaseGranted=false。新连接和控制材料私有保存，未创建官方模型会话、未启动guest任务或诊断daemon。后续运行仍重新观察并按原30raw计数，当前只证明准备完成。
+
 ## 2026-10-13：007诊断生命周期接线，尚未执行
 
 - 私有run-calc-save-007移除临时未接线阻断，改为显式socket查询独立daemon权限，核对固定签名后摘要、driver-daemon归属、bundle/路径与外层独占写入的PID/run/session准入。缺准入、身份不符或权限不足均拒绝，不回退原服务执行。
