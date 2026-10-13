@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：009权限助手空回执，业务未启动
+
+- 本轮通过VM系统设置为独立PointGuard临时启用Accessibility与ScreenCapture，界面确认开关；未改宿主权限、凭据或原Driver权限。监督进程停止原Worker并持互斥锁后接受probe，LaunchServices退出返回0，但预建JSON结果文件为空，解析失败。open返回值不是子程序业务成功证明；未创建helper准入回执，未启动候选daemon、模型或表格动作。
+- 静态定位：本次冻结二进制所用bundle.rs的is_executable_inside_cuadriver_app仅认可CuaDriver.app/CuaDriverLocal.app；权限助手遇到其它目录返回77且不写结果。PointGuard还未接入cli_name、bundle_id和状态命名空间，现有打包/准入测试遗漏内部身份一致性。助手stderr被监督脚本丢弃，本轮没有实际子退出码或stderr，故源码机制与本次现象一致但不冒充捕获到了77。
+- finally成功撤销新bundle两项权限；原Driver PID2857及原权限保持，恢复Worker PID73277并ps核对完整命令；官方DSH idle返回running=[]。保存原intent/restored-driver/restored-worker及失败输出，不重放009，不把此轮称为截图点击失败或P7验收。
+- 下一步先补独立产品身份及反例测试，重新构建后使用新摘要/新候选；监督启动必须保留stderr、结果文件路径和长度，将空文件作为明确失败，不以open退出0放行。
+
 ## 2026-10-13：009生命周期接线与新窗口准备
 
 - 当前只读核对原Worker31137、Driver2857及Calc468仍为原路径，DSH无运行会话。009私有运行器替换新固定源386c4ef、新PointGuard路径/bundle/签名摘要；监督脚本保留原服务恢复及业务清理未知禁止恢复策略，未实际执行监督脚本。
