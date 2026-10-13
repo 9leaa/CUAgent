@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：确认迁移导致历史账本准入拒绝
+
+- 本轮只读预检规范路径下原A1任务配置，返回A1 ledger identity or event mismatch。对三个账本逐行重算身份，均匹配原workspaceRoot与现有dev/inode，均不匹配新realpath；原dispatch数分别10、30、1，事件数30、100、5。没有改配置、账本、会话或预算，未启动DSH或模型。
+- 先补技术方案，再在agent/tests/a1-task-config.test.mjs新增真实文件系统迁移回归：已完成一次调用的任务先正常加载计数1；rename工作区并保留旧软链接后拒绝；仅更新配置根路径仍拒绝；两次拒绝均验证账本逐字未改。没有降低生产身份检查。
+- node --test agent/tests/a1-task-config.test.mjs agent/tests/a1-policy.test.mjs：15通过；git diff --check通过。只证明迁移拒绝及原计数保护，不证明DSH恢复或Calc完成。下一步设计不加载历史任务的新空闲运行配置，保留原基线及已耗尽任务，不能制造新的业务样本替换失败结果。
+
 ## 2026-10-13：独立诊断App准备、权限未完成及恢复
 
 - 用户明确批准测试VM内临时诊断权限与后续常规操作。原VM已停止，使用既有隔离Lume启动原restored副本并正常解锁，原SSH身份通过；未新建VM、共享目录/剪贴板或改变SIP。

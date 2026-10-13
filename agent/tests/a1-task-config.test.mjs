@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -25,6 +25,24 @@ test('shared approval validation reads two tasks without creating or changing le
   assert.equal(loaded.policies.get('session-one').count(), 0);
   assert.deepEqual(readFileSync(path), before);
   for (const task of tasks) assert.equal(existsSync(task.ledgerPath), false);
+});
+test('relocated workspace with old symlink cannot reset or reuse an existing task ledger', t => {
+  const { dir, path, tasks, save } = fixture(t);
+  const policy = loadA1TaskConfig(path).policies.get('session-one');
+  const call = { sessionId: 'session-one', callId: 'read-1', name: 'workspace_read', arguments: { path: 'result.txt' } };
+  assert.equal(policy.dispatch(call), undefined);
+  policy.result(call);
+  assert.equal(loadA1TaskConfig(path).policies.get('session-one').count(), 1);
+  const ledger = readFileSync(tasks[0].ledgerPath), config = readFileSync(path);
+  const moved = join(dir, 'relocated-one');
+  renameSync(tasks[0].workspaceRoot, moved);
+  symlinkSync(moved, tasks[0].workspaceRoot);
+  assert.throws(() => loadA1TaskConfig(path), /ledger identity or event mismatch/);
+  assert.deepEqual(readFileSync(path), config);
+  assert.deepEqual(readFileSync(tasks[0].ledgerPath), ledger);
+  save([{ ...tasks[0], workspaceRoot: moved }, tasks[1]]);
+  assert.throws(() => loadA1TaskConfig(path), /ledger identity or event mismatch/);
+  assert.deepEqual(readFileSync(tasks[0].ledgerPath), ledger);
 });
 test('shared approval validation rejects missing, symlinked and non-private config', t => {
   const { dir, path } = fixture(t);
