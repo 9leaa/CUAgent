@@ -1,5 +1,6 @@
 """Pure diagnostic readiness gate; does not grant permissions or execution authority."""
 from datetime import datetime
+import hashlib
 
 DIAGNOSTIC_BUNDLE = 'com.trycua.driver.pointguard'
 DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/CUAgentDriverDiagnostic-67d334cd04207faff101955e0b2b1b5fd1cc4f25251d9a0a75a4708f063b6beb/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
@@ -106,3 +107,48 @@ def require_current_capture_admission(receipt, daemon_report, *, run_id, session
     verified = timestamp(setup['direct_capture_verification']['verified_at'])
     # Upstream serializes whole seconds: allow only that rounding difference.
     require(started.replace(microsecond=0) <= verified <= checked)
+
+
+def require_business_capture_admission(receipt, daemon_report, *, desktop_review,
+                                       desktop_png, **context):
+    """Require a trusted operator's fresh full-VM-desktop review before dispatch.
+
+    The digest binds reviewed bytes, not an automated semantic proof. Callers
+    must collect these privately under the lifecycle lock, never from the model.
+    Per-click hit testing remains mandatory after this point-in-time review.
+    """
+    require_current_capture_admission(receipt, daemon_report, **context)
+
+    def require(condition):
+        if not condition:
+            raise ValueError('DIAGNOSTIC_DESKTOP_REVIEW_UNCONFIRMED')
+
+    review = desktop_review
+    require(type(review) is dict)
+    require(set(review) == {'version', 'source', 'scope', 'runId', 'sessionId',
+                           'daemonPid', 'sha256', 'observedAt', 'reviewedAt',
+                           'pngSha256', 'blockingPromptAbsent'})
+    require(type(review['version']) is int and review['version'] == 1)
+    require(review['source'] == 'trusted-operator')
+    require(review['scope'] == 'full-vm-desktop')
+    require(review['blockingPromptAbsent'] is True)
+    for key in ('runId', 'sessionId', 'daemonPid', 'sha256'):
+        require(type(review[key]) is type(receipt[key]) and review[key] == receipt[key])
+    require(type(desktop_png) is bytes and 8 < len(desktop_png) <= 16 * 1024 * 1024)
+    require(desktop_png.startswith(b'\x89PNG\r\n\x1a\n'))
+    require(review['pngSha256'] == hashlib.sha256(desktop_png).hexdigest())
+
+    def stamp(value):
+        require(type(value) is str)
+        try:
+            result = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError('DIAGNOSTIC_DESKTOP_REVIEW_UNCONFIRMED') from None
+        require(result.tzinfo is not None and result.utcoffset() is not None)
+        return result
+
+    observed = stamp(review['observedAt'])
+    reviewed = stamp(review['reviewedAt'])
+    now = context['now']
+    require(stamp(receipt['checkedAt']) <= observed <= reviewed <= now)
+    require((now - observed).total_seconds() <= 30)
