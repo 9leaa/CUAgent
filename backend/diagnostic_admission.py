@@ -3,6 +3,7 @@ from datetime import datetime
 
 DIAGNOSTIC_BUNDLE = 'com.trycua.driver.local'
 DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/Applications/CuaDriverLocal.app/Contents/MacOS/cua-driver-local'
+DIAGNOSTIC_SHA256 = '857dac1c8a4e140534c2b19d072bb3799363dbb816fba514f69c075a0cbf9e11'
 
 
 def require_direct_capture_ready(report, *, expected_pid):
@@ -63,3 +64,45 @@ def require_direct_capture_admission(setup_report, daemon_report, *, setup_pid, 
             or daemon_report.get('direct_capture_verification')
             != setup_report['direct_capture_verification']):
         raise ValueError('DIAGNOSTIC_DAEMON_ADMISSION_UNCONFIRMED')
+
+
+def require_current_capture_admission(receipt, daemon_report, *, run_id, session_id,
+                                      daemon_pid, executable_sha256, now):
+    """Check a trusted, current lifecycle receipt before profile/model dispatch.
+
+    This is not an authorization token or proof of file/process provenance.
+    The supervisor owns the receipt, observes helper and daemon identities,
+    and holds the desktop lock without intervening permission revocation.
+    """
+    def require(condition):
+        if not condition:
+            raise ValueError('DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED')
+
+    require(type(receipt) is dict)
+    require(type(run_id) is str and bool(run_id))
+    require(type(session_id) is str and bool(session_id))
+    require(receipt.get('runId') == run_id and receipt.get('sessionId') == session_id)
+    require(executable_sha256 == DIAGNOSTIC_SHA256)
+    require(receipt.get('sha256') == executable_sha256)
+    require(type(receipt.get('daemonPid')) is int and receipt['daemonPid'] == daemon_pid)
+    require(isinstance(now, datetime) and now.tzinfo is not None and now.utcoffset() is not None)
+
+    def timestamp(value):
+        require(type(value) is str)
+        try:
+            result = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError('DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED') from None
+        require(result.tzinfo is not None and result.utcoffset() is not None)
+        return result
+
+    started = timestamp(receipt.get('startedAt'))
+    checked = timestamp(receipt.get('checkedAt'))
+    require(started <= checked <= now)
+    require((now - started).total_seconds() <= 300)
+    setup = receipt.get('setupReport')
+    require_direct_capture_admission(setup, daemon_report,
+                                    setup_pid=receipt.get('setupPid'), daemon_pid=daemon_pid)
+    verified = timestamp(setup['direct_capture_verification']['verified_at'])
+    # Upstream serializes whole seconds: allow only that rounding difference.
+    require(started.replace(microsecond=0) <= verified <= checked)

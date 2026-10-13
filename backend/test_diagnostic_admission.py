@@ -1,9 +1,11 @@
 import copy
 import unittest
+from datetime import datetime, timezone, timedelta
 
 from backend.diagnostic_admission import (
     DIAGNOSTIC_BUNDLE, DIAGNOSTIC_EXECUTABLE, require_direct_capture_ready,
     require_direct_capture_admission,
+    require_current_capture_admission, DIAGNOSTIC_SHA256,
 )
 
 
@@ -85,6 +87,48 @@ class DiagnosticAdmissionTests(unittest.TestCase):
                 require_direct_capture_admission(self.report, altered, setup_pid=42, daemon_pid=99)
         with self.assertRaises(ValueError):
             require_direct_capture_admission(self.report, daemon, setup_pid=42, daemon_pid=42)
+
+    def test_current_lifecycle_binding(self):
+        daemon = copy.deepcopy(self.report)
+        daemon.update(direct_capture_status='not_checked', screen_recording_capturable=None)
+        daemon['source']['pid'] = 99
+        receipt = dict(runId='run-008', sessionId='session-008', setupPid=42,
+                       daemonPid=99, sha256=DIAGNOSTIC_SHA256, setupReport=self.report,
+                       startedAt='2026-10-13T04:00:00.100000Z',
+                       checkedAt='2026-10-13T04:00:02Z')
+        now = datetime(2026, 10, 13, 4, 0, 3, tzinfo=timezone.utc)
+        args = dict(run_id='run-008', session_id='session-008', daemon_pid=99,
+                    executable_sha256=DIAGNOSTIC_SHA256, now=now)
+        before = copy.deepcopy(receipt)
+        self.assertIsNone(require_current_capture_admission(receipt, daemon, **args))
+        self.assertEqual(receipt, before)
+        for key, value in (
+            ('runId', 'run-007'), ('sessionId', 'session-007'), ('sha256', 'bad'),
+            ('setupPid', True), ('daemonPid', True), ('daemonPid', 100),
+            ('startedAt', '2026-10-13T03:00:00Z'),
+            ('startedAt', '2026-10-13T04:00:01Z'),
+            ('checkedAt', '2026-10-13T04:00:04Z'),
+            ('checkedAt', '2026-10-13T03:59:59Z'),
+            ('checkedAt', 'invalid'), ('startedAt', '2026-10-13T04:00:00'),
+            ('setupReport', None),
+        ):
+            with self.subTest(key=key, value=value):
+                bad = copy.deepcopy(receipt); bad[key] = value
+                with self.assertRaises(ValueError):
+                    require_current_capture_admission(bad, daemon, **args)
+        for key in receipt:
+            bad = copy.deepcopy(receipt); del bad[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                require_current_capture_admission(bad, daemon, **args)
+        for key, value in (('now', now + timedelta(seconds=301)),
+                           ('now', now.replace(tzinfo=None)), ('now', None),
+                           ('run_id', ''), ('session_id', None),
+                           ('executable_sha256', 'bad'), ('daemon_pid', True)):
+            with self.subTest(argument=key), self.assertRaises(ValueError):
+                require_current_capture_admission(receipt, daemon, **{**args, key:value})
+        daemon['source']['pid'] = 100
+        with self.assertRaises(ValueError):
+            require_current_capture_admission(receipt, daemon, **args)
 
 
 if __name__ == '__main__':
