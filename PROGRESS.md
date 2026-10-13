@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：012新门禁接线与冻结
+
+- 冻结a8fc48a02b13dd3e4b77ad0330d20d2f0943ab82的504份源码摘要，VM37文件独立读回核验一致。新run calc-select-9bf60d48-662c-4fa0-9fb6-aef9d531a73e、session-045d5b41-0c2d-4fc9-af33-91e5708aa7c5；仅暂存profile，原profile字节不变，无租约或模型调用。
+- 新私有监督在交锁前调用业务桌面准入；runner在初始准入及session start前再次调用。恢复逻辑区分未写run-attempt的前置拒绝、已准备但未派发prompt、原会话已启动三种情况；后两者仍要求原cleanup/guestExit/profile恢复，未派发分支另核对DSH空闲。原Driver3917/Worker94420绑定不变。
+- Python/Node语法检查通过；11项公开门禁测试保持通过。私有生命周期分支尚未实机验证，不冒充恢复测试通过。当前区域绑定和可信guest prepare未执行，下一步新观察→绑定→同生命周期权限与全桌面审阅→正式原会话，不复用011许可或失败样本。
+
 ## 2026-10-13：桌面提示准入本地实现
 
 - 新require_business_capture_admission先执行原权限/身份门禁，再严格校验可信full-vm-desktop记录、原run/session/daemon/构建摘要、PNG原字节哈希、检查后观察时间及30秒新鲜度；要求blockingPromptAbsent严格为true，拒绝多余/缺少字段，不修改输入或授予执行许可。
