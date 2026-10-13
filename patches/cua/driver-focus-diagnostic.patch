@@ -1,8 +1,20 @@
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
-index bc75ce5..7c41934 100644
+index bc75ce5..7988e74 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
-@@ -850,6 +850,55 @@ fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
+@@ -834,9 +834,8 @@ const ACTIVATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_
+ /// is the same proof [`preserves_exact_existing_focus`] already trusts to decide
+ /// whether a window is focused.
+ ///
+-/// A `false` return is not fatal: the caller proceeds with delivery regardless,
+-/// because a target that never reports focus is exactly the case the pre-existing
+-/// best-effort contract already covered.
++/// A `false` return must reject foreground HID delivery. Even `true` only
++/// describes the application's AX focus; it does not prove desktop hit-testing.
+ fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
+     let deadline = std::time::Instant::now() + ACTIVATION_WAIT_TIMEOUT;
+     loop {
+@@ -850,6 +849,55 @@ fn await_window_focused(pid: libc::pid_t, window_id: u32) -> bool {
      }
  }
  
@@ -58,7 +70,7 @@ index bc75ce5..7c41934 100644
  /// Activate an exact target window for a global HID keyboard action.
  ///
  /// Unlike [`with_menu_shortcut_activation`], this helper must not run `action`
-@@ -877,16 +926,26 @@ pub fn with_foreground_hid_activation(
+@@ -877,38 +925,108 @@ pub fn with_foreground_hid_activation(
      }
  
      let focused_window_id = crate::ax::bindings::focused_window_id_of_pid(target_pid);
@@ -86,18 +98,29 @@ index bc75ce5..7c41934 100644
      if activated != 0 {
          anyhow::bail!("WindowServer rejected foreground HID activation");
      }
-@@ -896,16 +955,23 @@ pub fn with_foreground_hid_activation(
-         if prev_ok {
-             unsafe { set_front(prev_psn.as_ptr() as *const c_void, 0, 0x400) };
-         }
-+        focus_diagnostic("focus_refused", target_pid, target_wid,
-+            serde_json::json!({"restore_attempted":prev_ok}));
-         anyhow::bail!("exact target window did not become focused for foreground HID delivery");
-     }
  
-     let result = action();
+-    make_exact_window_key(target_pid, target_wid);
+-    if !await_window_focused(target_pid, target_wid) {
+-        if prev_ok {
+-            unsafe { set_front(prev_psn.as_ptr() as *const c_void, 0, 0x400) };
+-        }
+-        anyhow::bail!("exact target window did not become focused for foreground HID delivery");
+-    }
+-
+-    let result = action();
++    let mut action_attempted = false;
++    let result = run_after_exact_focus(
++        || {
++            let ready = make_exact_window_key(target_pid, target_wid);
++            focus_diagnostic("make_key_returned", target_pid, target_wid,
++                serde_json::json!({"ready":ready}));
++            ready
++        },
++        || await_window_focused(target_pid, target_wid),
++        || { action_attempted = true; action() },
++    );
 +    focus_diagnostic("temporary_action_returned", target_pid, target_wid,
-+        serde_json::json!({"action_ok":result.is_ok()}));
++        serde_json::json!({"action_ok":result.is_ok(),"action_attempted":action_attempted}));
      std::thread::sleep(std::time::Duration::from_millis(40));
  
      if prev_ok {
@@ -110,6 +133,62 @@ index bc75ce5..7c41934 100644
      result
  }
  
++// An application's remembered AX window is not proof that make-key succeeded.
++// This gate prevents delivery on an explicit failure; it does not prove desktop
++// hit-testing or rule out a focus change after the check.
++fn run_after_exact_focus(
++    establish: impl FnOnce() -> bool,
++    focused: impl FnOnce() -> bool,
++    action: impl FnOnce() -> anyhow::Result<()>,
++) -> anyhow::Result<()> {
++    if !establish() {
++        anyhow::bail!("exact target window could not become key for foreground HID delivery");
++    }
++    if !focused() {
++        anyhow::bail!("exact target window did not become focused for foreground HID delivery");
++    }
++    action()
++}
++
++#[cfg(test)]
++mod exact_focus_delivery_tests {
++    use super::run_after_exact_focus;
++    use std::cell::RefCell;
++
++    #[test]
++    fn failed_make_key_never_checks_stale_focus_or_delivers() {
++        let error = run_after_exact_focus(
++            || false,
++            || panic!("stale focus must not admit input"),
++            || panic!("input must not be sent"),
++        ).unwrap_err();
++        assert_eq!(error.to_string(), "exact target window could not become key for foreground HID delivery");
++    }
++
++    #[test]
++    fn missing_focus_never_delivers() {
++        let error = run_after_exact_focus(|| true, || false, || panic!("input must not be sent"))
++            .unwrap_err();
++        assert_eq!(error.to_string(), "exact target window did not become focused for foreground HID delivery");
++    }
++
++    #[test]
++    fn success_is_ordered_and_action_error_is_not_retried() {
++        let events = RefCell::new(Vec::new());
++        let error = run_after_exact_focus(
++            || { events.borrow_mut().push("key"); true },
++            || { events.borrow_mut().push("focus"); true },
++            || { events.borrow_mut().push("action"); anyhow::bail!("original action failure") },
++        ).unwrap_err();
++        assert_eq!(error.to_string(), "original action failure");
++        assert_eq!(*events.borrow(), ["key", "focus", "action"]);
++        assert!(run_after_exact_focus(|| true, || true, || Ok(())).is_ok());
++    }
++}
++
+ fn preserves_exact_existing_focus(
+     previous_process_known: bool,
+     previous_psn: [u8; 8],
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
 index 70c0946..2e32bba 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs

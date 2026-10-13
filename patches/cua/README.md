@@ -1,10 +1,14 @@
 # Cua / Lume 隔离补丁
 
-## Driver焦点诊断候选（实机权限准入未通过）
+## Driver焦点诊断与精确key窗口保护候选
 
-`driver-focus-diagnostic.patch`基于下方相同Driver 0.34.1提交及MIT许可，只改macOS平台日志；在隔离源码目录应用，不覆盖已授权App。`CUAGENT_FOCUS_DIAGNOSTICS=1`记录私有stderr JSON行，包括光标前后、精确焦点与前台身份、HID的preserve/temporary分支及恢复事实。默认不采样，不修改原动作、等待或返回值；读取AX和同步日志仍可能改变时序。日志不含文档内容，但含进程身份，应私有保存。
+`driver-focus-diagnostic.patch`基于下方相同Driver 0.34.1提交及MIT许可，在隔离源码目录应用，不覆盖已授权App。`CUAGENT_FOCUS_DIAGNOSTICS=1`记录私有stderr JSON行，包括光标前后、精确焦点与前台身份、HID的preserve/temporary分支及恢复事实。默认不采样；读取AX和同步日志仍可能改变时序。日志不含文档内容，但含进程身份，应私有保存。
+
+2026-10-13起本补丁不再只是日志：临时前台分支要求make_exact_window_key成功，再等待精确AX焦点，才允许执行一次原动作；失败保留错误并走原前台恢复。新增make_key_returned和action_attempted，区分拒绝与实际发送。已有精确前台的preserve分支不变。本项不证明屏幕无遮挡或实际点击接收者，也不提供自动重试；仅macOS候选，未部署或声称跨平台修复。旧007/008运行的是此前日志版，其失败不能归给本次新增逻辑。下方构建与权限记录属于历史版本。
 
 固定Rust1.97.1：`cargo test --locked -j2 -p platform-macos --lib`为462通过/6忽略；`cargo build --locked -j2 -p cua-driver`通过。新增两项为JSON单行及输出错误不panic，不代表完整日志分支实机覆盖。2026-10-12临时服务准入发现独立候选没有原App权限，未执行业务动作或授予新权限。启动会派生daemon，不能只清理Popen父PID；须核对实际可执行文件和socket所有者后退出确切候选，再恢复原App。原服务/权限/Worker现已恢复，原失败回执保留；未修复或验收真实聚焦。
+
+2026-10-13保护版：相同锁文件及Rust1.97.1，显式`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk`执行上述模块测试为465通过/6忽略；新增3项验证失败零动作、调用顺序及原错误无重试。反向移除make-key保护后对应测试失败，恢复代码复验。默认SDK26会在上游apple-cf Swift桥报IOSurface类型不兼容；不修改全局SDK或依赖来掩盖。此版尚未构建完整daemon或部署，旧二进制摘要不适用于本次补丁。
 
 ## Driver CLI错误诊断候选（独立CLI已实机取证，原App未替换）
 

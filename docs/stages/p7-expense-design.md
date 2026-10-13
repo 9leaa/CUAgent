@@ -269,6 +269,8 @@ HTTP接线细化（实现前）：仅实际CalcInputModelTask实例在原鉴权/
 
 ## 最小测试矩阵
 
+2026-10-13第一项修正细则（代码前）：独立叠加补丁先修make_exact_window_key返回false仍可进入action的路径。把“建立精确key窗口→等待精确AX窗口→执行一次动作”抽成闭包顺序边界，任一前置失败不得调用后续动作；外层无论失败或动作返回错误，仍执行原先的前台恢复，不吞掉原错误。测试断言具体错误、调用顺序、失败零动作及动作错误不重试。此项仅修拒绝路径，不宣称AX焦点足以证明桌面命中，也不提前切换VM服务；实际遮挡检查及新实机验收仍必需。
+
 2026-10-13的008后续诊断方案（代码前）：原008停止于3raw/A3不变。日志证明前台切换发生在动作返回前，但尚未证明鼠标事件实际接收者。下一步保留既有焦点保护，记录make_exact_window_key是否成功；失败不得继续全局输入。对精确目标窗口补充动作前可命中/遮挡证据，区分应用内部AXFocusedWindow与桌面实际前台、窗口层级和点击接收者。仅凭AX记忆值、API返回0或窗口截图可见均不得声称命中；如果不能可靠判定，停止而非扩大到全桌面点击。新增检查先做无GUI反例，再冻结独立诊断版，在原互斥锁/当前权限准入/30raw下创建新候选；008不重放。确有新观察支持时才考虑显式前置精确窗口，仍需点击后的A2名称框核验，不能用输入结果反推选择成功。
 
 2026-10-11前台错误诊断方案（实现前）：保存004已保留为UNKNOWN，禁止恢复或重放。固定Driver 0.34.1的[pixel_route.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/platform-macos/src/tools/pixel_route.rs)把具体cause放入错误content文本，structuredContent只有code；[cli.rs](https://github.com/trycua/cua/blob/cua-driver-rs-v0.34.1/libs/cua-driver/rust/crates/cua-driver/src/cli.rs)的run_call优先打印structuredContent，printed=true后不再输出content。CUAgent现有stdout/stderr捕获无法恢复上游已经丢弃的信息。下一步先评估保留原完整错误文本的最小兼容方案：优先保持官方CLI/daemon授权、会话命名空间及一次派发不变，错误文本只进入有界私有审计，不交给模型当指令。不得直接改成私有socket或新MCP传输绕过原身份/权限，不未经审查升级/替换Driver。离线验证至少覆盖同时含code与cause、成功响应不变、缺文本、超长文本、非零退出、超时UNKNOWN、失败零重试及原预算；冻结部署兼容性确认后才允许新候选。具体前台失败分支仍未知，不能先改激活时限、强制前置窗口或放宽焦点检查。此方案不新增动作授权、不修改004证据，也不把诊断完成当保存业务完成。

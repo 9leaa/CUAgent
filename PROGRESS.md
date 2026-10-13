@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：精确key窗口失败时禁止HID输入
+
+- 在原P7分支先补方案，再更新固定Driver 0.34.1的公开最小补丁；临时前台路径按make-key→精确AX焦点→一次原动作排序。make-key明确失败不读取旧焦点放行，等待失败不发送动作，动作错误原样返回、不重试；外围保留此前前台恢复。新增make_key_returned/ action_attempted日志，拒绝不冒充已发送。现有精确前台preserve分支保持不变。
+- 新增3项顺序/拒绝/错误传播单元测试；固定Rust1.97.1、原Cargo.lock，完整platform-macos --lib为465通过/6忽略。临时移除make-key失败保护，新增拒绝测试按预期失败（其余两项通过），随后恢复代码。补丁与隔离源反向git apply --check通过。不是实机焦点、遮挡、恢复或保存验收。
+- 初次默认SDK26构建因上游apple-cf Swift桥IOSurface→IOSurfaceRef类型不兼容失败，arm64模式仍失败；单次命令指定本机已安装SDK15.5后通过。未改系统默认SDK、依赖版本或全局PATH；旧成功构建缓存中的description同样记载SDK15.5。后续复现命令需显式SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk，cargo +1.97.1 test --locked -j2 -p platform-macos --lib。
+- 未构建部署新的daemon、未动VM服务/权限、没有模型或GUI业务调用；源码层测试不表示008原因已完全解释。下一步是输入前实际命中/遮挡证据与独立新候选，不能重跑008或将本轮保护当完整P7成功。
+
 ## 2026-10-13：008真实失败与前台切换定位
 
 - 固定15590b3源码，run calc-select-84739ea4-2ccd-4eb9-b344-e716bd04c194、官方session-13719ddd-f140-4226-9ae6-90d0c1add61b，Flash/off。当前独立权限助手与daemon准入通过，额外1次准备截图有效；窗口绑定另有2次只读准备调用，不混入业务3raw。首次生命周期启动因导入路径失败发生在停止Worker/业务派发前；修正私有启动脚本后才执行唯一业务请求，保留首次失败目录。
