@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：011源码冻结与当前窗口准备
+
+- 冻结e5ceea9fbf5fc012422322c3f054bd8c67f1369c的503份源码摘要，VM部署37文件独立哈希/权限核对一致。新run为calc-select-68d72b58-acf2-461e-9799-94ea2f3826ff，新session为session-84ded904-21c3-4fa3-9cbd-0f8b8fe9e14f；profile仅暂存，正式profile字节不变。新意图准确记录此次签名摘要，不沿用旧脚本中的历史诊断摘要。
+- 独占只读回执calc-ax-inspection-6e5bac11aec244b4b1aeeff615ab0ad4执行2raw、0动作、0模型；查看1536x1082截图，Calc468/window123，A2/probe、A3选中，重建当前区域绑定。可信prepare成功且leaseGranted=false。
+- 新监督及runner脚本绑定新App/摘要、原Driver3536和Worker83892；宿主语法及3段静态远端代码编译通过。尚未启动监督、停服务、申请权限或调用模型；下步在同一生命周期完成权限助手、daemon、实际截图与新额度准入，再运行011，不重放010。
+
 ## 2026-10-13：置顶修复独立静态部署
 
 - 新未签名SHA为67d334cd04207faff101955e0b2b1b5fd1cc4f25251d9a0a75a4708f063b6beb；新摘要目录中创建PointGuard App，签名后SHA为ce14200a07e0c80d73230ff599d69310864911eb2e79c51303e4941c5d8e179c，125201992字节。独占package-003保存意图/回执；严格签名校验、原Driver摘要及3536进程身份前后不变均通过，Worker83892现场确认存在。
