@@ -29,9 +29,9 @@ class DiagnosticAdmissionTests(unittest.TestCase):
     def test_old_diagnostic_identity_is_not_current_candidate(self):
         self.assertEqual(DIAGNOSTIC_BUNDLE, 'com.trycua.driver.pointguard')
         self.assertEqual(DIAGNOSTIC_EXECUTABLE,
-            '/Users/mvpagent/CUAgentDriverDiagnostic-a1a335197246396efda4e048a281a026bdf7860a925e99297bd445188212a720/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
+            '/Users/mvpagent/CUAgentDriverDiagnostic-67d334cd04207faff101955e0b2b1b5fd1cc4f25251d9a0a75a4708f063b6beb/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
         self.assertEqual(DIAGNOSTIC_SHA256,
-            '2c02cca541043809e13a082e25168aeb9bea4bed67eaaa5ad70fa375f79792a5')
+            'ce14200a07e0c80d73230ff599d69310864911eb2e79c51303e4941c5d8e179c')
         same_bundle_old_path = copy.deepcopy(self.report)
         same_bundle_old_path['source']['executable'] = '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
@@ -125,6 +125,11 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED'):
             require_current_capture_admission(old_receipt, daemon,
                 **{**args, 'executable_sha256': old_sha})
+        old_010_sha = '2c02cca541043809e13a082e25168aeb9bea4bed67eaaa5ad70fa375f79792a5'
+        old_receipt['sha256'] = old_010_sha
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED'):
+            require_current_capture_admission(old_receipt, daemon,
+                **{**args, 'executable_sha256': old_010_sha})
         for key, value in (
             ('runId', 'run-007'), ('sessionId', 'session-007'), ('sha256', 'bad'),
             ('setupPid', True), ('daemonPid', True), ('daemonPid', 100),
