@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-13：系统级点命中准入
+
+- 恢复反向测试改动后，在Rust工作区重新完整复验469通过/6忽略（MACOSX_DEPLOYMENT_TARGET=13.0、SDK15.5）；随后cargo build --locked -j2 -p cua-driver成功。私有独占保存arm64构建产物，SHA256=661e761263c072c86f83bd82ac3baabe87a1b1063b0af71281197d0404642654，补丁和工具链摘要一并冻结；尚未打包重签或部署，不复用旧独立App的摘要/准入。
+- VM仅做1次原生CG窗口列表只读诊断，持原bridge.lock，无模型/截图/输入/权限操作。当前历史坐标(148,235)同时落入Driver窗口、系统设置、Calc和锁屏层；随后ioreg确认已锁屏，ps确认WindowServer/loginwindow。该结果是当前状态，不是008时的遮挡证据；不能将顶层矩形或应用内部AX命中直接当实际HID接收方。初次宿主脚本缺PYTHONPATH在导入阶段失败，无远程调用；修正后唯一采集私有保存。
+- 先补方案，再在固定Driver补丁新增foreground_point模块。通过AXUIElementCreateSystemWide与CopyElementAtPosition查询命中元素实际PID、所属AXWindow/窗口ID；不是对Calc树单独查询。精确匹配后才执行原foreground HID闭包，查询错误、其它进程、同进程其它窗口、无窗口及非法坐标拒绝；原激活外层负责恢复，不自动重试。不读元素正文、不设全局AX超时、不申请权限。
+- 新增4项无GUI测试，覆盖无效身份/NaN/溢出坐标、错误窗口、查询失败、成功一次执行和原错误传播；完整platform-macos --lib 469通过/6忽略。临时去掉匹配条件后，错误窗口反例按预期失败（3通过/1失败），随后恢复。补丁反向应用检查通过；这些不证明系统原生命中查询兼容所有应用或点击无竞争。
+- 该保护只覆盖ForegroundHid像素click路径，背景/AX点击和键盘不新增本检查。point_preflight记录查询结果而不是最终事件接收者；外围action_attempted指进入动作闭包，不代表内层命中保护已经允许HID。未部署/签名/授予新权限，008不重放，P7和保存闭环仍待实机。
+
 ## 2026-10-13：精确key窗口失败时禁止HID输入
 
 - 在原P7分支先补方案，再更新固定Driver 0.34.1的公开最小补丁；临时前台路径按make-key→精确AX焦点→一次原动作排序。make-key明确失败不读取旧焦点放行，等待失败不发送动作，动作错误原样返回、不重试；外围保留此前前台恢复。新增make_key_returned/ action_attempted日志，拒绝不冒充已发送。现有精确前台preserve分支保持不变。

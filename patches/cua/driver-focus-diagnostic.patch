@@ -1,3 +1,130 @@
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
+new file mode 100644
+index 0000000..4697887
+--- /dev/null
++++ b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
+@@ -0,0 +1,109 @@
++//! Fail-closed preflight for global HID pixel clicks, not a delivery guarantee.
++use crate::ax::bindings::*;
++use core_foundation::{base::{CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
++
++#[link(name = "ApplicationServices", kind = "framework")]
++extern "C" {
++    fn AXUIElementCreateSystemWide() -> AXUIElementRef;
++    fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> AXError;
++}
++
++struct OwnedElement(AXUIElementRef);
++impl Drop for OwnedElement {
++    fn drop(&mut self) { unsafe { CFRelease(self.0 as CFTypeRef) }; }
++}
++
++fn system_point_target(x: f64, y: f64) -> anyhow::Result<(i32, u32)> {
++    // Unlike an application-scoped hit test, this asks the desktop which app
++    // currently owns the element at the point. Never change global AX timeout.
++    let system = unsafe { AXUIElementCreateSystemWide() };
++    anyhow::ensure!(!system.is_null(), "system point query unavailable");
++    let system = OwnedElement(system);
++    let mut hit = std::ptr::null_mut();
++    let status = unsafe { AXUIElementCopyElementAtPosition(system.0, x as f32, y as f32, &mut hit) };
++    let hit = (!hit.is_null()).then(|| OwnedElement(hit));
++    anyhow::ensure!(status == kAXErrorSuccess, "system point query failed: {status}");
++    let hit = hit.ok_or_else(|| anyhow::anyhow!("system point query returned no element"))?;
++    let mut pid = 0;
++    let status = unsafe { AXUIElementGetPid(hit.0, &mut pid) };
++    anyhow::ensure!(status == kAXErrorSuccess && pid > 0, "system point owner unavailable");
++    let attr = CFString::new("AXWindow");
++    let mut window: CFTypeRef = std::ptr::null();
++    let status = unsafe { AXUIElementCopyAttributeValue(hit.0, attr.as_concrete_TypeRef(), &mut window) };
++    // A hit can itself be a window, so use it only when AXWindow is unavailable.
++    let owned_window = (!window.is_null()).then(|| OwnedElement(window as AXUIElementRef));
++    if !window.is_null() {
++        anyhow::ensure!(unsafe { CFGetTypeID(window) == AXUIElementGetTypeID() },
++            "system point window has unexpected type");
++    }
++    let window = if status == kAXErrorSuccess {
++        owned_window.as_ref().map(|w| w.0).unwrap_or(hit.0)
++    } else { hit.0 };
++    let mut window_id = 0;
++    let status = unsafe { _AXUIElementGetWindow(window, &mut window_id) };
++    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0, "system point window unavailable");
++    Ok((pid, window_id))
++}
++
++fn deliver_if_matching(
++    pid: i32, wid: u32, hit: anyhow::Result<(i32, u32)>,
++    action: impl FnOnce() -> anyhow::Result<()>,
++) -> anyhow::Result<()> {
++    anyhow::ensure!(hit? == (pid, wid), "foreground point does not hit exact target window");
++    action()
++}
++
++pub(crate) fn with_exact_point_target(
++    pid: i32, wid: u32, x: f64, y: f64,
++    action: impl FnOnce() -> anyhow::Result<()>,
++) -> anyhow::Result<()> {
++    anyhow::ensure!(pid > 0 && wid != 0 && x.is_finite() && y.is_finite()
++        && (x as f32).is_finite() && (y as f32).is_finite(), "invalid foreground point target");
++    let hit = system_point_target(x, y);
++    super::skylight::focus_diagnostic("point_preflight", pid, wid,
++        serde_json::json!({"x":x,"y":y,"hit":hit.as_ref().ok(),"query_ok":hit.is_ok()}));
++    // A focus/window change can still race this check. Post-action observation
++    // remains mandatory; this does not claim the eventual event receiver.
++    deliver_if_matching(pid, wid, hit, action)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::deliver_if_matching;
++    use std::cell::Cell;
++
++    #[test]
++    fn invalid_target_rejects_before_native_query() {
++        for (pid, wid, x, y) in [(0, 10, 1.0, 1.0), (1, 0, 1.0, 1.0),
++            (1, 10, f64::NAN, 1.0), (1, 10, 1.0, f64::INFINITY),
++            (1, 10, f64::MAX, 1.0)] {
++            let err = super::with_exact_point_target(pid, wid, x, y,
++                || panic!("must not deliver")).unwrap_err();
++            assert_eq!(err.to_string(), "invalid foreground point target");
++        }
++    }
++
++    #[test]
++    fn other_app_or_same_app_other_window_never_delivers() {
++        for hit in [(2, 10), (1, 11), (0, 0)] {
++            let err = deliver_if_matching(1, 10, Ok(hit), || panic!("must not deliver")).unwrap_err();
++            assert_eq!(err.to_string(), "foreground point does not hit exact target window");
++        }
++    }
++    #[test]
++    fn unavailable_query_preserves_error_without_delivery() {
++        let err = deliver_if_matching(1, 10, Err(anyhow::anyhow!("query unavailable")),
++            || panic!("must not deliver")).unwrap_err();
++        assert_eq!(err.to_string(), "query unavailable");
++    }
++    #[test]
++    fn matching_point_delivers_once_and_propagates_failure() {
++        let count = Cell::new(0);
++        let err = deliver_if_matching(1, 10, Ok((1, 10)), || {
++            count.set(count.get()+1); anyhow::bail!("original input error")
++        }).unwrap_err();
++        assert_eq!(count.get(), 1);
++        assert_eq!(err.to_string(), "original input error");
++        assert!(deliver_if_matching(1, 10, Ok((1, 10)), || Ok(())).is_ok());
++    }
++}
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
+index 123289a..2e14ed6 100644
+--- a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
+@@ -9,6 +9,7 @@
+ //!    the activity-monitor tickle required for live-input detection.
+ 
+ pub mod ax_actions;
++pub(crate) mod foreground_point;
+ pub mod interactive;
+ pub mod keyboard;
+ pub mod mouse;
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
 index bc75ce5..7988e74 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs
@@ -190,7 +317,7 @@ index bc75ce5..7988e74 100644
      previous_process_known: bool,
      previous_psn: [u8; 8],
 diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
-index 70c0946..2e32bba 100644
+index 70c0946..d35f498 100644
 --- a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
 @@ -1030,6 +1030,10 @@ impl Tool for ClickTool {
@@ -217,3 +344,21 @@ index 70c0946..2e32bba 100644
              // Keep the registry in sync with the overlay (see AX path above).
              self.state
                  .cursor_registry
+@@ -1210,13 +1220,15 @@ impl Tool for ClickTool {
+                                 // point and post at the HID tap. The pointer stays
+                                 // at the target, as on Windows and X11, so apps that
+                                 // read the pointer when handling the event see it.
+-                                return crate::input::mouse::click_at_xy_desktop_with_modifiers(
++                                return crate::input::foreground_point::with_exact_point_target(
++                                    pid, window_id.expect("foreground HID requires exact window"), screen_x, screen_y,
++                                    || crate::input::mouse::click_at_xy_desktop_with_modifiers(
+                                     screen_x,
+                                     screen_y,
+                                     count,
+                                     &button_kind,
+                                     &m,
+-                                );
++                                ));
+                             }
+                             match button_kind.as_str() {
+                                 "right" => {
