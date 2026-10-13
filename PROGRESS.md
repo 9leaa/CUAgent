@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：008冻结部署和启动前准入接线
+
+- 固定15590b3f4be7dbf81f60a7af84fbd9dc92fc3a64的502份跟踪文件摘要，新独立guest目录37文件部署完成，逐文件权限/所有者/摘要及部署manifest独立读回一致。私有calc-dsh-save-008独占记录，不覆盖007。
+- 新prepare生成独立run/session标识、workspace及暂存calc-save profile，前后正式profile逐字一致；不是已创建官方模型会话。新run-calc-save-008在读取当前daemon后、run-attempt/profile/模型操作前调用require_current_capture_admission，旧仅布尔准入不再够用；当前没有diagnostic-admission或窗口控制材料，因此不能运行。
+- 新脚本Python语法、Node语法检查通过；核心6项准入测试通过。未启用模型、授予租约、切换Driver或停止现有Worker30345。下一步完成008当前窗口绑定与同一有界设置/daemon/截图生命周期，再走官方DSH Flash/off新业务，旧预算不变。准备不是截图像素或Calc业务验收。
+
 ## 2026-10-13：新业务的当前生命周期截图准入
 
 - 先补008实施方案，再新增require_current_capture_admission：固定诊断摘要、run/session、独立助手/daemon PID与原组合校验；开始/检查时间必须有时区、顺序正确且距现在最多300秒，报告授权时间必须来自本次探测（只容许上游整秒序列化精度差）。撤权后的001报告不能作为下一轮当前许可。
