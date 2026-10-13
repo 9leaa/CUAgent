@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：010源码、当前绑定及生命周期脚本准备
+
+- 固定8c07c9f9995821e0d132e89c8d717f77839eb09c，503份tracked源码摘要保存；VM37份运行文件独立摘要/所有者/权限读回一致。新候选calc-select-ee73d705-bf3b-49f9-9587-e7646c6b0dbe及session-17d00dae-150f-4908-a934-54b1d64497d9，prepareDesktopProfile确认正式配置字节不变，未授予租约或请求模型。
+- 当前readonly receipt calc-ax-inspection-209acb2b51b24ed1a0432f973fdf731b为2raw/零动作；实际查看1536x1082截图，Calc468/window123、A2为probe、A3选中，重建本次区域绑定。可信prepare返回prepared=true/leaseGranted=false，不复用旧观察回执。Worker73277完整命令核对、DSH running=[]。
+- 新监督脚本绑定当前新App路径/签名摘要和Worker73277。权限助手通过LaunchServices stdout/stderr私有日志保留最多64KiB，记录结果文件路径/字节数、解析错误及open退出状态；超时/空文件/格式错误先存原回执再拒绝，open退出0不等于助手成功。三个静态远端代码段编译及宿主脚本语法检查通过，动态预览仍待实际执行。
+- 未启动监督生命周期，未停Worker/切Driver/申请权限/发模型；原009不重放。下一步当前生命周期权限助手、daemon及截图准入，再核对实时额度后启动010原会话。准备不算点击、输入或保存通过。
+
 ## 2026-10-13：补齐平台身份并静态部署修复产物
 
 - 部署前继续源码搜索发现check_permissions独立映射及launch_app受保护宿主列表遗漏PointGuard；先补方案，再扩展同一身份补丁。新截图证据存于.cua-driver-pointguard，与正式/Local隔离；业务工具不得启动新权限宿主。新增路径/身份/证据串用反例，完整platform-macos测试470通过、6忽略；固定工具链构建成功。补丁反向check、git diff --check通过。
