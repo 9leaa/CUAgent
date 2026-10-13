@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：007诊断生命周期接线，尚未执行
+
+- 私有run-calc-save-007移除临时未接线阻断，改为显式socket查询独立daemon权限，核对固定签名后摘要、driver-daemon归属、bundle/路径与外层独占写入的PID/run/session准入。缺准入、身份不符或权限不足均拒绝，不回退原服务执行。
+- 新diagnostic-business-007沿003受控切换流程，切换前要求已准备窗口绑定/实时额度且没有run-attempt；候选身份权限通过后生成准入，释放外层锁给原业务运行器。正常业务结束必须确认profile恢复、guest退出及原session终态，才能恢复原Driver/Worker并撤销候选权限；清理未知则保存restore-blocked而不强行替换正在执行的服务。尚未运行该脚本，进程PID在执行前仍需重新核对。
+- 两脚本py_compile通过，仅语法检查，不是生命周期故障回归或实机业务成功。实时Codex查询剩余53%，普通额度可用，余额62494.0260570000，两张重置卡均available；未生成未来运行许可，派发前须重新读取。下一步补当前Calc窗口/区域绑定及生命周期审查，P7仍未验收。
+
 ## 2026-10-13：007独立profile暂存与运行器迁移准备
 
 - prepare-calc-save-007生成新私有run/session标识与PROFILE_STAGED_ONLY回执，尚未调用官方session创建入口。当前profile对照beforeSha256不变；原startDesktop恢复路径使用loadA1TaskConfig，实测新idle配置返回零策略，无需放宽启动检查。
