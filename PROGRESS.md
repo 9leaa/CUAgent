@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：009源码冻结及独立profile准备
+
+- 固定386c4efe7fa3ccea27b07a2ba6b68aff6d958360的502份跟踪文件摘要，VM新独立目录37文件部署完成，逐文件所有者/私有权限/摘要及manifest独立读回一致。包含新PointGuard身份固定源码，旧008目录与终态不变。
+- 新身份calc-select-5e01f910-5e4e-4bbc-81de-2f39060c4a10/session-3e72da8a-88bf-4fc8-bf2b-ed12b2b37d95仅用于暂存准备，尚非已运行官方会话。沿原Flash/off、A2/AbZ中文、30raw和当前3%额度线；独立profile已生成，当前正式profile字节不变，leaseGranted=false/modelInvoked=false。
+- 未停止Worker/Driver、未解锁或授予新权限、未复用008窗口绑定/许可；新009运行器及监督生命周期尚未接线。下一步核对新App可执行名/PID发现方式、当前原服务身份和新窗口，再同一有界生命周期做权限/截图准入与真实业务。
+
 ## 2026-10-13：命中保护候选独立打包及身份固定
 
 - 按事前方案将冻结661e7612构建产物独占部署至VM摘要命名目录，125179608字节接收/读回SHA一致；新建CuaDriverPointGuard.app，bundle com.trycua.driver.pointguard，可执行文件cua-driver-pointguard。临时adhoc签名后SHA为01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16；独立SSH再次shasum、codesign verify/identity和stat核对，属mvpagent、0700、单链接。
