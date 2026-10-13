@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：显式端点下诊断daemon自身权限核验通过
+
+- 按已提交方案，私有diagnostic-lifecycle-003改用call check_permissions及显式原socket；先以原daemon做只读对照，返回原App身份，证明身份来自服务端而非查询CLI。随后系统界面完成已授权的候选临时辅助功能与录屏设置。
+- 队列/桌面资源空闲、P5 PAUSED、官方DSH无运行会话后，停止核实的Worker28610并持原锁，受控切换原Driver2095到候选2171。启动初期两次socket未就绪，随后同一候选查询成功：attribution=driver-daemon、bundle_id=com.trycua.driver.local、实际可执行路径和PID匹配，AX和录屏均true。新verified回执为PERMISSION_IDENTITY_VERIFIED，businessVerified=false；direct_capture_status仍not_checked。
+- finally确认候选退出，tccutil撤销候选Accessibility/ScreenCapture均成功；原App摘要不变，恢复Driver2195且自身两项权限true，Worker恢复28966。复查实际Worker命令及官方RPC，running为空、四个预设保留。私有003意图、候选、核验和恢复回执保留，002失败不覆盖。
+- 零模型和业务GUI调用，未重放006或改变预算。只证明诊断服务自身权限准入，不证明真实截图、Calc聚焦或保存重开；下一步冻结新业务样本并采集实际焦点分支日志。P7未验收。
+
 ## 2026-10-13：恢复鼠标通道并定位诊断查询端点不一致
 
 - 前轮已通过逐键输入正常解锁，独立ioreg确认VM未锁屏。本轮宿主也未锁屏；屏幕共享窗口执行原生缩放后，坐标点击恢复。不能将此前noWindowsAvailable归因于VM或宿主锁屏。组合修饰键仍未可靠传递，清除搜索使用可见按钮；未共享剪贴板或修改认证。
