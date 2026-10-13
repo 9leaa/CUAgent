@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：PointGuard内部身份补丁与构建
+
+- 先在p7-expense-design补方案，再新增公开driver-pointguard-identity.patch；精确识别CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard，独立CLI/bundle/state/home；当前规范化路径推导App位置，不硬编码系统Applications。旧正式/Local路径保持原逻辑，不将任意.app加入助手白名单。
+- 固定Rust1.97.1/SDK15.5执行cargo test --locked -j2 -p cua-driver --bin cua-driver bundle::tests：2通过（含错误目录/相似名/错误可执行反例）。无GUIRust探针分别放入三个真实临时App路径运行，CLI、bundle、状态和home隔离及PointGuard包路径断言全部通过。探针仅调用身份函数，不启动GUI/申请权限。
+- cargo build --locked -j2 -p cua-driver成功，新未重新签名产物SHA256为35567232f8f18e13fce2b36c27d2a3da88b3480fb3ec22558aaf2a09237a289c；补丁反向check通过。首次误用--lib导致no library targets，改为--bin后测试通过；rustup按仓库配置同步rustfmt组件，未改系统工具链。已有大小写/rpath警告保留。
+- 本轮未部署新产物、未改变VM或旧准入摘要、未发模型请求。下一步独立冻结/打包新产物，监督助手保留stderr和空结果原因，完成同生命周期截图准入后才进入新业务；本地身份测试不能代替权限或Calc点击/保存验收。
+
 ## 2026-10-13：009权限助手空回执，业务未启动
 
 - 本轮通过VM系统设置为独立PointGuard临时启用Accessibility与ScreenCapture，界面确认开关；未改宿主权限、凭据或原Driver权限。监督进程停止原Worker并持互斥锁后接受probe，LaunchServices退出返回0，但预建JSON结果文件为空，解析失败。open返回值不是子程序业务成功证明；未创建helper准入回执，未启动候选daemon、模型或表格动作。

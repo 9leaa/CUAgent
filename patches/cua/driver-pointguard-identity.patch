@@ -1,0 +1,119 @@
+diff --git a/libs/cua-driver/rust/crates/cua-driver/src/bundle.rs b/libs/cua-driver/rust/crates/cua-driver/src/bundle.rs
+index d3d0fb4..2829af4 100644
+--- a/libs/cua-driver/rust/crates/cua-driver/src/bundle.rs
++++ b/libs/cua-driver/rust/crates/cua-driver/src/bundle.rs
+@@ -15,6 +15,21 @@ pub const LOCAL_APP_NAME: &str = "CuaDriverLocal";
+ pub const RELEASE_BUNDLE_ID: &str = "com.trycua.driver";
+ pub const LOCAL_BUNDLE_ID: &str = "com.trycua.driver.local";
+ 
++fn point_guard_bundle(path: &Path) -> Option<&Path> {
++    if path.file_name()?.to_str()? != "cua-driver-pointguard" { return None; }
++    let macos = path.parent()?;
++    let contents = macos.parent()?;
++    let app = contents.parent()?;
++    (macos.file_name()?.to_str()? == "MacOS"
++        && contents.file_name()?.to_str()? == "Contents"
++        && app.file_name()?.to_str()? == "CuaDriverPointGuard.app").then_some(app)
++}
++
++fn current_point_guard_bundle() -> Option<std::path::PathBuf> {
++    let path = std::fs::canonicalize(std::env::current_exe().ok()?).ok()?;
++    point_guard_bundle(&path).map(Path::to_path_buf)
++}
++
+ pub(crate) fn path_is_local(path: &Path) -> bool {
+     let file_name = path
+         .file_name()
+@@ -36,7 +51,9 @@ pub fn is_local_installation() -> bool {
+ }
+ 
+ pub fn cli_name() -> &'static str {
+-    if is_local_installation() {
++    if current_point_guard_bundle().is_some() {
++        "cua-driver-pointguard"
++    } else if is_local_installation() {
+         LOCAL_CLI_NAME
+     } else {
+         RELEASE_CLI_NAME
+@@ -44,7 +61,9 @@ pub fn cli_name() -> &'static str {
+ }
+ 
+ pub fn state_namespace() -> &'static str {
+-    if is_local_installation() {
++    if current_point_guard_bundle().is_some() {
++        "cua-driver-pointguard"
++    } else if is_local_installation() {
+         "cua-driver-local"
+     } else {
+         "cua-driver"
+@@ -52,7 +71,9 @@ pub fn state_namespace() -> &'static str {
+ }
+ 
+ pub fn user_home_subdirectory() -> &'static str {
+-    if is_local_installation() {
++    if current_point_guard_bundle().is_some() {
++        ".cua-driver-pointguard"
++    } else if is_local_installation() {
+         ".cua-driver-local"
+     } else {
+         ".cua-driver"
+@@ -78,7 +99,9 @@ pub fn autostart_task_name() -> &'static str {
+ }
+ 
+ pub fn app_name() -> &'static str {
+-    if is_local_installation() {
++    if current_point_guard_bundle().is_some() {
++        "CuaDriverPointGuard"
++    } else if is_local_installation() {
+         LOCAL_APP_NAME
+     } else {
+         RELEASE_APP_NAME
+@@ -87,11 +110,16 @@ pub fn app_name() -> &'static str {
+ 
+ #[cfg(target_os = "macos")]
+ pub fn app_bundle_path() -> String {
++    if let Some(path) = current_point_guard_bundle() {
++        return path.to_string_lossy().into_owned();
++    }
+     format!("/Applications/{}.app", app_name())
+ }
+ 
+ pub fn bundle_id() -> &'static str {
+-    if is_local_installation() {
++    if current_point_guard_bundle().is_some() {
++        "com.trycua.driver.pointguard"
++    } else if is_local_installation() {
+         LOCAL_BUNDLE_ID
+     } else {
+         RELEASE_BUNDLE_ID
+@@ -106,6 +134,7 @@ pub fn is_executable_inside_cuadriver_app() -> bool {
+         .ok()
+         .and_then(|path| std::fs::canonicalize(path).ok())
+         .is_some_and(|path| {
++            if point_guard_bundle(&path).is_some() { return true; }
+             path.to_str().is_some_and(|path| {
+                 path.contains("/CuaDriver.app/Contents/MacOS/")
+                     || path.contains("/CuaDriverLocal.app/Contents/MacOS/")
+@@ -130,6 +159,22 @@ pub fn is_env_truthy(name: &str) -> bool {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn point_guard_requires_exact_bundle_layout() {
++        let app = "/Users/test/Applications/CuaDriverPointGuard.app";
++        let exe = format!("{app}/Contents/MacOS/cua-driver-pointguard");
++        assert_eq!(point_guard_bundle(Path::new(&exe)), Some(Path::new(app)));
++        for invalid in [
++            "/Applications/CuaDriver.app/Contents/MacOS/cua-driver",
++            "/Applications/CuaDriverLocal.app/Contents/MacOS/cua-driver-local",
++            "/tmp/cua-driver-pointguard",
++            "/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver",
++            "/Applications/CuaDriverPointGuard.app/Other/MacOS/cua-driver-pointguard",
++            "/Applications/CuaDriverPointGuard.app.backup/Contents/MacOS/cua-driver-pointguard",
++        ] { assert_eq!(point_guard_bundle(Path::new(invalid)), None, "{invalid}"); }
++        assert!(!path_is_local(Path::new(&exe)));
++    }
++
+     #[test]
+     fn local_identity_requires_the_explicit_local_product_name() {
+         assert!(path_is_local(Path::new(

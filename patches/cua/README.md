@@ -2,7 +2,9 @@
 
 ## Driver焦点诊断与精确key窗口保护候选
 
-系统命中候选已在测试VM独立打包为`CuaDriverPointGuard.app`/`com.trycua.driver.pointguard`，adhoc签名后的可执行SHA为`01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16`。原App未覆盖、候选未启动/授予权限；构建前后签名摘要不同，不可互换准入。当前纯准入固定此新身份，旧Local ready/摘要明确拒绝。
+PointGuard身份补丁`driver-pointguard-identity.patch`应与命中保护补丁一起应用于固定0.34.1源码。精确识别包目录/可执行名，分离CLI、bundle、state/home命名空间，权限助手从当前包路径启动；不借用正式/Local身份。两项单元测试及三个真实临时路径的无GUI身份探针通过；不等于VM权限或业务验收。
+
+旧系统命中候选曾在测试VM独立打包为`CuaDriverPointGuard.app`/`com.trycua.driver.pointguard`，adhoc签名后的可执行SHA为`01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16`。009临时授权后助手空回执失败，权限已撤销；该旧产物缺少内部身份补丁，不得作为修复后候选。构建/签名后须记录新摘要并更新准入，不能复用旧ready或许可。
 
 当前系统命中版已完成相同SDK/工具链下的完整`cargo build --locked -j2 -p cua-driver`，arm64产物SHA256为`661e761263c072c86f83bd82ac3baabe87a1b1063b0af71281197d0404642654`；仅私有构建保存，未打包重签、部署或调用真实GUI。旧准入固定摘要不能用于此新产物。
 
