@@ -6,7 +6,11 @@ DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/Applications/CuaDriverLocal.app/Content
 
 
 def require_direct_capture_ready(report, *, expected_pid):
-    """Caller must obtain report live from its controlled daemon, not a cache."""
+    """Validate live permission-helper report, not a cached daemon status.
+
+    Upstream labels both bundle-resident processes as driver-daemon; the caller
+    must independently bind expected_pid to its LaunchServices setup helper.
+    """
     def require(condition):
         if not condition:
             raise ValueError('DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED')
@@ -35,3 +39,27 @@ def require_direct_capture_ready(report, *, expected_pid):
     except ValueError:
         raise ValueError('DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED') from None
     require(parsed.tzinfo is not None)
+
+
+def require_direct_capture_admission(setup_report, daemon_report, *, setup_pid, daemon_pid):
+    """Bind a live setup result to the separately inspected execution daemon."""
+    require_direct_capture_ready(setup_report, expected_pid=setup_pid)
+    if type(daemon_pid) is not int or daemon_pid <= 1 or daemon_pid == setup_pid:
+        raise ValueError('DIAGNOSTIC_DAEMON_ADMISSION_UNCONFIRMED')
+    if type(daemon_report) is not dict:
+        raise ValueError('DIAGNOSTIC_DAEMON_ADMISSION_UNCONFIRMED')
+    source = daemon_report.get('source')
+    if (type(source) is not dict
+            or source.get('attribution') != 'driver-daemon'
+            or source.get('bundle_id') != DIAGNOSTIC_BUNDLE
+            or source.get('executable') != DIAGNOSTIC_EXECUTABLE
+            or type(source.get('pid')) is not int or source['pid'] != daemon_pid
+            or daemon_report.get('accessibility') is not True
+            or daemon_report.get('screen_recording') is not True
+            or daemon_report.get('direct_capture_status') != 'not_checked'
+            or daemon_report.get('screen_recording_capturable') is not None
+            or daemon_report.get('direct_capture_error') is not None
+            or 'direct_capture_verification_error' in daemon_report
+            or daemon_report.get('direct_capture_verification')
+            != setup_report['direct_capture_verification']):
+        raise ValueError('DIAGNOSTIC_DAEMON_ADMISSION_UNCONFIRMED')

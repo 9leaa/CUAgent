@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：核对官方权限助手并修正双进程准入
+
+- 固定cli.rs证实permissions grant调用LaunchServices权限助手，助手使用独占0600临时结果文件并返回实时direct-capture probe；公开socket不提供提示能力。助手和daemon可同bundle/路径且都被上游标记driver-daemon，但PID不同，不能将助手PID当执行daemon。
+- 补方案后新增require_direct_capture_admission，保留原纯探测校验用于实时助手报告，另验socket daemon实际PID/身份、权限及与助手一致的授权证据。只读daemon维持not_checked/null，不凭历史证据制造ready；实际进程观察、启动归属、时限和截图像素仍由可信调用方验证。新代码尚未接入实机任务。
+- 5项unittest含助手/daemon混用、不同授权时间、错误bundle及伪ready反例通过，git diff --check通过。未新增权限或调用模型。下一次真实设置需处理独立的直接屏幕访问确认，不能将其藏进模型调用，也不扩大到宿主或浏览器数据。
+
 ## 2026-10-13：直接截图准入纯校验与反例测试
 
 - 固定上游check_permissions.rs确认prompt=false永不运行直接截图探测；prompt=true且录屏已授予才通过ScreenCaptureKit查询可捕获显示器，10秒有界，可能触发独立系统确认。公开调用拒绝prompt=true，只能用可信设置通道，不绕过此限制。ready是捕获能力证据，仍不是Calc业务成功或像素正确性。

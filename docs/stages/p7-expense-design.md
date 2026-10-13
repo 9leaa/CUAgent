@@ -2,6 +2,8 @@
 
 ## 直接截图准入修正（2026-10-13，代码前）
 
+官方入口接线补充：permissions grant经LaunchServices启动独立权限助手，实时ready来自助手，不是业务daemon；两者PID不能混用。原纯校验用于助手报告，新增组合检查分别接可信启动所见的helper PID和原socket daemon PID，严格核对同路径/bundle、两项权限及双方相同直接截图证据。daemon只读报告允许not_checked且capturable=null，不能自行把缓存改成ready；证明能力的依据仍是当前helper实时探测。组合校验不发请求、不授予权限，调用方须控制本轮生命周期/时限并验证实际进程。旧007不接新代码或重放。
+
 007证明只检查AX/录屏布尔值不足。固定上游check_permissions在prompt=false时不做ScreenCaptureKit探测，not_checked不能当ready；prompt=true仅可信设置通道允许，不能从模型工具绕过调用。新增纯准入校验函数：固定独立daemon路径/bundle与预期PID，要求两项权限严格true、screen_recording_capturable严格true、direct_capture_status=ready、无探测/验证错误及同bundle的直接截图证据。任何缺失/未知/假值拒绝；调用者另负责在当前受控生命周期实时获得该报告，旧缓存不能充当前结果。此函数不申请权限、不启动程序、不授予租约。补正常及各缺失/篡改反例，再接新候选；007保持失败终态。
 
 ## 007诊断业务候选准备（2026-10-13，执行前）

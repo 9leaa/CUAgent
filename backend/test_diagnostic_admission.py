@@ -3,6 +3,7 @@ import unittest
 
 from backend.diagnostic_admission import (
     DIAGNOSTIC_BUNDLE, DIAGNOSTIC_EXECUTABLE, require_direct_capture_ready,
+    require_direct_capture_admission,
 )
 
 
@@ -60,6 +61,30 @@ class DiagnosticAdmissionTests(unittest.TestCase):
                 del report[key]
                 with self.assertRaises(ValueError):
                     require_direct_capture_ready(report, expected_pid=42)
+
+    def test_helper_and_daemon_are_separate(self):
+        daemon = copy.deepcopy(self.report)
+        daemon['source']['pid'] = 99
+        daemon['direct_capture_status'] = 'not_checked'
+        daemon['screen_recording_capturable'] = None
+        before = copy.deepcopy(daemon)
+        self.assertIsNone(require_direct_capture_admission(
+            self.report, daemon, setup_pid=42, daemon_pid=99))
+        self.assertEqual(daemon, before)
+        for mutate in (
+            lambda d: d['source'].update(pid=42),
+            lambda d: d['source'].update(bundle_id='com.trycua.driver'),
+            lambda d: d.update(screen_recording=False),
+            lambda d: d.update(direct_capture_status='ready'),
+            lambda d: d.update(direct_capture_verification_error=None),
+            lambda d: d['direct_capture_verification'].update(verified_at='2026-10-12T04:00:00Z'),
+        ):
+            altered = copy.deepcopy(daemon)
+            mutate(altered)
+            with self.assertRaises(ValueError):
+                require_direct_capture_admission(self.report, altered, setup_pid=42, daemon_pid=99)
+        with self.assertRaises(ValueError):
+            require_direct_capture_admission(self.report, daemon, setup_pid=42, daemon_pid=42)
 
 
 if __name__ == '__main__':
