@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：恢复鼠标通道并定位诊断查询端点不一致
+
+- 前轮已通过逐键输入正常解锁，独立ioreg确认VM未锁屏。本轮宿主也未锁屏；屏幕共享窗口执行原生缩放后，坐标点击恢复。不能将此前noWindowsAvailable归因于VM或宿主锁屏。组合修饰键仍未可靠传递，清除搜索使用可见按钮；未共享剪贴板或修改认证。
+- 系统界面临时开启CuaDriverLocal辅助功能及录屏后，私有diagnostic-lifecycle-002核验队列空、desktop无owner、P5 PAUSED和官方running空；停止Worker27554、持原共享锁，核对原daemon1623身份后受控切换。固定候选摘要未改，实际候选PID1993，日志明确监听Library/Caches/cua-driver/cua-driver.sock。
+- 候选permissions status返回daemon_running=false/unknown，准入断言失败。固定上游cli.rs的run_permissions_status直接使用default_socket_path；serve.rs及bundle.rs显示独立local产品选择cua-driver-local命名空间。脚本只给serve显式原socket，没有让状态查询使用同一端点，故此结果不是实际权限不足的证明。当前未证明候选自身权限/截图或006焦点根因。
+- finally核实候选退出，tccutil reset Accessibility和ScreenCapture均成功；原App摘要未改，恢复daemon2095，自身AX/录屏true，Worker恢复28610。私有intent/candidate/restored-driver/restored-worker保留，失败不覆盖；零模型或业务GUI动作，未重放006，DSH profile不变。下一步先修正端点一致性和诊断核验，再冻结新受控业务任务。
+
 ## 2026-10-13：真实官方DSH空闲启动通过
 
 - 固定当前0b16de6源码，用现有esbuild0.28.1构建5个插件至独立私有idle-start-20261013-001/plugins，原插件不覆盖。备份原profile，解析后仅替换8个file插件路径；生成精确idle配置并验证策略Map为空，清单记录原配置、三个旧账本、插件和profile摘要。
