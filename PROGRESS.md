@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-13：独立诊断App准备、权限未完成及恢复
+
+- 用户明确批准测试VM内临时诊断权限与后续常规操作。原VM已停止，使用既有隔离Lume启动原restored副本并正常解锁，原SSH身份通过；未新建VM、共享目录/剪贴板或改变SIP。
+- 独立CuaDriverLocal.app使用com.trycua.driver.local及上游local产品命名，adhoc签名后严格校验通过。签名后可执行文件SHA256为857dac1c8a4e140534c2b19d072bb3799363dbb816fba514f69c075a0cbf9e11，原App摘要未变。先核对队列空闲、P5 PAUSED，停止Worker并持有原桌面锁，仅进行权限准备。
+- 系统界面开启候选辅助功能后，录屏列表添加未完成；屏幕共享快捷键未正确传递、坐标操作后窗口切换及noWindowsAvailable错误，候选status仍unknown。没有调用模型或业务GUI工具，不能据此诊断原006焦点原因。未绕过权限检查。
+- 使用tccutil reset Accessibility/ScreenCapture com.trycua.driver.local，两项均返回成功；候选PID846已退出，原Driver PID1623身份/摘要通过、自身辅助功能及录屏状态均true（本次没有直接截图验证）。原Worker按规范路径恢复为26995。私有diagnostic-permission-window-001保留原意图、启动、未完成原因和恢复回执；候选App保留未删除。
+- 发现仓库迁至Projects/cuagent，旧CUAgent路径是软链接；旧私有DSH启动脚本被规范路径检查拒绝。新私有连接助手使用真实路径后仍报告RPC不通，19387无监听、官方DSH未运行；未放宽路径检查。下一步恢复规范路径下官方DSH启动并完成诊断权限准入，再冻结新样本，原006不重放。README同步，P7仍未验收。
+
 ## 2026-10-12：核实签名身份与启动子进程原因
 
 - 上轮补丁/462项测试及服务恢复为有效进展。本轮只读核对实际VM：原daemon8776仍指向原App；codesign显示原App标识com.trycua.driver、Developer ID Application厂商签名、TeamIdentifier=YCK386LBJ7，候选为linker-signed adhoc、无TeamIdentifier、无绑定Info.plist。以identifier/Apple anchor/厂商Team要求执行codesign --verify -R，原App退出0、候选退出3/code failed to satisfy specified code requirements。首次命令遗漏内联要求的等号前缀，两端均参数失败；补正后取得上述有效对照，不把参数失败算身份结论。
