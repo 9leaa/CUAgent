@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：命中保护候选独立打包及身份固定
+
+- 按事前方案将冻结661e7612构建产物独占部署至VM摘要命名目录，125179608字节接收/读回SHA一致；新建CuaDriverPointGuard.app，bundle com.trycua.driver.pointguard，可执行文件cua-driver-pointguard。临时adhoc签名后SHA为01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16；独立SSH再次shasum、codesign verify/identity和stat核对，属mvpagent、0700、单链接。
+- 正式App原摘要12d4f43b不变、原PID2857前后完整进程记录一致；旧Local诊断App未覆盖，新App未启动/申请权限，没有模型或GUI调用。私有安装意图/响应与VM回执均保留，不上传构建产物。
+- 更新纯准入的固定bundle、可执行路径、签名后摘要，不增加任意调用者可选身份；新增旧Local完整ready报告拒绝及旧SHA与receipt一起替换仍拒绝的反例。7项测试、git diff --check通过。旧候选只保留历史源码/原失败，不能用当前模块重新放行；当前没有新生命周期准入记录。
+- 下一步在本提交基础上冻结新的009源码、接入新App生命周期并完成实际权限/截图/命中检查，再由官方DSH Flash/off执行业务。打包与单元测试不表示点击/保存或P7通过，不重放008。
+
 ## 2026-10-13：系统级点命中准入
 
 - 恢复反向测试改动后，在Rust工作区重新完整复验469通过/6忽略（MACOSX_DEPLOYMENT_TARGET=13.0、SDK15.5）；随后cargo build --locked -j2 -p cua-driver成功。私有独占保存arm64构建产物，SHA256=661e761263c072c86f83bd82ac3baabe87a1b1063b0af71281197d0404642654，补丁和工具链摘要一并冻结；尚未打包重签或部署，不复用旧独立App的摘要/准入。

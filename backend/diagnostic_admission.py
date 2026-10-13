@@ -1,9 +1,9 @@
 """Pure diagnostic readiness gate; does not grant permissions or execution authority."""
 from datetime import datetime
 
-DIAGNOSTIC_BUNDLE = 'com.trycua.driver.local'
-DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/Applications/CuaDriverLocal.app/Contents/MacOS/cua-driver-local'
-DIAGNOSTIC_SHA256 = '857dac1c8a4e140534c2b19d072bb3799363dbb816fba514f69c075a0cbf9e11'
+DIAGNOSTIC_BUNDLE = 'com.trycua.driver.pointguard'
+DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
+DIAGNOSTIC_SHA256 = '01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16'
 
 
 def require_direct_capture_ready(report, *, expected_pid):

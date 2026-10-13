@@ -26,6 +26,19 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         self.assertIsNone(require_direct_capture_ready(self.report, expected_pid=42))
         self.assertEqual(self.report, before)
 
+    def test_old_diagnostic_identity_is_not_current_candidate(self):
+        self.assertEqual(DIAGNOSTIC_BUNDLE, 'com.trycua.driver.pointguard')
+        self.assertEqual(DIAGNOSTIC_EXECUTABLE,
+            '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
+        self.assertEqual(DIAGNOSTIC_SHA256,
+            '01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16')
+        old = copy.deepcopy(self.report)
+        old['source'].update(bundle_id='com.trycua.driver.local',
+            executable='/Users/mvpagent/Applications/CuaDriverLocal.app/Contents/MacOS/cua-driver-local')
+        old['direct_capture_verification']['bundle_id'] = 'com.trycua.driver.local'
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
+            require_direct_capture_ready(old, expected_pid=42)
+
     def test_missing_and_invalid_fields(self):
         changes = [((key,), None) for key in self.report if key != 'direct_capture_error']
         changes += [((key,), value) for key in ('accessibility', 'screen_recording',
@@ -102,6 +115,12 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         before = copy.deepcopy(receipt)
         self.assertIsNone(require_current_capture_admission(receipt, daemon, **args))
         self.assertEqual(receipt, before)
+        old_sha = '857dac1c8a4e140534c2b19d072bb3799363dbb816fba514f69c075a0cbf9e11'
+        old_receipt = copy.deepcopy(receipt)
+        old_receipt['sha256'] = old_sha
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED'):
+            require_current_capture_admission(old_receipt, daemon,
+                **{**args, 'executable_sha256': old_sha})
         for key, value in (
             ('runId', 'run-007'), ('sessionId', 'session-007'), ('sha256', 'bad'),
             ('setupPid', True), ('daemonPid', True), ('daemonPid', 100),

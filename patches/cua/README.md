@@ -2,6 +2,8 @@
 
 ## Driver焦点诊断与精确key窗口保护候选
 
+系统命中候选已在测试VM独立打包为`CuaDriverPointGuard.app`/`com.trycua.driver.pointguard`，adhoc签名后的可执行SHA为`01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16`。原App未覆盖、候选未启动/授予权限；构建前后签名摘要不同，不可互换准入。当前纯准入固定此新身份，旧Local ready/摘要明确拒绝。
+
 当前系统命中版已完成相同SDK/工具链下的完整`cargo build --locked -j2 -p cua-driver`，arm64产物SHA256为`661e761263c072c86f83bd82ac3baabe87a1b1063b0af71281197d0404642654`；仅私有构建保存，未打包重签、部署或调用真实GUI。旧准入固定摘要不能用于此新产物。
 
 2026-10-13系统命中版进一步增加foreground_point模块：ForegroundHid像素click在激活后的闭包内做系统级AX点查询，只允许命中原PID/window。全局查询错误、缺窗口和目标不同均拒绝；不影响背景/AX点击或键盘。新增4项测试，模块469通过/6忽略，移除匹配条件的反向测试失败。point_preflight仅是输入前状态，action_attempted仅表示进入外围闭包；都不能证明最终事件接收者或不存在竞争。此版尚未实机验证，不将旧007/008结果升级。
