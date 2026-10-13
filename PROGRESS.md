@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：显式空闲配置实现与注册层验证
+
+- 在方案后新增精确idle配置分支，只返回空策略Map和配置摘要，不读取历史任务/账本，不创建工作区、会话或新业务样本。默认配置仍要求至少一项任务；未知mode、idle非空、版本不符或多余字段拒绝。生产策略服务原有无session策略拒绝保持不变。
+- 解析器测试验证空策略、零账本副作用及反例；官方工具注册集成把idle加入拒绝测试，实际workspace_read/write/calculate均isError，模型request抛approved task、无账本及输出文件。不是仅检查配置能解析。
+- 相关16项通过。标准官方测试脚本因本worktree缺少desktop-build-tools失败，随后显式使用主仓库既有esbuild0.28.1构建同一测试文件，在固定官方App Electron Node模式运行21项全部通过；未安装依赖或启动图形App。npm test完整235项：230通过、5跳过。git diff --check通过。
+- 仍未部署：下一步固定新插件产物/摘要和空闲配置，在原桌面互斥及空队列下进行可恢复profile路径切换并验证真实RPC，不能把本轮集成测试当作DSH已恢复。旧失败、历史账本、30raw上限、P5暂停状态均不改。
+
 ## 2026-10-13：确认迁移导致历史账本准入拒绝
 
 - 本轮只读预检规范路径下原A1任务配置，返回A1 ledger identity or event mismatch。对三个账本逐行重算身份，均匹配原workspaceRoot与现有dev/inode，均不匹配新realpath；原dispatch数分别10、30、1，事件数30、100、5。没有改配置、账本、会话或预算，未启动DSH或模型。

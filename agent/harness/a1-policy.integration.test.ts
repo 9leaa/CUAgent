@@ -15,7 +15,7 @@ import * as toolsPlugin from './a1-tools.ts'
 import * as fingerprintPlugin from './a1-example-fingerprint.ts'
 import * as reportInputsPlugin from './report-inputs-tools.ts'
 
-async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, reportInputs?: boolean, dailyReport?: boolean, controlled?: boolean, publishNotBefore?: number, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' } = {}) {
+async function fixture(t: any, options: { readOnly?: boolean, example?: boolean, reportInputs?: boolean, dailyReport?: boolean, controlled?: boolean, publishNotBefore?: number, invalidApproval?: 'missing' | 'malformed' | 'duplicate' | 'public' | 'idle' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cuagent-a1-registry-'))
   const previous = process.env.CUAGENT_A1_TASKS_PATH
   const tasks = ['one', 'two'].map(id => {
@@ -35,6 +35,7 @@ async function fixture(t: any, options: { readOnly?: boolean, example?: boolean,
   const config = join(dir, 'tasks.json')
   writeFileSync(config, JSON.stringify({ version: 1, tasks }), { mode: 0o600 })
   process.env.CUAGENT_A1_TASKS_PATH = config
+  if (options.invalidApproval === 'idle') writeFileSync(config, JSON.stringify({ version: 1, mode: 'idle', tasks: [] }))
   if (options.invalidApproval === 'missing') process.env.CUAGENT_A1_TASKS_PATH = join(dir, 'missing.json')
   if (options.invalidApproval === 'malformed') writeFileSync(config, '{broken')
   if (options.invalidApproval === 'duplicate') writeFileSync(config, JSON.stringify({ version: 1, tasks: [tasks[0], { ...tasks[1], sessionId: tasks[0].sessionId }] }))
@@ -313,7 +314,7 @@ test('fingerprint registration without explicit task approval remains denied', a
 })
 
 test('A1 missing or invalid approval denies every task and model request without dispatch or effects', async t => {
-  for (const invalidApproval of ['missing', 'malformed', 'duplicate', 'public'] as const) {
+  for (const invalidApproval of ['missing', 'malformed', 'duplicate', 'public', 'idle'] as const) {
     const { ctx, call, tasks } = await fixture(t, { invalidApproval })
     for (const task of tasks) {
       assert.equal((await call('workspace_read', { path: 'source.txt' }, task.sessionId)).isError, true)

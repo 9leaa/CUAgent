@@ -15,6 +15,14 @@ export function loadA1TaskConfig(configured) {
   const path = realpathSync(configured), stat = lstatSync(path);
   if (!stat.isFile() || stat.size > 65536 || (stat.mode & 0o077) !== 0) throw new Error('private A1 task config required');
   const text = readFileSync(path, 'utf8'), config = JSON.parse(text);
+  // Explicit inactive baseline: no historical approvals, identities or budgets
+  // are migrated. The policy service denies every session in this empty map.
+  if (config?.mode === 'idle') {
+    if (config.version !== 1 || Object.keys(config).sort().join(',') !== 'mode,tasks,version'
+      || !Array.isArray(config.tasks) || config.tasks.length !== 0) throw new Error('invalid idle A1 task config');
+    return { path, digest: createHash('sha256').update(text).digest('hex'), policies: new Map() };
+  }
+  if (Object.hasOwn(config, 'mode')) throw new Error('invalid A1 task mode');
   if (config.version !== 1 || !Array.isArray(config.tasks) || config.tasks.length < 1 || config.tasks.length > 20) throw new Error('invalid A1 task config');
   const policies = new Map(), roots = [], runs = new Set(), ledgers = new Set();
   for (const task of config.tasks) {

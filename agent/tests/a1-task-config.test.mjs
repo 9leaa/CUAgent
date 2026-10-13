@@ -26,6 +26,22 @@ test('shared approval validation reads two tasks without creating or changing le
   assert.deepEqual(readFileSync(path), before);
   for (const task of tasks) assert.equal(existsSync(task.ledgerPath), false);
 });
+test('explicit idle config has no approved sessions or ledger effects and rejects ambiguity', t => {
+  const { path, tasks } = fixture(t);
+  writeFileSync(path, JSON.stringify({ version: 1, mode: 'idle', tasks: [] }));
+  const before = readFileSync(path);
+  assert.equal(loadA1TaskConfig(path).policies.size, 0);
+  assert.deepEqual(readFileSync(path), before);
+  for (const task of tasks) assert.equal(existsSync(task.ledgerPath), false);
+  for (const value of [
+    { version: 1, tasks: [] }, { version: 1, mode: 'other', tasks },
+    { version: 1, mode: 'idle', tasks }, { version: 2, mode: 'idle', tasks: [] },
+    { version: 1, mode: 'idle', tasks: [], approve: true },
+  ]) {
+    writeFileSync(path, JSON.stringify(value));
+    assert.throws(() => loadA1TaskConfig(path), /invalid/);
+  }
+});
 test('relocated workspace with old symlink cannot reset or reuse an existing task ledger', t => {
   const { dir, path, tasks, save } = fixture(t);
   const policy = loadA1TaskConfig(path).policies.get('session-one');
