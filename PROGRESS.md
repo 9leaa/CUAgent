@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：011选中成功，系统录屏提示遮挡输入
+
+- 用既有凭据解锁VM；发现旧PointGuard提示，通过Open System Settings关闭，未批准旧请求。新构建在独立目录临时开启录屏/辅助功能，助手及daemon3788身份、当前截图准入通过；按实时账户检查普通额度可用、剩余86%、余额62494.0260570000、重置卡未使用，保存本轮私有读数后派发Flash/off原会话。
+- 真实6raw：观察→A2截图点击→观察确认A2→原窗口bring_to_front→观察→公式栏点击。日志证明make-key=true、raise_exact=true、首次命中468/window123，选中A2真实生效；公式栏前命中2399/window299，前台仍468，保护拒绝发送HID。2399现场确认为UserNotificationCenter，屏幕共享画面显示PointGuard录屏授权提示；Calc单窗口截图显示A2/probe但不显示该遮挡。不是坐标错误证据，也不能把截到图当作系统提示已处理。
+- 011原状态UNKNOWN/stopped，零在途、未输入/保存，原guestExit=0、profile恢复、无renewErrors。候选3788停止，两项临时权限撤销；原Driver3917、Worker94420现场核对，DSH running=[]。独立guest收集16份文件及manifest，诊断日志保留私有；旧任务不重放。
+- 下一步补同生命周期桌面弹窗准入：助手/daemon截图后、模型前查看VM全桌面并处理明确属于当前构建的提示，再复查无提示；不能只看窗口截图或cached权限状态，不弱化点命中保护。P7仍未完成。
+
 ## 2026-10-13：011源码冻结与当前窗口准备
 
 - 冻结e5ceea9fbf5fc012422322c3f054bd8c67f1369c的503份源码摘要，VM部署37文件独立哈希/权限核对一致。新run为calc-select-68d72b58-acf2-461e-9799-94ea2f3826ff，新session为session-84ded904-21c3-4fa3-9cbd-0f8b8fe9e14f；profile仅暂存，正式profile字节不变。新意图准确记录此次签名摘要，不沿用旧脚本中的历史诊断摘要。
