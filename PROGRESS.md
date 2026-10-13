@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：补齐平台身份并静态部署修复产物
+
+- 部署前继续源码搜索发现check_permissions独立映射及launch_app受保护宿主列表遗漏PointGuard；先补方案，再扩展同一身份补丁。新截图证据存于.cua-driver-pointguard，与正式/Local隔离；业务工具不得启动新权限宿主。新增路径/身份/证据串用反例，完整platform-macos测试470通过、6忽略；固定工具链构建成功。补丁反向check、git diff --check通过。
+- 未签名构建SHA a1a335197246396efda4e048a281a026bdf7860a925e99297bd445188212a720。私有package-driver-point-002将产物传入VM新摘要目录，并在其内新建CuaDriverPointGuard.app；签名后SHA 2c02cca541043809e13a082e25168aeb9bea4bed67eaaa5ad70fa375f79792a5，125197560字节。codesign严格验证及原Driver文件/PID/启动时间前后核对通过，未覆盖旧包，未启动或授权。首次宿主脚本因PYTHONPATH缺失在导入阶段退出，无部署副作用；补环境后唯一部署成功，原回执私有保留。
+- 准入更新为新完整路径/签名摘要，7项Python测试通过，新增同bundle旧路径拒绝并检验旧009摘要不能放行。补丁文件首次生成末尾上下文空行格式检查失败，改用完整五行上下文后反向应用及空白检查均通过。
+- 新产物未做实时权限/截图/模型业务验证，009失败保持。下一步冻结新源码、新候选并改监督启动取证，不能复用旧身份许可或旧截图；P7未验收。
+
 ## 2026-10-13：PointGuard内部身份补丁与构建
 
 - 先在p7-expense-design补方案，再新增公开driver-pointguard-identity.patch；精确识别CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard，独立CLI/bundle/state/home；当前规范化路径推导App位置，不硬编码系统Applications。旧正式/Local路径保持原逻辑，不将任意.app加入助手白名单。
