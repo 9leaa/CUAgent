@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-13：010真实截图准入通过，点击命中保护拒绝遮挡
+
+- 当前VM系统设置选择新摘要目录的PointGuard包并临时开启两项权限。修复后的LaunchServices权限助手PID3425生成875字节JSON，parseError=null、ready/capturable=true；候选daemon3442独立身份/摘要与同次验证时间一致。实际预览像素仍为A2 probe/A3选中。两次启动初期socket未就绪后原有就绪检查成功，不是重派模型。
+- 当前Codex普通额度可用，余额保持原值，剩余89%，两张重置卡仍available；私有新记录保存。官方DSH原010会话Flash/off已启动，执行2raw（观察、点击请求）。像素目标(103,350)按window origin(96,61)、scale2映射桌面(147.5,236)；日志make-key ready=true、frontmost468，但系统点查询命中450/window21。ps独立确认450为System Settings；不能以应用激活/旧AX焦点证明窗口无遮挡。
+- point_preflight精确目标检查拒绝，Driver返回foreground_unavailable及foreground point does not hit exact target window；HID点击未发送。外层保守记UNKNOWN并停止，不把action_attempted=true误解为HID已投递。原账本保留2raw/pending0，后续调用被拒绝，未输入/保存，业务UNVERIFIED，010不重放。
+- finally撤销PointGuard两项权限并停止3442；原Driver3536及原权限恢复，Worker83892完整命令核对，profileRestored=true、guestExit=0、会话terminal=true、DSH running=[]。独立采集原trace、state-01截图/JSON及绑定材料并核对传输摘要；focus日志私有保留。没有独立最终ODS，不能声称P7完成。
+- 下一步研究精确窗口前置与系统命中确认；保留现有拒绝保护，不能关闭系统设置来掩盖通用遮挡问题，也不能放宽匹配或重复旧点击。
+
 ## 2026-10-13：010源码、当前绑定及生命周期脚本准备
 
 - 固定8c07c9f9995821e0d132e89c8d717f77839eb09c，503份tracked源码摘要保存；VM37份运行文件独立摘要/所有者/权限读回一致。新候选calc-select-ee73d705-bf3b-49f9-9587-e7646c6b0dbe及session-17d00dae-150f-4908-a934-54b1d64497d9，prepareDesktopProfile确认正式配置字节不变，未授予租约或请求模型。
