@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：独立权限助手实时直接截图能力通过
+
+- 用户明确同意测试VM内临时直接屏幕访问。先补实施方案，确认无在途任务/资源占用和DSH空闲，停止Worker29743并持原桌面锁；原Driver2430未停止或替换，未启动第二业务daemon。Codex实时剩余50%、普通可用、余额不变，未使用重置卡；本轮零模型/业务动作。
+- 通过测试VM系统界面添加独立CuaDriverLocal的辅助功能和录屏，使用既有测试管理员凭证；远程密码输入首次未成功，改用逐键输入后完成，未改变凭证。官方LaunchServices权限助手使用独占0600临时文件和probe-direct-capture参数，实测PID2588、独立bundle/可执行文件归属与启动命令匹配，2026-10-13T04:56:22Z返回accessibility/screen_recording/capturable均true及direct_capture_status=ready，无错误。新的权限助手实测没有再出现直接访问确认框，未声称点击过Allow，也不能据此解释旧006全部原因。
+- 保存私有direct-capture-setup-001意图、实际进程观察、原始助手报告和清理回执；本地require_direct_capture_ready对真实报告通过，5项准入单元测试复验通过。ready只证明ScreenCaptureKit可枚举捕获显示器，本轮未获取业务截图像素、未做双进程组合准入，也未运行Calc点击/输入/保存，P7仍未完成。
+- finally确认候选助手已退出，tccutil reset Accessibility/ScreenCapture仅针对com.trycua.driver.local两项成功；原Driver2430自身两项权限仍true，Worker恢复30345，官方RPC无运行会话。原007与历史预算不变，临时授权撤销后本轮ready不可充作下一轮当前许可；后续必须在新候选当前生命周期重新探测并核对真实截图。
+
 ## 2026-10-13：核对官方权限助手并修正双进程准入
 
 - 固定cli.rs证实permissions grant调用LaunchServices权限助手，助手使用独占0600临时结果文件并返回实时direct-capture probe；公开socket不提供提示能力。助手和daemon可同bundle/路径且都被上游标记driver-daemon，但PID不同，不能将助手PID当执行daemon。
