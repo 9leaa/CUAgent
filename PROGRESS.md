@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：013准备完成，权限探测前主动结束
+
+- 冻结8d6eebec4cf6cdeceb1288d08bcc6f7db5908469的504份跟踪文件摘要，VM37文件独立部署读回一致；新run calc-select-112ff4e1-d8dc-43a2-b4c9-1e3b06037221、session-6ef798fc-3cfb-4f87-bcb5-19ee4fd752fa，独立暂存profile且正式profile字节未变。
+- 只读回执calc-ax-inspection-73518dc0a8254dc78db779fbfd24b957执行2raw/0动作/0模型；实际1536×1082截图确认Calc468/window123、A2/probe及当前区域，可信prepare返回leaseGranted=false。013监督及runner语法检查通过，绑定原Driver4140/Worker94962。
+- 监督持锁等待权限设置期间，屏幕共享操作出现延迟可见效果：搜索文字未及时显示，后续出现重复audioaudio；随后关闭窗口生效，设置Dock菜单可见，但未完成权限页/授权。本轮没有执行probe、权限助手或候选daemon，没有派发模型或业务动作；不能据此断言VM完全无响应或正式Driver定位失败，具体原因未确认。
+- 操作者发送abort，在600秒准备时限前主动退出；finally撤销诊断bundle临时权限，原Driver4140未替换，Worker95349恢复，DSH running=[]。013原材料与operator-abort保留，不覆盖012证据，不算PNG实时准入或Calc业务通过。下一步先核对设置通道响应，再启动新的有界验证，P7未完成。
+
 ## 2026-10-13：012截图证据格式拒绝，安全恢复
 
 - 当前Calc只读观察及可信prepare完成；临时PointGuard辅助功能/录屏授权生效，助手与daemon4096准入及窗口预览完成。关闭设置窗口后全桌面目视没有阻塞提示，真实截图保存并绑定原run/session/daemon；本次未点击新的直接捕获Allow提示。
