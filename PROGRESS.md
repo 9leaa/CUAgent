@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-13：真实官方DSH空闲启动通过
+
+- 固定当前0b16de6源码，用现有esbuild0.28.1构建5个插件至独立私有idle-start-20261013-001/plugins，原插件不覆盖。备份原profile，解析后仅替换8个file插件路径；生成精确idle配置并验证策略Map为空，清单记录原配置、三个旧账本、插件和profile摘要。
+- 再核对队列无QUEUED/WAITING_RELEASE/RUNNING/STOP_REQUESTED、desktop无owner、P5 PAUSED、官方App及19387未运行；停止已核实的空闲Worker26995，持原桌面锁原子替换profile，使用规范DSH_HOME和新idle配置启动原官方App0.2.0-rc.2。没有改系统权限或启动业务任务。
+- 真实RPC返回a1-controlled、a1-readonly、p1-daily-report、p4-report-inputs，running为空；主App PID27532、监听子进程27550在127.0.0.1:19387，Worker恢复为27554。二次只读核对实际App环境包含正确home/idle配置、profile及5插件摘要匹配，历史任务配置和3账本逐字哈希未变。未调用模型验证拒绝，拒绝证据仍来自前轮官方工具注册集成，不能把RPC健康扩大为业务成功。
+- 私有manifest、profile-before、profile-idle、tasks-idle、cutover-intent、started-receipt及worker-restored回执保留。此为后续受控切换应恢复的新空闲基线，禁止再用旧A1 tasks.json恢复启动。诊断App录屏准入、原006焦点根因及保存重开仍未完成；下一步回到VM诊断权限与新受控样本，不重放006。
+
 ## 2026-10-13：显式空闲配置实现与注册层验证
 
 - 在方案后新增精确idle配置分支，只返回空策略Map和配置摘要，不读取历史任务/账本，不创建工作区、会话或新业务样本。默认配置仍要求至少一项任务；未知mode、idle非空、版本不符或多余字段拒绝。生产策略服务原有无session策略拒绝保持不变。
