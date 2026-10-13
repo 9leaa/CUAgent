@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-13：007真实失败与直接截图系统弹窗证据
+
+- 实时额度51%、普通可用、余额不变且重置卡未使用后，核对空闲DSH/队列，停止Worker28966，按原锁切换Driver2430的前身2195至独立诊断daemon2341。候选自身AX/录屏true、路径/bundle/摘要及run/session准入通过；官方请求记录deepseek-account/deepseek-flash、reasoningEffort=off。
+- 原007仅3raw：get_window_state、foreground click(123,340)、get_window_state。模型首次无坐标选择返回NEEDS_SCREENSHOT_POINT，随后从同一截图提供A2内部点；不是重试已执行点击。Driver回报global_input/effect=unverifiable，独立后名称框仍A3，因此UNKNOWN停止。未走到显式激活、公式栏聚焦、输入、提交或保存；不得将其算作旧006聚焦复现。
+- daemon日志显示before_cursor/after_cursor前台2399，temporary_activation前台468，temporary_action_returned前台450，temporary_restore_returned回到2399；实际ps独立核对468=LibreOffice、450=System Settings、2399=UserNotificationCenter。屏幕共享实际可见CuaDriverLocal请求绕过系统私有窗口选择器、直接访问屏幕和音频的系统确认。此为本轮前台竞争的具体证据；尚不能单凭它证明旧006根因或修复成功。点击后设置页变化也说明不能将投递成功当目标效果。
+- 结束原session terminal/running=false、guestExit=0、pendingCalls=0、许可stopped、profile恢复、无续租错误；候选2341退出，候选两项tccutil reset成功，原Driver2430自身权限true，Worker29743恢复且实际命令核对通过，官方RPC无运行会话。私有原始state/PNG/trace独立收集并核对摘要，daemon日志保存，原007不覆盖或重放。
+- 两项权限布尔值只证明TCC准入，direct_capture_status=not_checked是遗漏。下一步先单独验证候选真实截图、处理对应系统弹窗并确认前台无竞争，再设计新业务样本；不隐藏弹窗、不放宽目标身份或30raw，不把这次失败改判成功。
+
 ## 2026-10-13：007新窗口与连接材料准备完成
 
 - 对新建Untitled 1的A2经屏幕共享输入probe并回车，只作为可覆盖的测试初始状态，不输入正式预期AbZ中文、不保存、不替代模型动作。原历史文档未打开或修改。
