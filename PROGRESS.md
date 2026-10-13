@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-13：007独立profile暂存与运行器迁移准备
+
+- prepare-calc-save-007生成新私有run/session标识与PROFILE_STAGED_ONLY回执，尚未调用官方session创建入口。当前profile对照beforeSha256不变；原startDesktop恢复路径使用loadA1TaskConfig，实测新idle配置返回零策略，无需放宽启动检查。
+- 新私有运行器统一规范路径、178fecf冻结源码、当前RPC助手及idle恢复文件；删除旧硬编码PID/window/区域，要求单独的新鲜绑定文件。诊断daemon生命周期还未集成，run入口显式抛DIAGNOSTIC_DAEMON_LIFECYCLE_NOT_WIRED_YET，防止部分迁移脚本被误执行；该禁止不能作为最终实现保留。py_compile通过，原App生命周期43项模拟测试通过，未证明真实切换业务链。
+- 通过屏幕共享切至LibreOffice，原界面为启动中心；新建独立Untitled 1空白Sheet1并关闭Tip of the Day，未打开或修改旧保存样本，未输入业务内容。这属于测试环境准备，不是DSH执行证据；仍须新鲜窗口/区域绑定和受控诊断切换后运行原30raw链路。
+
 ## 2026-10-13：007源码冻结与独立部署核对通过
 
 - 检查旧006运行器发现其仍引用迁移前软链接路径、旧Calc PID79126/window1250及已拒绝加载的历史A1恢复配置，不能直接运行。先提交007实施前方案178fecf，保持同一P7阶段分支。
