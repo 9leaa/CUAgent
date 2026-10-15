@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-15：业务015双进程准入通过，桌面审阅超时拒绝
+
+- 015固定015cdd3，505份源码摘要、VM37文件独立读回一致；新私有profile暂存，正式配置不变。两次只读Driver调用确认Calc468/window123，A2选中、内容probe；prepare返回prepared=true、leaseGranted=false。
+- 原Worker55741停止并持锁后，仅重新授予已确认的同一PointGuard临时权限。权限助手与daemon23794的身份/权限/当前捕获证据组合检查通过，随后取得真实Calc预览。全桌面发现PointGuard直接录屏提示，经已批准的设置范围处理后，新图确认提示消失；没有靠窗口截图推断无遮挡。
+- 原截图采于02:52:00.932Z，审阅记录于02:52:37.464Z，已超过30秒；require_business_capture_admission在写运行准入和启动runner之前拒绝。原PNG/审阅/失败全部保留，没有run-attempt或模型输入/保存，不重放015。格式转换前两次sharp加载失败，最后通过sips转为真实PNG；转换不刷新采集时间。
+- finally精确停止23794、撤销两项临时权限，原Driver恢复为23846、Worker56327；独立ps与官方DSH running=[]复核通过。Codex实时普通额度可用、剩55%、余额未变、两张重置卡仍available；没有购买或使用卡。
+- 已预备私有审阅记录命令，将身份/哈希填充移出人工逐字段步骤；必须先目视原PNG，再显式确认，记录当前审阅时间，原采集时间及30秒门槛不变、独占创建禁止覆盖。新鲜/过期/未来时间/非PNG四项无写入检查通过，尚未实机证明减少耗时。下一次先完成库与格式准备、额度记录，再采图审阅和派发；不能沿用015已撤销许可。
+
 ## 2026-10-15：PointGuard真实权限与捕获探测通过，业务仍待验证
 
 - 私有诊断009核对签名产物81d219ae…，独立进程表取得助手PID23624，与原结果source.pid、PointGuard bundle及完整路径一致。原报告accessibility=true、screen_recording=true、screen_recording_capturable=true、direct_capture_status=ready；严格准入函数通过，verified.json明确businessVerified=false。没有切换业务daemon、派发模型或操作表格。
