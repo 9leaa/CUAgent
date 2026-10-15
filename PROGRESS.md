@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-15：系统启动只读观察与未授权基线
+
+- 私有native-supervised-observe-e3d9fd01a4e44e219434bf270143c4d9首次返回UNLOCKED_SESSION_REQUIRED，PID31538已退出，未查桌面；短命拒绝路径仍可出现open -W的GetProcessPID警告，不能把成功路径10秒窗口概括为所有启动都已解决。Screen Sharing最初展示旧设置画面，唤醒后确认锁屏，已有密码解锁成功，未改密码/睡眠设置。
+- 解锁后的新回执8bb70e0db49144a181e82303139f60dc：精确33c9ae5包经LaunchServices运行--observe，observerPid31558与libproc路径及ps用户/启动时间/本次标记一致；10.116秒后kill(pid,0)确认不存在，open退出0、stderr空。SPI点(360,176.5)命中当前前景系统设置4486/window358，与该次目标一致；AX trusted=false、AX_NOT_TRUSTED_NO_PROMPT，jointIdentityMatches=0。零输入、零模型、未改权限。
+- 当前界面专用CUAgentPointProbe开关关闭，CuaDriver-0.34开启；本轮只是未授权基线，不证明授权后的LaunchServices效果或SSH权限归因。下一步需对新精确包执行临时辅助功能授权窗口，完成当前联合查询后撤销；该权限变更尚未执行，P7业务仍未通过。
+
 ## 2026-10-15：监督窗口独立部署与LaunchServices实测
 
 - 33c9ae5原生探针显式arm64、最低macOS15.0、SDK15.5重建，独立adhoc签名包SHA256为928b6898f69bd2b205281f33d1744cf26b891ab69624b870fec28bb7d12d32d8。首次默认SDK构建只留本地，未部署；固定SDK产物另存，未覆盖历史包。VM新目录CUAgent-PointProbe-33c9ae5-arm64-sdk15，普通账户/VirtualMac、独立读回SHA及codesign --verify --strict通过；原Driver未替换。
