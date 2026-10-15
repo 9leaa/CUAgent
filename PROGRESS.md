@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：PointGuard真实权限与捕获探测通过，业务仍待验证
+
+- 私有诊断009核对签名产物81d219ae…，独立进程表取得助手PID23624，与原结果source.pid、PointGuard bundle及完整路径一致。原报告accessibility=true、screen_recording=true、screen_recording_capturable=true、direct_capture_status=ready；严格准入函数通过，verified.json明确businessVerified=false。没有切换业务daemon、派发模型或操作表格。
+- finally停止原助手，Accessibility/ScreenCapture两项reset返回成功，Worker55741恢复；后续独立ps确认Worker存活，官方DSH查询running=[]。009权限已撤回，不能用该历史回执给未来业务放行；原Driver未替换。
+- 准备通道中Cmd+A未选中全部而输入了a；可见编辑菜单Select All以及文件选择器单独输入“/”可完成相应导航。只说明屏幕共享准备通道的修饰键问题，不证明正式CUAgent Driver也有同一故障。008准备超时保留，不算通过；没有修改密码。
+- 后续沿现有正式DSH链做新鲜身份、桌面PNG和同周期许可核验，然后验证输入、保存与独立读回；旧014不重放，30raw/180秒不变，P7保持未验收。
+
 ## 2026-10-15：VM验证否定回调路线，助手有界存活取证通过
 
 - 005部署arm64原生启动器后，OS回调实际返回PID=-1、空bundle/路径，UNKNOWN拒绝；Worker54434恢复。006在新助手保留10秒后仍返回相同空身份，Worker54799恢复。两轮不重放、不把回调到达当成功；Swift启动器及6项仅覆盖输入拒绝的测试已从当前代码撤回，Git历史和私有原回执保留。
