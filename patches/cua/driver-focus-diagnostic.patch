@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..4697887
 --- /dev/null
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
-@@ -0,0 +1,109 @@
+@@ -0,0 +1,113 @@
 +//! Fail-closed preflight for global HID pixel clicks, not a delivery guarantee.
 +use crate::ax::bindings::*;
 +use core_foundation::{base::{CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
@@ -45,9 +45,12 @@ index 0000000..4697887
 +    let window = if status == kAXErrorSuccess {
 +        owned_window.as_ref().map(|w| w.0).unwrap_or(hit.0)
 +    } else { hit.0 };
++    let attribute_status = status;
++    let attribute_present = owned_window.is_some();
 +    let mut window_id = 0;
 +    let status = unsafe { _AXUIElementGetWindow(window, &mut window_id) };
-+    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0, "system point window unavailable");
++    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0,
++        "system point window unavailable: attribute_status={attribute_status}, attribute_present={attribute_present}, window_status={status}, window_id={window_id}");
 +    Ok((pid, window_id))
 +}
 +
@@ -67,7 +70,8 @@ index 0000000..4697887
 +        && (x as f32).is_finite() && (y as f32).is_finite(), "invalid foreground point target");
 +    let hit = system_point_target(x, y);
 +    super::skylight::focus_diagnostic("point_preflight", pid, wid,
-+        serde_json::json!({"x":x,"y":y,"hit":hit.as_ref().ok(),"query_ok":hit.is_ok()}));
++        serde_json::json!({"x":x,"y":y,"hit":hit.as_ref().ok(),"query_ok":hit.is_ok(),
++            "query_error":hit.as_ref().err().map(|error| error.to_string())}));
 +    // A focus/window change can still race this check. Post-action observation
 +    // remains mandatory; this does not claim the eventual event receiver.
 +    deliver_if_matching(pid, wid, hit, action)
