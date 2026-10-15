@@ -1,5 +1,9 @@
 # macOS VM 桥接与历史诊断
 
+`native_point_probe.m`是专用只读诊断候选，不是模型工具或正式点击策略。参数为`--validate x y pid window`（仅检查参数，不读取桌面）或`--observe x y pid window`（仅隔离VirtualMac普通mvpagent、已解锁图形会话及原共享锁内执行）。不主动申请权限；AX未信任明确记录未执行，不伪造命中。联合身份匹配不等于窗口内容坐标安全，更不是输入已投递。三秒SIGALRM退出124输出UNKNOWN，外层部署监督还须硬超时和退出核验；原生阻塞超时未实测。
+
+本地编译：`xcrun clang -fobjc-arc -Wall -Wextra -Werror -framework Foundation -framework ApplicationServices tools/mac_vm/native_point_probe.m -o .runtime/native-point-probe-local`。回归：`python -m unittest tools.mac_vm.tests.test_native_point_probe`。测试只做编译、参数和宿主拒绝，不进入宿主桌面查询。尚待专用身份签名打包和VM联合核验；不能借旧Driver/PointGuard权限记录当作新候选已授权。
+
 P6证据核验已区分“结果写入依据”和之后的只读观察：final_state须为write_result前紧邻且30秒内的Save后观察，后续观察仍核对原图片/状态哈希及正文/窗口身份，只允许观察与读回。188项执行层测试、原失败字节离线复核通过；旧任务不改成功，尚未部署新guest或完成真实新版回归。
 
 P6 `desktop_expiry_live.py --run p2-<uuid> --owner <uuid> --approve-task`仅供已批准的可信VM诊断窗口；须先核对源码、P5空闲和共享锁，不是模型工具。真实观察后等待短许可自然过期，同任务再次观察必须拒绝，原/重新构造controller不能续期，finally关闭原runtime。原trace/PNG/state/许可及expiry-diagnostic.json留私有目录，业务保持UNVERIFIED。2026-10-03真实VM3raw诊断与独立原文件核对通过；不证明官方App/HTTP/DB完整失权链路，不可替代P6业务验收。对应4项本地反例、执行层181项测试通过。

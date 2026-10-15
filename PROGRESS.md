@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：专用原生联合诊断入口实现
+
+- 在452602d补充方案后新增tools/mac_vm/native_point_probe.m。独立Objective-C诊断入口，不复用通用Python权限，不加载模型工具、不调用任何输入API。系统AX只在AXIsProcessTrusted为真时读取；记录原返回码、命中PID、窗口/父属性存在与类型，随后固定无过滤SPI查询。jointIdentityMatches仅诊断布尔值，不包含祖先解析、内部坐标许可或输入授权。
+- 原生执行要求普通mvpagent、VirtualMac、解锁的当前图形会话、原bridge.lock非阻塞排他锁及无quarantine；没有自动创建锁或改权限。SIGALRM三秒退出124并输出UNKNOWN，不重试；未来VM监督仍须外层硬超时及确认原进程退出，当前未实测原生阻塞超时。
+- xcrun clang -fobjc-arc -Wall -Wextra -Werror及Foundation/ApplicationServices编译通过；本地产物SHA256 a4a9f8ae3dafad116bebf13ea0e794185e0af012017128fad291053b74f95863，未签名打包，不可冒充后续部署摘要。新增4项测试覆盖合法参数零原生查询、12组非法入口/参数拒绝、宿主观察拒绝及二进制无输入/权限申请符号；与既有探针/准入25项合跑29项通过。
+- 本轮没有VM输入、权限变更或真实联合查询。下一步独立签名打包、监督进程身份与超时测试、VM临时权限准入，再补齐同周期AX/SPI/窗口清单矩阵。没有改正式Driver，不恢复018，P7未完成。
+
 ## 2026-10-15：AX可用性与窗口边缘反例
 
 - 当前本地候选代码检查：pointer_shape.rs的AX是应用级查询，不能代替系统级命中。私有有界子进程检查AXIsProcessTrusted=false，输出AX_NOT_TRUSTED_NO_PROMPT；未调用AX点查询、未触发权限申请。回执98b929579b6540a7ac59e97011b1f851同时保留SPI468/123和当前窗口清单，不能算AX交叉通过。
