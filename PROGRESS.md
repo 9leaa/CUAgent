@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：017实际取证，窗口属性无值与直接窗口查询参数错误
+
+- 用户已确认本候选临时截图/辅助控制权限；界面添加的是新bfdb199…目录的PointGuard，两项开关核对开启。权限助手、daemon24472与实际Calc预览通过同周期身份检查。首张全桌面证据发现直接录屏提示，保留原图；处理已确认提示后重新截图，在30秒内生成审阅记录并派发，没有复用带弹窗截图或伪造时间。实时Codex剩余50%，普通额度可用、余额未变、重置卡未用。
+- 原017会话由官方DSH Flash/off执行5raw：A2选择、窗口激活及新观察通过，模型选择公式栏(560,228)，转换桌面点(376,175)。当前point_preflight原错误为attribute_status=-25212、attribute_present=false、window_status=-25201、window_id=0。固定SDK15.5的AXError.h确认对应NoValue和IllegalArgument；源码表明AXWindow无值时把命中元素本身交给窗口查询，这条路径失败。此前系统点查询和PID读取已通过，但日志没有保存命中PID/角色，不能据此声称命中元素已确认为Calc文本节点。
+- 精确窗口保护在HID点击前拒绝，未进入输入/提交/保存。原会话终止UNKNOWN，rawCalls=5、pendingCalls=0、guestExit=0、profileRestored=true、renewErrors=[]；监督正常退出仅代表清理完成。候选24472已停止、两项临时权限撤销、原Driver24603及Worker75950恢复，独立核对DSH running=[]和Worker进程存在。私有017原始会话、截图及VM原诊断日志保留，不重放。
+- 下一步先设计/验证有界AX父链窗口解析，拒绝跨PID/跨窗口、循环、超限和无证据情况，不能直接改成只匹配PID或凭截图放行。本次只取得诊断证据，不宣称修复输入；P7仍未完成，P5继续跳过。
+
 ## 2026-10-15：017冻结、当前窗口绑定与准备完成
 
 - 当前7d6fb95冻结506份文件；guest37文件部署后独立读回摘要、所有者和权限核验通过。新run/session及独立profile暂存，正式profile字节未变；运行器与监督程序绑定新PointGuard包/摘要、原Driver24123及Worker56864，尚未启动监督。
