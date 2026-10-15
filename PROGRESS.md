@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：弹窗分层确认，AX生效但录屏未就绪
+
+- 只读进程表仅有原Driver4140，没有旧Local或候选进程；LaunchServices登记的三份PointGuard历史包均为PointGuard名称，未改注册库或删除旧包。tccd日志查询退出77，无可用日志，不据此推断内部归因。
+- Local弹窗消失后，新截图出现PointGuard辅助功能提示；进入该页面可见原Driver开启、PointGuard关闭。说明至少存在多个提示，不支持“当前候选被识别为Local”的既有猜测。未授权Local。
+- 私有设置003中，原助手结果（报告PID23002）为accessibility=true、screen_recording=false、blocked_by_screen_recording；保留的verified_at来自先前探测，不能当本轮成功。独立进程采样未捕获该短命助手，门禁拒绝；Worker53899恢复。随后只读原结果文件补诊断，不重启原助手、不改原报告。
+- 私有设置004只做页面准备，未发probe；开关画面瞬态及后续稳定状态不一致，不能按蓝色瞬态认定授权完成。主动cancel后精确bundle撤权成功、Worker54010恢复、DSH running=[]。助手结果保存顺序已在私有脚本调整为先保留结果再判PID，不放宽身份要求。无模型、无业务daemon切换、无P7输入或保存成功。
+
 ## 2026-10-15：实际截图助手返回，辅助功能准入拒绝
 
 - 在新的私有设置诊断中停止已核实的Worker53358并持桌面锁，验证PointGuard签名后摘要；LaunchServices启动助手，独立进程表捕获PID22902。没有启动候选业务daemon、切换原Driver、创建模型会话或重放014。
