@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-15：WindowServer首次VM只读样本
+
+- 独立部署f9ea0e6探针，宿主/VM SHA256均为7087e9a1f6dc7f4af06ddf2556cea6566114b725e171e8d5dba44e1083bbb92a。仅诊断子进程，无正式Driver替换或权限增加。
+- 本地诊断入口首次因缺PYTHONPATH未执行，补正确模块路径；首个VM回执2a10dd077be248a7af14cf137b013d29因锁屏拒绝、未调用SPI。远程画面最初为旧帧，唤醒后确认锁屏，用既有凭据解锁，没有改密码或睡眠设置。
+- 私有回执87c73025b5ef402180c127991f390916：05:04:02 UTC，点(360,176.5)命中PID468/window123，findStatus/pidStatus=0，matchesExpected=true。公式栏位置由当前完整桌面和先前只读AX帧交叉选取。
+- 手动将已有系统设置窗口置前，仅作遮挡布置，没有改变设置。回执e02316b27a8049a0ae6d08dfaed07d6b：05:04:31 UTC，同点命中PID4486/window358，matchesExpected=false；两份完整桌面截图同目录独占0600保存。诊断rawCalls=0指Driver工具调用数，不代表没有原生查询；实际共两次独立SPI点查询。无模型任务、无业务输入/保存，DSH结束核对空闲。
+- 以上只是无遮挡/其他应用遮挡的初步样本，尚未采集同周期系统级AX命中及独立遮挡窗口清单，也未验证同应用第二窗口、Sheet、菜单/系统弹窗、空白/边缘。不能标完整遮挡矩阵通过或接入生产放行；下一步补齐这些证据。018不恢复，P7仍未完成。
+
 ## 2026-10-15：WindowServer独立只读探针与离线回归
 
 - 在已提交5c1c9fc方案后新增backend/windowserver_probe.py和test_windowserver_probe.py；不修改Driver或点击放行逻辑。动态加载固定SkyLight路径，声明32位身份/状态及16字节CGPoint，固定一次无过滤查询，不跳过遮挡窗口。所有匹配结果明确diagnosticOnly，不能当作动作许可。
