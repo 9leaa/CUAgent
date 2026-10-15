@@ -31,11 +31,14 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         previous['source']['executable'] = '/Users/mvpagent/CUAgentDriverDiagnostic-b4bc8ca2962687387b178fb98833dea0f81e0a7ca86152238333feb290bbde9e/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaises(ValueError):
             require_direct_capture_ready(previous, expected_pid=42)
+        previous['source']['executable'] = '/Users/mvpagent/CUAgentDriverDiagnostic-bfdb1991672365e331e1c36a51098aafac1b14a9dc969a6b0a21d57b6f3bf750/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
+            require_direct_capture_ready(previous, expected_pid=42)
         self.assertEqual(DIAGNOSTIC_BUNDLE, 'com.trycua.driver.pointguard')
         self.assertEqual(DIAGNOSTIC_EXECUTABLE,
-            '/Users/mvpagent/CUAgentDriverDiagnostic-bfdb1991672365e331e1c36a51098aafac1b14a9dc969a6b0a21d57b6f3bf750/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
+            '/Users/mvpagent/CUAgentDriverDiagnostic-8330e0eef3cb3fefb551674dfbd01a6fe92eccce6f8066ffcdb1e7191d4fb610/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
         self.assertEqual(DIAGNOSTIC_SHA256,
-            '1c3315747d6775c8e3a396c1adf3f3d62481ddd2351ed9de9293c3bb59ef00de')
+            '12cf062a32d81b14877afa493e805b4ab24f7bac168e292971a50ab0d1659330')
         same_bundle_old_path = copy.deepcopy(self.report)
         same_bundle_old_path['source']['executable'] = '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
@@ -127,6 +130,10 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         self.assertIsNone(require_current_capture_admission(receipt, daemon, **args))
         self.assertEqual(receipt, before)
         old_sha = '01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16'
+        old_017_sha = '1c3315747d6775c8e3a396c1adf3f3d62481ddd2351ed9de9293c3bb59ef00de'
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED'):
+            require_current_capture_admission({**receipt, 'sha256': old_017_sha}, daemon,
+                **{**args, 'executable_sha256': old_017_sha})
         previous_sha = '81d219ae81deb214d2b85dda567a2b2c6d962dd1b9afc80154bcb25c597a40ad'
         with self.assertRaises(ValueError):
             require_current_capture_admission({**receipt, 'sha256': previous_sha}, daemon,

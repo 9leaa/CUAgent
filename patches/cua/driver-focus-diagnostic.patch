@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..4697887
 --- /dev/null
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
-@@ -0,0 +1,304 @@
+@@ -0,0 +1,365 @@
 +//! Fail-closed preflight for global HID pixel clicks, not a delivery guarantee.
 +use crate::ax::bindings::*;
 +use core_foundation::{base::{CFEqual, CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
@@ -20,12 +20,29 @@ index 0000000..4697887
 +    fn drop(&mut self) { unsafe { CFRelease(self.0 as CFTypeRef) }; }
 +}
 +
-+#[cfg(test)]
-+fn checked_point_window(status: AXError, window_id: u32, attribute_status: AXError,
-+    attribute_present: bool) -> anyhow::Result<u32> {
++fn checked_point_window(status: AXError, window_id: u32) -> anyhow::Result<u32> {
 +    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0,
-+        "system point window unavailable: attribute_status={attribute_status}, attribute_present={attribute_present}, window_status={status}, window_id={window_id}");
++        "point terminal window unavailable: window_status={status}, window_id={window_id}");
 +    Ok(window_id)
++}
++
++fn attribute_present(status: AXError, present: bool, element_type: bool, name: &str) -> anyhow::Result<bool> {
++    if status == -25212 || status == -25205 {
++        anyhow::ensure!(!present, "point attribute inconsistent result: {name}");
++        return Ok(false);
++    }
++    anyhow::ensure!(status == kAXErrorSuccess, "point attribute failed: {name}, status={status}");
++    anyhow::ensure!(present, "point attribute empty success: {name}");
++    anyhow::ensure!(element_type, "point attribute unexpected type: {name}");
++    Ok(true)
++}
++
++fn terminal_role(role: &str, window_only: bool) -> anyhow::Result<bool> {
++    if role == "AXWindow" || role == "AXSheet" { return Ok(true); }
++    anyhow::ensure!(!window_only, "point window attribute is not a window");
++    anyhow::ensure!(role.starts_with("AX") && role.len() > 2 && role != "AXUnknown" && role != "AXApplication",
++        "point ancestry role boundary");
++    Ok(false)
 +}
 +
 +enum PointStep<E> {
@@ -65,51 +82,54 @@ index 0000000..4697887
 +    anyhow::bail!("point ancestry depth exceeded")
 +}
 +
-+fn point_element_attr(element: AXUIElementRef, name: &str) -> anyhow::Result<Option<OwnedElement>> {
++fn point_element_attr(element: AXUIElementRef, name: &str, trace: &mut serde_json::Value) -> anyhow::Result<Option<OwnedElement>> {
 +    let attr = CFString::new(name);
 +    let mut value: CFTypeRef = std::ptr::null();
 +    let status = unsafe { AXUIElementCopyAttributeValue(element, attr.as_concrete_TypeRef(), &mut value) };
 +    // RAII releases even an unexpected CF type or non-null error result.
 +    let owned = (!value.is_null()).then(|| OwnedElement(value as AXUIElementRef));
-+    if status == -25212 || status == -25205 { // NoValue / AttributeUnsupported
-+        anyhow::ensure!(owned.is_none(), "point attribute inconsistent result: {name}");
-+        return Ok(None);
-+    }
-+    anyhow::ensure!(status == kAXErrorSuccess, "point attribute failed: {name}, status={status}");
-+    anyhow::ensure!(owned.is_some(), "point attribute empty success: {name}");
-+    anyhow::ensure!(unsafe { CFGetTypeID(value) == AXUIElementGetTypeID() },
-+        "point attribute unexpected type: {name}");
++    let valid_type = !value.is_null() && unsafe { CFGetTypeID(value) == AXUIElementGetTypeID() };
++    trace[name] = serde_json::json!({"status":status,"present":owned.is_some(),"element_type":valid_type});
++    if !attribute_present(status, owned.is_some(), valid_type, name)? { return Ok(None); }
 +    Ok(owned)
 +}
 +
-+fn native_point_step(element: &OwnedElement, window_only: bool) -> anyhow::Result<(i32, PointStep<OwnedElement>)> {
++fn native_point_step(element: &OwnedElement, window_only: bool, expected_pid: i32,
++    trace: &mut serde_json::Value) -> anyhow::Result<(i32, PointStep<OwnedElement>)> {
 +    // Set only this retained element's messaging timeout, never system-wide.
 +    let status = unsafe { AXUIElementSetMessagingTimeout(element.0, 0.1) };
 +    anyhow::ensure!(status == kAXErrorSuccess, "point element timeout setup failed: {status}");
 +    let mut pid = 0;
 +    let status = unsafe { AXUIElementGetPid(element.0, &mut pid) };
++    trace["pid"] = serde_json::json!(pid);
++    trace["pid_status"] = serde_json::json!(status);
 +    anyhow::ensure!(status == kAXErrorSuccess && pid > 0, "point element owner unavailable: {status}");
++    anyhow::ensure!(pid == expected_pid, "point ancestry owner mismatch");
 +    let role = unsafe { copy_string_attr(element.0, "AXRole") }
 +        .ok_or_else(|| anyhow::anyhow!("point element role unavailable"))?;
-+    if role == "AXWindow" || role == "AXSheet" {
++    // Log only fixed categories, never an app-supplied arbitrary role string.
++    trace["role"] = serde_json::json!(match role.as_str() {
++        "AXWindow"=>"window", "AXSheet"=>"sheet", "AXApplication"=>"application",
++        "AXUnknown"=>"unknown", _=>"other",
++    });
++    if terminal_role(&role, window_only)? {
 +        let mut id = 0;
 +        let status = unsafe { _AXUIElementGetWindow(element.0, &mut id) };
-+        anyhow::ensure!(status == kAXErrorSuccess && id != 0,
-+            "point terminal window unavailable: window_status={status}, window_id={id}");
-+        return Ok((pid, PointStep::Window(id)));
++        trace["window_status"] = serde_json::json!(status);
++        trace["window_id"] = serde_json::json!(id);
++        return Ok((pid, PointStep::Window(checked_point_window(status, id)?)));
 +    }
-+    anyhow::ensure!(!window_only, "point window attribute is not a window");
-+    anyhow::ensure!(role.starts_with("AX") && role != "AXUnknown" && role != "AXApplication",
-+        "point ancestry role boundary");
-+    if let Some(window) = point_element_attr(element.0, "AXWindow")? {
++    if let Some(window) = point_element_attr(element.0, "AXWindow", trace)? {
++        trace["route"] = serde_json::json!("window_attribute");
 +        return Ok((pid, PointStep::Next(window, true)));
 +    }
-+    let parent = point_element_attr(element.0, "AXParent")?
++    let parent = point_element_attr(element.0, "AXParent", trace)?
 +        .ok_or_else(|| anyhow::anyhow!("point ancestry parent missing"))?;
++    trace["route"] = serde_json::json!("parent");
 +    Ok((pid, PointStep::Next(parent, false)))
 +}
 +
-+fn system_point_target(x: f64, y: f64) -> anyhow::Result<(i32, u32)> {
++fn system_point_target(x: f64, y: f64, trace: &mut Vec<serde_json::Value>) -> anyhow::Result<(i32, u32)> {
 +    // Unlike an application-scoped hit test, this asks the desktop which app
 +    // currently owns the element at the point. Never change global AX timeout.
 +    let system = unsafe { AXUIElementCreateSystemWide() };
@@ -124,7 +144,12 @@ index 0000000..4697887
 +    let status = unsafe { AXUIElementGetPid(hit.0, &mut pid) };
 +    anyhow::ensure!(status == kAXErrorSuccess && pid > 0, "system point owner unavailable");
 +    let started = Instant::now();
-+    let id = resolve_point_chain(hit, pid, native_point_step,
++    let id = resolve_point_chain(hit, pid, |element, window_only| {
++        let mut row = serde_json::json!({"depth":trace.len(),"window_only":window_only});
++        let result = native_point_step(element, window_only, pid, &mut row);
++        trace.push(row);
++        result
++    },
 +        |a, b| unsafe { CFEqual(a.0 as CFTypeRef, b.0 as CFTypeRef) != 0 },
 +        || started.elapsed() >= Duration::from_secs(2))
 +        .map_err(|error| anyhow::anyhow!("point owner pid={pid}: {error}"))?;
@@ -145,10 +170,11 @@ index 0000000..4697887
 +) -> anyhow::Result<()> {
 +    anyhow::ensure!(pid > 0 && wid != 0 && x.is_finite() && y.is_finite()
 +        && (x as f32).is_finite() && (y as f32).is_finite(), "invalid foreground point target");
-+    let hit = system_point_target(x, y);
++    let mut trace = Vec::new();
++    let hit = system_point_target(x, y, &mut trace);
 +    super::skylight::focus_diagnostic("point_preflight", pid, wid,
 +        serde_json::json!({"x":x,"y":y,"hit":hit.as_ref().ok(),"query_ok":hit.is_ok(),
-+            "query_error":hit.as_ref().err().map(|error| error.to_string())}));
++            "query_error":hit.as_ref().err().map(|error| error.to_string()),"ancestry":trace}));
 +    // A focus/window change can still race this check. Post-action observation
 +    // remains mandatory; this does not claim the eventual event receiver.
 +    deliver_if_matching(pid, wid, hit, action)
@@ -258,19 +284,54 @@ index 0000000..4697887
 +
 +    #[test]
 +    fn window_failure_preserves_diagnostics_and_never_delivers() {
-+        for (status, id, attr_status, present) in [
-+            (0, 0, 0, true), (-25202, 123, 0, true), (-25205, 0, -25205, false),
++        for (status, id) in [
++            (0, 0), (-25202, 123), (-25205, 0),
 +        ] {
-+            let result = super::checked_point_window(status, id, attr_status, present)
++            let result = super::checked_point_window(status, id)
 +                .map(|wid| (468, wid));
 +            let error = deliver_if_matching(468, 123, result,
 +                || panic!("must not deliver")).unwrap_err();
 +            assert_eq!(error.to_string(), format!(
-+                "system point window unavailable: attribute_status={attr_status}, attribute_present={present}, window_status={status}, window_id={id}"));
++                "point terminal window unavailable: window_status={status}, window_id={id}"));
 +        }
 +        // A direct window hit may have no AXWindow attribute; the original
 +        // successful native window lookup remains authoritative.
-+        assert_eq!(super::checked_point_window(0, 123, -25205, false).unwrap(), 123);
++        assert_eq!(super::checked_point_window(0, 123).unwrap(), 123);
++    }
++
++    #[test]
++    fn native_attribute_classification_only_missing_allows_parent() {
++        for name in ["AXWindow", "AXParent"] {
++            for status in [-25212,-25205] {
++                assert!(!super::attribute_present(status,false,false,name).unwrap());
++                assert_eq!(super::attribute_present(status,true,true,name).unwrap_err().to_string(),
++                    format!("point attribute inconsistent result: {name}"));
++            }
++            assert!(super::attribute_present(0,true,true,name).unwrap());
++            for (status,present,valid,error) in [
++                (-25201,false,false,format!("point attribute failed: {name}, status=-25201")),
++                (-25204,true,true,format!("point attribute failed: {name}, status=-25204")),
++                (0,false,false,format!("point attribute empty success: {name}")),
++                (0,true,false,format!("point attribute unexpected type: {name}")),
++            ] {
++                let result=super::attribute_present(status,present,valid,name).map(|_|(468,123));
++                assert_eq!(deliver_if_matching(468,123,result,||panic!("must not deliver"))
++                    .unwrap_err().to_string(),error);
++            }
++        }
++    }
++
++    #[test]
++    fn native_role_classification_never_maps_sheet_to_parent() {
++        for direct in [false,true] {
++            for role in ["AXWindow","AXSheet"] { assert!(super::terminal_role(role,direct).unwrap()); }
++        }
++        assert!(!super::terminal_role("AXTextField",false).unwrap());
++        assert_eq!(super::terminal_role("AXTextField",true).unwrap_err().to_string(),
++            "point window attribute is not a window");
++        for role in ["", "AX", "AXApplication", "AXUnknown", "unknown"] {
++            assert_eq!(super::terminal_role(role,false).unwrap_err().to_string(), "point ancestry role boundary");
++        }
 +    }
 +
 +    #[test]
