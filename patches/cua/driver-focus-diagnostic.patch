@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..4697887
 --- /dev/null
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,135 @@
 +//! Fail-closed preflight for global HID pixel clicks, not a delivery guarantee.
 +use crate::ax::bindings::*;
 +use core_foundation::{base::{CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
@@ -17,6 +17,13 @@ index 0000000..4697887
 +struct OwnedElement(AXUIElementRef);
 +impl Drop for OwnedElement {
 +    fn drop(&mut self) { unsafe { CFRelease(self.0 as CFTypeRef) }; }
++}
++
++fn checked_point_window(status: AXError, window_id: u32, attribute_status: AXError,
++    attribute_present: bool) -> anyhow::Result<u32> {
++    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0,
++        "system point window unavailable: attribute_status={attribute_status}, attribute_present={attribute_present}, window_status={status}, window_id={window_id}");
++    Ok(window_id)
 +}
 +
 +fn system_point_target(x: f64, y: f64) -> anyhow::Result<(i32, u32)> {
@@ -49,9 +56,7 @@ index 0000000..4697887
 +    let attribute_present = owned_window.is_some();
 +    let mut window_id = 0;
 +    let status = unsafe { _AXUIElementGetWindow(window, &mut window_id) };
-+    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0,
-+        "system point window unavailable: attribute_status={attribute_status}, attribute_present={attribute_present}, window_status={status}, window_id={window_id}");
-+    Ok((pid, window_id))
++    Ok((pid, checked_point_window(status, window_id, attribute_status, attribute_present)?))
 +}
 +
 +fn deliver_if_matching(
@@ -81,6 +86,23 @@ index 0000000..4697887
 +mod tests {
 +    use super::deliver_if_matching;
 +    use std::cell::Cell;
++
++    #[test]
++    fn window_failure_preserves_diagnostics_and_never_delivers() {
++        for (status, id, attr_status, present) in [
++            (0, 0, 0, true), (-25202, 123, 0, true), (-25205, 0, -25205, false),
++        ] {
++            let result = super::checked_point_window(status, id, attr_status, present)
++                .map(|wid| (468, wid));
++            let error = deliver_if_matching(468, 123, result,
++                || panic!("must not deliver")).unwrap_err();
++            assert_eq!(error.to_string(), format!(
++                "system point window unavailable: attribute_status={attr_status}, attribute_present={present}, window_status={status}, window_id={id}"));
++        }
++        // A direct window hit may have no AXWindow attribute; the original
++        // successful native window lookup remains authoritative.
++        assert_eq!(super::checked_point_window(0, 123, -25205, false).unwrap(), 123);
++    }
 +
 +    #[test]
 +    fn invalid_target_rejects_before_native_query() {
