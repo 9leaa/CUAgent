@@ -1,9 +1,12 @@
 """Compile/CLI checks only. Never exercise host desktop APIs."""
 import json
+import os
 from pathlib import Path
+import select
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 
@@ -58,6 +61,41 @@ class NativePointProbeTests(unittest.TestCase):
         code, result = self.call('--observe', '360', '176.5', '468', '123')
         self.assertEqual(code, 77)
         self.assertEqual(result['reason'], 'VM_IDENTITY_REQUIRED')
+
+    def test_supervised_validation_flushes_before_bounded_exit(self):
+        token = '0123456789abcdef' * 2
+        started = time.monotonic()
+        process = subprocess.Popen([self.binary, '--validate', '360', '176.5', '468', '123',
+                                    '--supervisor-token', token], stdout=subprocess.PIPE)
+        try:
+            self.assertTrue(select.select([process.stdout], [], [], 3)[0], 'report not flushed')
+            result = json.loads(process.stdout.readline())
+            self.assertEqual(result['status'], 'VALIDATED_ONLY')
+            self.assertEqual(result['nativeQueries'], 0)
+            self.assertTrue(result['diagnosticOnly'])
+            self.assertEqual(result['supervisorToken'], token)
+            self.assertEqual(result['observerPid'], process.pid)
+            self.assertEqual(result['supervisorHoldSeconds'], 10)
+            self.assertIsNone(process.poll())
+            os.kill(process.pid, 0)  # Actual live child, not just a PID in JSON.
+            self.assertEqual(process.wait(timeout=13), 0)
+            self.assertGreaterEqual(time.monotonic() - started, 9)
+            self.assertEqual(process.stdout.read(), b'')
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=2)
+            process.stdout.close()
+
+    def test_invalid_supervisor_tokens_do_not_start_hold(self):
+        for flag, token in [('--supervisor-token', ''), ('--supervisor-token', 'a' * 31),
+                            ('--supervisor-token', 'a' * 33), ('--supervisor-token', 'A' * 32),
+                            ('--supervisor-token', '/' * 32), ('--other', 'a' * 32)]:
+            with self.subTest(flag=flag, token=token):
+                code, result = self.call('--validate', '1', '2', '3', '4', flag, token)
+                self.assertEqual(code, 64)
+                self.assertEqual(result['reason'], 'INVALID_SUPERVISOR_TOKEN')
+                self.assertNotIn('supervisorToken', result)
 
     def test_binary_has_no_input_or_permission_prompt_imports(self):
         symbols = subprocess.check_output(['nm', '-u', self.binary], text=True)

@@ -11,8 +11,10 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <time.h>
 #include <unistd.h>
 
+static const char *supervisorToken=NULL;
 static void deadline(int signalNumber) {
     (void)signalNumber;
     const char message[]="{\"status\":\"UNKNOWN\",\"reason\":\"NATIVE_TIMEOUT\",\"diagnosticOnly\":true}\n";
@@ -20,9 +22,24 @@ static void deadline(int signalNumber) {
     _exit(124);
 }
 static int emit(NSDictionary *value, int code) {
+    if(supervisorToken) {
+        NSMutableDictionary *tagged=[value mutableCopy];
+        tagged[@"supervisorToken"]=@(supervisorToken);
+        tagged[@"observerPid"]=@(getpid());
+        tagged[@"supervisorHoldSeconds"]=@(code==0?10:0);
+        value=tagged;
+    }
     NSData *data=[NSJSONSerialization dataWithJSONObject:value options:0 error:nil];
     if (!data) return 70;
     fwrite(data.bytes,1,data.length,stdout); fputc('\n',stdout);
+    if(fflush(stdout)) return 74;
+    if(supervisorToken && code==0) {
+        // No desktop lock or queries during this bounded identity sampling window.
+        signal(SIGALRM,deadline); alarm(12);
+        struct timespec remaining={10,0};
+        while(nanosleep(&remaining,&remaining) && errno==EINTR) {}
+        alarm(0);
+    }
     return code;
 }
 static BOOL number(const char *text, double *value) {
@@ -40,11 +57,17 @@ static NSDictionary *attribute(AXUIElementRef hit, CFStringRef key) {
 int main(int argc,const char **argv) {
  @autoreleasepool {
     double x,y,pid,window;
-    if(argc!=6 || (strcmp(argv[1],"--validate") && strcmp(argv[1],"--observe")) ||
+    if((argc!=6 && argc!=8) || (strcmp(argv[1],"--validate") && strcmp(argv[1],"--observe")) ||
        !number(argv[2],&x) || !number(argv[3],&y) || !number(argv[4],&pid) ||
        !number(argv[5],&window) || pid<1 || pid>INT32_MAX || floor(pid)!=pid ||
        window<1 || window>UINT32_MAX || floor(window)!=window)
         return emit(@{@"status":@"REJECTED",@"reason":@"INVALID_ARGUMENTS",@"diagnosticOnly":@YES},64);
+    if(argc==8) {
+        if(strcmp(argv[6],"--supervisor-token") || strlen(argv[7])!=32 ||
+           strspn(argv[7],"0123456789abcdef")!=32)
+            return emit(@{@"status":@"REJECTED",@"reason":@"INVALID_SUPERVISOR_TOKEN",@"diagnosticOnly":@YES},64);
+        supervisorToken=argv[7];
+    }
     if(!strcmp(argv[1],"--validate"))
         return emit(@{@"status":@"VALIDATED_ONLY",@"diagnosticOnly":@YES,@"nativeQueries":@0},0);
     char model[128]={0}; size_t length=sizeof(model); struct passwd *user=getpwuid(getuid());
@@ -112,6 +135,6 @@ int main(int argc,const char **argv) {
         [ws[@"window"] unsignedIntValue]==(uint32_t)window);
     // A diagnostic match is not permission: no geometry, ancestry or delivery claim.
     if(library) dlclose(library);
-    int code=emit(result,0); alarm(0); close(lock); return code;
+    close(lock); alarm(0); return emit(result,0);
  }
 }

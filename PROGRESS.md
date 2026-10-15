@@ -1,5 +1,14 @@
 # CUAgent 实际进度
 
+## 2026-10-15：联合探针权限结果与有界身份核验窗口
+
+- 已有凭据成功解锁，未改密码；回执0da78b0ec63e4ef1bf2548d19649e2e4记录PID31294正常只读退出。后续当前屏幕复查仍在设置桌面，不是锁屏。此前输入失败不能归为密码失效。
+- 专用CUAgentPointProbe在系统设置临时开启辅助功能后，SSH监督PID31323/31333仍报告AX_NOT_TRUSTED_NO_PROMPT；回执68fe66d8d2b8447a8e543aeee655448a、a27f403a73ce4d9ebd15b29623e1bad3保留。随后关闭该开关，回执04090f76aecc4f5bb8339ff8d61d7d04的PID31345正常退出；最新界面也确认该开关关闭、CuaDriver-0.34保持开启。脚本字段permissionChanges=false仅指脚本自身，不能掩盖本轮人工开启/撤销。没有模型请求或业务输入，未确认权限归因根因。
+- 既有包签名标识与Info.plist匹配；普通账户读取tccd日志被Operation not permitted拒绝，没有提权。LaunchServices仅执行--validate，回执08126fcf28004ae593b4009dfb8ce4f3返回VALIDATED_ONLY/nativeQueries=0，同时open -W报告GetProcessPID失败。因此open退出0不算真实助手身份/退出核验通过；没有在该通道执行观察。
+- 先提交0f67594生命周期设计，再改native_point_probe.m：可选--supervisor-token接受32位小写十六进制标记；结果附真实PID、标记和等待秒数，fflush后成功报告保留10秒供外层采样，12秒信号上限兜底。原生观察仍3秒截止，成功报告前释放桌面锁；失败不等待。既有CLI保持原输出形态，没有输入API或权限申请。标记本身不证明身份，外层仍须独立核对路径/摘要/PID及退出。
+- 指定backend虚拟环境运行unittest tools.mac_vm.tests.test_native_point_probe backend.test_windowserver_probe backend.test_diagnostic_admission backend.test_diagnostic_desktop_review：32项通过，19.299秒。新增真实子进程测试核对报告在退出前刷新、PID属于仍存活子进程、10秒后退出且无额外输出；6组非法标记拒绝，原零查询/宿主拒绝/3秒硬截止回归通过。仅本地编译与进程测试，尚未部署新包，不能当作LaunchServices、AX或业务验收。
+- 下一步独立arm64打包及VM零查询生命周期核验，然后再进行当前专用身份临时权限与完整联合矩阵；不增加SSH/Python权限，不替换原Driver，不重放018。P7仍未完成，P5仍跳过。
+
 ## 2026-10-15：联合探针架构修正与VM部署
 
 - 新增native_point_timeout.m测试入口，直接包含生产源码的deadline处理器、SIGALRM三秒触发；子进程真实退出124、输出UNKNOWN且无桌面调用。专用测试共5项通过；这证明信号退出路径，不证明所有原生调用阻塞情形都可中断，VM监督仍外层5秒超时后kill/wait。
