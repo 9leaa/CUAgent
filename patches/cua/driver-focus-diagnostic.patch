@@ -3,10 +3,11 @@ new file mode 100644
 index 0000000..4697887
 --- /dev/null
 +++ b/libs/cua-driver/rust/crates/platform-macos/src/input/foreground_point.rs
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,304 @@
 +//! Fail-closed preflight for global HID pixel clicks, not a delivery guarantee.
 +use crate::ax::bindings::*;
-+use core_foundation::{base::{CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
++use core_foundation::{base::{CFEqual, CFGetTypeID, CFRelease, CFTypeRef, TCFType}, string::CFString};
++use std::time::{Duration, Instant};
 +
 +#[link(name = "ApplicationServices", kind = "framework")]
 +extern "C" {
@@ -19,11 +20,93 @@ index 0000000..4697887
 +    fn drop(&mut self) { unsafe { CFRelease(self.0 as CFTypeRef) }; }
 +}
 +
++#[cfg(test)]
 +fn checked_point_window(status: AXError, window_id: u32, attribute_status: AXError,
 +    attribute_present: bool) -> anyhow::Result<u32> {
 +    anyhow::ensure!(status == kAXErrorSuccess && window_id != 0,
 +        "system point window unavailable: attribute_status={attribute_status}, attribute_present={attribute_present}, window_status={status}, window_id={window_id}");
 +    Ok(window_id)
++}
++
++enum PointStep<E> {
++    Window(u32),
++    Next(E, bool), // true means an AXWindow attribute, not an ancestor
++}
++
++// A real seam: the policy owns nodes, the adapter owns native reads/references.
++fn resolve_point_chain<E>(
++    start: E, expected_pid: i32,
++    mut read: impl FnMut(&E, bool) -> anyhow::Result<(i32, PointStep<E>)>,
++    same: impl Fn(&E, &E) -> bool,
++    expired: impl Fn() -> bool,
++) -> anyhow::Result<u32> {
++    let mut seen = Vec::new();
++    let mut current = start;
++    let mut window_only = false;
++    for _ in 0..40 {
++        anyhow::ensure!(!expired(), "point ancestry timeout");
++        anyhow::ensure!(!seen.iter().any(|old| same(old, &current)), "point ancestry cycle");
++        let (pid, step) = read(&current, window_only)?;
++        anyhow::ensure!(!expired(), "point ancestry timeout");
++        anyhow::ensure!(pid == expected_pid && pid > 0, "point ancestry owner mismatch");
++        match step {
++            PointStep::Window(id) => {
++                anyhow::ensure!(id != 0, "point ancestry zero window");
++                return Ok(id); // Never climb past a sheet or a different window.
++            }
++            PointStep::Next(next, direct_window) => {
++                anyhow::ensure!(!window_only, "point window attribute is not a window");
++                seen.push(current);
++                current = next;
++                window_only = direct_window;
++            }
++        }
++    }
++    anyhow::bail!("point ancestry depth exceeded")
++}
++
++fn point_element_attr(element: AXUIElementRef, name: &str) -> anyhow::Result<Option<OwnedElement>> {
++    let attr = CFString::new(name);
++    let mut value: CFTypeRef = std::ptr::null();
++    let status = unsafe { AXUIElementCopyAttributeValue(element, attr.as_concrete_TypeRef(), &mut value) };
++    // RAII releases even an unexpected CF type or non-null error result.
++    let owned = (!value.is_null()).then(|| OwnedElement(value as AXUIElementRef));
++    if status == -25212 || status == -25205 { // NoValue / AttributeUnsupported
++        anyhow::ensure!(owned.is_none(), "point attribute inconsistent result: {name}");
++        return Ok(None);
++    }
++    anyhow::ensure!(status == kAXErrorSuccess, "point attribute failed: {name}, status={status}");
++    anyhow::ensure!(owned.is_some(), "point attribute empty success: {name}");
++    anyhow::ensure!(unsafe { CFGetTypeID(value) == AXUIElementGetTypeID() },
++        "point attribute unexpected type: {name}");
++    Ok(owned)
++}
++
++fn native_point_step(element: &OwnedElement, window_only: bool) -> anyhow::Result<(i32, PointStep<OwnedElement>)> {
++    // Set only this retained element's messaging timeout, never system-wide.
++    let status = unsafe { AXUIElementSetMessagingTimeout(element.0, 0.1) };
++    anyhow::ensure!(status == kAXErrorSuccess, "point element timeout setup failed: {status}");
++    let mut pid = 0;
++    let status = unsafe { AXUIElementGetPid(element.0, &mut pid) };
++    anyhow::ensure!(status == kAXErrorSuccess && pid > 0, "point element owner unavailable: {status}");
++    let role = unsafe { copy_string_attr(element.0, "AXRole") }
++        .ok_or_else(|| anyhow::anyhow!("point element role unavailable"))?;
++    if role == "AXWindow" || role == "AXSheet" {
++        let mut id = 0;
++        let status = unsafe { _AXUIElementGetWindow(element.0, &mut id) };
++        anyhow::ensure!(status == kAXErrorSuccess && id != 0,
++            "point terminal window unavailable: window_status={status}, window_id={id}");
++        return Ok((pid, PointStep::Window(id)));
++    }
++    anyhow::ensure!(!window_only, "point window attribute is not a window");
++    anyhow::ensure!(role.starts_with("AX") && role != "AXUnknown" && role != "AXApplication",
++        "point ancestry role boundary");
++    if let Some(window) = point_element_attr(element.0, "AXWindow")? {
++        return Ok((pid, PointStep::Next(window, true)));
++    }
++    let parent = point_element_attr(element.0, "AXParent")?
++        .ok_or_else(|| anyhow::anyhow!("point ancestry parent missing"))?;
++    Ok((pid, PointStep::Next(parent, false)))
 +}
 +
 +fn system_point_target(x: f64, y: f64) -> anyhow::Result<(i32, u32)> {
@@ -40,23 +123,12 @@ index 0000000..4697887
 +    let mut pid = 0;
 +    let status = unsafe { AXUIElementGetPid(hit.0, &mut pid) };
 +    anyhow::ensure!(status == kAXErrorSuccess && pid > 0, "system point owner unavailable");
-+    let attr = CFString::new("AXWindow");
-+    let mut window: CFTypeRef = std::ptr::null();
-+    let status = unsafe { AXUIElementCopyAttributeValue(hit.0, attr.as_concrete_TypeRef(), &mut window) };
-+    // A hit can itself be a window, so use it only when AXWindow is unavailable.
-+    let owned_window = (!window.is_null()).then(|| OwnedElement(window as AXUIElementRef));
-+    if !window.is_null() {
-+        anyhow::ensure!(unsafe { CFGetTypeID(window) == AXUIElementGetTypeID() },
-+            "system point window has unexpected type");
-+    }
-+    let window = if status == kAXErrorSuccess {
-+        owned_window.as_ref().map(|w| w.0).unwrap_or(hit.0)
-+    } else { hit.0 };
-+    let attribute_status = status;
-+    let attribute_present = owned_window.is_some();
-+    let mut window_id = 0;
-+    let status = unsafe { _AXUIElementGetWindow(window, &mut window_id) };
-+    Ok((pid, checked_point_window(status, window_id, attribute_status, attribute_present)?))
++    let started = Instant::now();
++    let id = resolve_point_chain(hit, pid, native_point_step,
++        |a, b| unsafe { CFEqual(a.0 as CFTypeRef, b.0 as CFTypeRef) != 0 },
++        || started.elapsed() >= Duration::from_secs(2))
++        .map_err(|error| anyhow::anyhow!("point owner pid={pid}: {error}"))?;
++    Ok((pid, id))
 +}
 +
 +fn deliver_if_matching(
@@ -86,6 +158,103 @@ index 0000000..4697887
 +mod tests {
 +    use super::deliver_if_matching;
 +    use std::cell::Cell;
++
++    fn chain(rows: &[(i32, Option<usize>, u32, bool)], start: usize) -> anyhow::Result<u32> {
++        super::resolve_point_chain(start, 468, |&i, _| {
++            let (pid, next, id, direct) = rows[i];
++            Ok((pid, match next {
++                Some(n) => super::PointStep::Next(n, direct),
++                None => super::PointStep::Window(id),
++            }))
++        }, |a,b| a == b, || false)
++    }
++
++    fn reject_chain(rows: &[(i32, Option<usize>, u32, bool)], expected: &str) {
++        let result = chain(rows, 0).map(|id| (468, id));
++        let error = deliver_if_matching(468, 123, result, || panic!("must not deliver"))
++            .unwrap_err();
++        assert_eq!(error.to_string(), expected);
++    }
++
++    #[test]
++    fn ancestry_direct_self_and_multilevel_deliver_once() {
++        for rows in [vec![(468,None,123,false)],
++            vec![(468,Some(1),0,true),(468,None,123,false)],
++            vec![(468,Some(1),0,false),(468,Some(2),0,false),(468,None,123,false)]] {
++            let count = Cell::new(0);
++            deliver_if_matching(468, 123, chain(&rows,0).map(|id|(468,id)), || {
++                count.set(count.get()+1); Ok(())
++            }).unwrap();
++            assert_eq!(count.get(), 1);
++        }
++    }
++
++    #[test]
++    fn ancestry_foreign_owner_or_window_and_sheet_refuse() {
++        reject_chain(&[(999,None,123,false)], "point ancestry owner mismatch");
++        for direct in [false,true] {
++            reject_chain(&[(468,Some(1),0,direct),(999,None,123,false)], "point ancestry owner mismatch");
++        }
++        // A sheet/window is terminal: never continue to an expected parent.
++        reject_chain(&[(468,None,124,false)], "foreground point does not hit exact target window");
++        reject_chain(&[(468,None,0,false)], "point ancestry zero window");
++        reject_chain(&[(468,Some(1),0,true),(468,Some(2),0,false),(468,None,123,false)],
++            "point window attribute is not a window");
++    }
++
++    #[test]
++    fn ancestry_cycles_and_depth_are_bounded() {
++        reject_chain(&[(468,Some(0),0,false)], "point ancestry cycle");
++        reject_chain(&[(468,Some(1),0,false),(468,Some(0),0,false)], "point ancestry cycle");
++        let mut rows: Vec<_> = (0..40).map(|i|(468,Some(i+1),0,false)).collect();
++        rows[39] = (468,None,123,false);
++        assert_eq!(chain(&rows,0).unwrap(),123);
++        rows[39] = (468,Some(40),0,false);
++        rows.push((468,None,123,false));
++        reject_chain(&rows, "point ancestry depth exceeded");
++    }
++
++    #[test]
++    fn ancestry_read_errors_and_expiry_never_deliver() {
++        for error in ["point element role unavailable", "point ancestry parent missing",
++            "point ancestry role boundary", "point attribute unexpected type: AXWindow",
++            "point terminal window unavailable: window_status=-25201, window_id=0"] {
++            let result = super::resolve_point_chain(0,468, |_,_| -> anyhow::Result<(i32, super::PointStep<i32>)> {
++                anyhow::bail!(error.to_owned())
++            }, |a,b| a==b, ||false);
++            assert_eq!(deliver_if_matching(468,123,result.map(|id|(468,id)),||panic!("must not deliver"))
++                .unwrap_err().to_string(),error);
++        }
++        for already_expired in [false,true] {
++            let expired = Cell::new(already_expired);
++            let reads = Cell::new(0);
++            let result = super::resolve_point_chain(0,468, |_,_| {
++                reads.set(reads.get()+1); expired.set(true);
++                Ok((468,super::PointStep::<i32>::Window(123)))
++            }, |a,b|a==b, ||expired.get());
++            assert_eq!(result.unwrap_err().to_string(),"point ancestry timeout");
++            assert_eq!(reads.get(), if already_expired {0} else {1});
++        }
++    }
++
++    #[test]
++    fn ancestry_owned_nodes_release_on_success_error_and_cycle() {
++        struct Node<'a>(usize, &'a Cell<usize>);
++        impl Drop for Node<'_> { fn drop(&mut self) {self.1.set(self.1.get()+1);} }
++        for mode in 0..3 {
++            let drops = Cell::new(0);
++            let result = super::resolve_point_chain(Node(0,&drops),468, |n,_| {
++                if n.0 == 0 { return Ok((468,super::PointStep::Next(Node(1,&drops),false))); }
++                match mode {
++                    0=>Ok((468,super::PointStep::Window(123))),
++                    1=>anyhow::bail!("read failed"),
++                    _=>Ok((468,super::PointStep::Next(Node(0,&drops),false))),
++                }
++            }, |a,b|a.0==b.0, ||false);
++            assert_eq!(result.is_ok(), mode==0);
++            assert_eq!(drops.get(),if mode==2 {3} else {2});
++        }
++    }
 +
 +    #[test]
 +    fn window_failure_preserves_diagnostics_and_never_delivers() {
