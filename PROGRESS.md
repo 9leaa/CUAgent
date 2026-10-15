@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-15：018真实父链诊断与恢复
+
+- 用户确认本候选临时权限后继续原018，没有新建替代任务。实时Codex查询剩余46%，派发前45%，普通额度可用、积分未变、两张重置卡仍available；此前无查询依据的“额度耗尽”说法撤回。
+- 使用已有凭据解锁VM，未改密码。系统设置新增当前独立PointGuard辅助功能/录屏权限，刷新后确认开启；当前权限助手独立PID核验、daemon25631及预览通过。处理同应用直接捕获提示，保存原完整桌面、转换真实PNG并在30秒内审阅/派发；设置列表的延迟显示不当作权限失败。
+- 官方DSH仍deepseek-account/deepseek-flash、reasoningEffort=off。原任务5raw、4个模型工具调用；点击前诊断命中PID468，depth=0、role=other，AXWindow及AXParent均NoValue（-25212），错误point ancestry parent missing。桌面点(346,176.5)，目标window123；未发送此次HID点击，未输入/提交/保存。不能把同PID当作精确窗口归属证明，父链候选尚未解决实际兼容问题。
+- 原会话UNKNOWN、terminal=true，pendingCalls=0；原租约撤销、guestExit=0、profileRestored=true、renewErrors为空。监督finally停止候选25631，重置两项临时权限；原Driver25760及Worker97153恢复，独立查询DSH running=[]。私有diagnostic-business-018和calc-dsh-save-018保留，不重放原任务，不公开原始截图/凭据。
+- 下一步分析Calc无窗口/父属性命中元素的可验证归属路径，再先写方案后修改。现有精确窗口/遮挡保护不能放宽，P7输入/保存/重开读回及阶段验收仍未完成，P5保持跳过。
+
 ## 2026-10-15：018源码冻结、当前窗口观察及准备完成
 
 - 冻结b9135ee0b9859e27169a3e67c2f331e102a092fa的507份文件，VM37文件独立读回内容摘要/所有者/权限与manifest一致。新run/session及独立暂存profile生成，正式profile字节未改。
