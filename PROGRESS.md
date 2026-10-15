@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：业务016进入正式DSH，公式栏命中查询失败
+
+- 固定58d6106及原独立PointGuard包，当前helper与daemon24005准入、实际Calc预览通过。简化审阅记录命令使用原始截图时间，真实PNG目视核对后在30秒内通过两处门禁；没有延长有效期或伪造时间。实时Codex剩余53%，普通额度可用、余额未变、重置卡未用。
+- 官方deepseek-account/deepseek-flash、reasoningEffort=off实际会话启动，审计确认图片进入模型请求。总计5raw：当前A2确认与窗口激活后观察通过，随后公式栏聚焦失败；没有输入、提交、保存或重开。旧失败样本没有重放。
+- 当前点击点为截图(550,230)，窗口原点(96,61)、2倍缩放转换得到桌面(371,176)。日志显示前台PID468/window123保持，但point_preflight的query_ok=false、hit=null，Driver报foreground_unavailable / system point window unavailable，在实际HID点击前拒绝。这证明当前失败点是系统AX命中查询，尚不能断言模型坐标错误或具体AX失败原因；下一步保留底层错误并核对查询路径，不能直接取消命中保护。
+- 原会话终止UNKNOWN，pendingCalls=0、guestExit=0、profileRestored=true、renewErrors为空。监督退出0仅表示清理完成，不表示业务通过；候选24005退出，两项临时权限撤销，原Driver24123和Worker56864恢复，独立DSH检查running=[]。私有016原始记录保留，P7未验收，P5仍跳过。
+
 ## 2026-10-15：业务015双进程准入通过，桌面审阅超时拒绝
 
 - 015固定015cdd3，505份源码摘要、VM37文件独立读回一致；新私有profile暂存，正式配置不变。两次只读Driver调用确认Calc468/window123，A2选中、内容probe；prepare返回prepared=true、leaseGranted=false。
