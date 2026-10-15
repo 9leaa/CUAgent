@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：实际截图助手返回，辅助功能准入拒绝
+
+- 在新的私有设置诊断中停止已核实的Worker53358并持桌面锁，验证PointGuard签名后摘要；LaunchServices启动助手，独立进程表捕获PID22902。没有启动候选业务daemon、切换原Driver、创建模型会话或重放014。
+- 原helper结果返回screen_recording=true、screen_recording_capturable=true、direct_capture_status=ready，但accessibility=false；现有require_direct_capture_ready拒绝并退出1，完整准入未通过。此为真实捕获探测报告，不是Calc截图内容、编辑或保存独立验证。
+- 系统提示显示CuaDriverLocal；当前助手报告、可执行路径、包plist和codesign标识均指向com.trycua.driver.pointguard，尚不能判断提示来自旧实例、系统缓存或其他归属问题。未批准该提示；Deny点击及Return后最新画面仍有提示，不声称已关闭。下次须先核对提示和当前辅助功能归属，不重复修改密码或放宽准入。
+- 首次私有脚本在任何服务变更前因读取分支目录backend.env缺失退出；显式读取原BASE环境后才执行诊断，保留首次空目录。最终助手已退出，精确bundle的两项reset命令返回成功，Worker53642恢复并ps确认；诊断失败原结果保留。P7未完成。
+
 ## 2026-10-15：认证与临时权限界面走通，准备超时已恢复
 
 - 用户接受既有测试凭据风险并继续；没有修改密码。先切换焦点、截图确认密码框蓝色边框，再逐字输入，系统认证成功并打开应用选择器。不能用此次成功抹去前次误填记录，也不据此宣称远程输入始终稳定。
