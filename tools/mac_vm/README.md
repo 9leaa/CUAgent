@@ -1,5 +1,7 @@
 # macOS VM 桥接与历史诊断
 
+2026-10-15监督参数：两种入口都可追加`--supervisor-token <32位小写十六进制标记>`。成功报告附真实PID并立即刷新，释放桌面锁后保留10秒供独立进程核验；12秒信号兜底、失败不等待。标记不是身份或动作许可，外层必须独立核对路径/摘要/用户/启动信息，并观察确切进程退出。专用测试现为7项，合并相关回归32项通过。新arm64/SDK15.5独立包在VM经LaunchServices仅运行--validate：PID与实际路径匹配、约10.6秒后退出、未访问桌面；助手退出码未知，没有完成AX联合实测。
+
 `native_point_probe.m`是专用只读诊断候选，不是模型工具或正式点击策略。参数为`--validate x y pid window`（仅检查参数，不读取桌面）或`--observe x y pid window`（仅隔离VirtualMac普通mvpagent、已解锁图形会话及原共享锁内执行）。不主动申请权限；AX未信任明确记录未执行，不伪造命中。联合身份匹配不等于窗口内容坐标安全，更不是输入已投递。三秒SIGALRM退出124输出UNKNOWN，外层部署监督还须硬超时和退出核验；原生阻塞超时未实测。
 
 VM目标编译必须显式架构：`xcrun clang -arch arm64 -mmacosx-version-min=15.0 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk -fobjc-arc -Wall -Wextra -Werror -framework Foundation -framework ApplicationServices tools/mac_vm/native_point_probe.m -o .runtime/native-point-probe-local`。默认编译曾生成x86_64，不能用宿主编译通过代替VM兼容性。回归：`python -m unittest tools.mac_vm.tests.test_native_point_probe`。5项测试包含生产超时处理器真实信号退出，不进入宿主桌面查询。专用arm64包已签名部署，VM零桌面参数验证、锁屏拒绝及未授权AX报告通过；联合AX实测仍待当前专用身份临时权限，不能借旧Driver/PointGuard权限记录。

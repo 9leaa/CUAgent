@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：监督窗口独立部署与LaunchServices实测
+
+- 33c9ae5原生探针显式arm64、最低macOS15.0、SDK15.5重建，独立adhoc签名包SHA256为928b6898f69bd2b205281f33d1744cf26b891ab69624b870fec28bb7d12d32d8。首次默认SDK构建只留本地，未部署；固定SDK产物另存，未覆盖历史包。VM新目录CUAgent-PointProbe-33c9ae5-arm64-sdk15，普通账户/VirtualMac、独立读回SHA及codesign --verify --strict通过；原Driver未替换。
+- 私有回执native-supervised-8099e4042b6c4f7fbdf44ebc5d4952c7：经open -n -g -W启动--validate及本次随机监督标记，返回VALIDATED_ONLY/nativeQueries=0。报告PID31495与libproc实际可执行路径、ps用户502/启动时间/命令标记一致，10.604秒后进程路径消失，open退出0、stderr为空。该次没有先前GetProcessPID报错；不宣称所有调度情况均可靠。
+- 独立exit-check.json再用kill(pid,0)得到ProcessLookupError，ps退出1且无输出，确认原PID不再存在。助手本身不是SSH监督器的子进程，helperExitCode保持null；open退出0不冒充助手退出码。所有原始回执0600私有保存，无权限修改、桌面查询或模型派发。
+- 本次证明系统启动下可采集当前进程身份及观察退出，不证明AX可用、联合矩阵或业务成功。后续仍需新专用候选当前临时辅助功能准入；不借旧App权限、不增加SSH/Python权限、不重放018。P7输入/保存/重开及独立读回未完成。
+
 ## 2026-10-15：联合探针权限结果与有界身份核验窗口
 
 - 已有凭据成功解锁，未改密码；回执0da78b0ec63e4ef1bf2548d19649e2e4记录PID31294正常只读退出。后续当前屏幕复查仍在设置桌面，不是锁屏。此前输入失败不能归为密码失效。
