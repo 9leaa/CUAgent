@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-15：联合探针架构修正与VM部署
+
+- 新增native_point_timeout.m测试入口，直接包含生产源码的deadline处理器、SIGALRM三秒触发；子进程真实退出124、输出UNKNOWN且无桌面调用。专用测试共5项通过；这证明信号退出路径，不证明所有原生调用阻塞情形都可中断，VM监督仍外层5秒超时后kill/wait。
+- 首次本地默认编译是x86_64（宿主命令环境uname相同），VM为arm64；签名/摘要正确仍无法启动，--validate返回bad CPU type/127。原首次采集GUEST_COLLECTION_UNCONFIRMED保留；后续只读检查前置身份/摘要均正常、没有遗留探针进程，定位为构建架构错误，而非AX权限或接口失败。
+- 显式-arch arm64 -mmacosx-version-min=15.0及SDK15.5重建，专用包CUAgentPointProbe.app、bundle com.cuagent.diagnostic.pointprobe；签名后SHA256为990a4aa4ad994e09e943eb9f1345975d7a67048bbb1e5a725c75a1d04075dea6。独立部署CUAgent-PointProbe-b1daf45-arm64，不覆盖失败目录或原Driver；VM codesign --verify --strict、SHA和零桌面--validate通过。
+- 回执e9b5b81bf43e4d489924debf6d9c4a2a：PID26304、退出77、UNLOCKED_SESSION_REQUIRED；刷新VNC确认锁屏，用既有凭据解锁。回执42cdcc4dcae240578e128119f440c466：监督PID与报告observerPid均26334、退出0；SPI命中468/123，AX trusted=false、AX_NOT_TRUSTED_NO_PROMPT，jointIdentityMatches=0。未请求或增加权限，未输入业务/派发模型；专用进程已退出。
+- 尚待本专用候选临时辅助功能权限及同周期联合矩阵；无需为本探针授予录屏或通用Python权限。当前只证明部署、锁屏拒绝与无AX权限报告，不是联合命中通过，不修改正式点击策略，P7未完成。
+
 ## 2026-10-15：专用原生联合诊断入口实现
 
 - 在452602d补充方案后新增tools/mac_vm/native_point_probe.m。独立Objective-C诊断入口，不复用通用Python权限，不加载模型工具、不调用任何输入API。系统AX只在AXIsProcessTrusted为真时读取；记录原返回码、命中PID、窗口/父属性存在与类型，随后固定无过滤SPI查询。jointIdentityMatches仅诊断布尔值，不包含祖先解析、内部坐标许可或输入授权。

@@ -66,6 +66,23 @@ class NativePointProbeTests(unittest.TestCase):
                           'CGRequestScreenCaptureAccess']:
             self.assertNotIn(forbidden, symbols)
 
+    def test_real_deadline_exits_without_desktop_queries(self):
+        binary = str(Path(self.directory.name) / 'timeout-probe')
+        subprocess.run(['xcrun', 'clang', '-fobjc-arc', '-Wall', '-Wextra', '-Werror',
+                        '-framework', 'Foundation', '-framework', 'ApplicationServices',
+                        str(Path(__file__).with_name('native_point_timeout.m')), '-o', binary],
+                       check=True, timeout=60, capture_output=True)
+        process = subprocess.Popen([binary], stdout=subprocess.PIPE)
+        try:
+            output, _ = process.communicate(timeout=6)
+            self.assertEqual(process.returncode, 124)
+            self.assertEqual(json.loads(output), {'status': 'UNKNOWN', 'reason': 'NATIVE_TIMEOUT',
+                                                  'diagnosticOnly': True})
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=2)
+
 
 if __name__ == '__main__':
     unittest.main()
