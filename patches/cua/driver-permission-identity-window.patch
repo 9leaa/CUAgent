@@ -1,0 +1,47 @@
+diff --git a/libs/cua-driver/rust/crates/cua-driver/src/cli.rs b/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
+--- a/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
++++ b/libs/cua-driver/rust/crates/cua-driver/src/cli.rs
+@@ -3720,7 +3720,13 @@
+             file.write_all(&payload)
+         });
+     match write_result {
+-        Ok(()) => Some(0),
++        Ok(()) => {
++            // The trusted supervisor needs an OS-observed identity, not the
++            // PID claimed by this report. Keep only the isolated diagnostic
++            // helper alive briefly after writing, without making more calls.
++            std::thread::sleep(permission_identity_observation_window(crate::bundle::bundle_id()));
++            Some(0)
++        },
+         Err(error) => {
+             eprintln!("permission host result write failed: {error}");
+             Some(74)
+@@ -3729,6 +3735,28 @@
+     }
+ }
+ 
++#[cfg(target_os = "macos")]
++fn permission_identity_observation_window(bundle_id: &str) -> std::time::Duration {
++    std::time::Duration::from_secs(if bundle_id == "com.trycua.driver.pointguard" { 10 } else { 0 })
++}
++
++#[cfg(all(test, target_os = "macos"))]
++mod permission_identity_window_tests {
++    use super::permission_identity_observation_window;
++
++    #[test]
++    fn isolated_diagnostic_has_bounded_observation_window() {
++        assert_eq!(permission_identity_observation_window("com.trycua.driver.pointguard").as_secs(), 10);
++    }
++
++    #[test]
++    fn other_products_do_not_wait() {
++        for id in ["com.trycua.driver", "com.trycua.driver.local", "", "com.trycua.driver.pointguard.other"] {
++            assert_eq!(permission_identity_observation_window(id).as_secs(), 0);
++        }
++    }
++}
++
+ #[cfg(target_os = "macos")]
+ fn request_permissions_via_launchservices(
+     probe_direct_capture: bool,

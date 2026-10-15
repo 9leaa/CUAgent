@@ -1,5 +1,9 @@
 # Cua / Lume 隔离补丁
 
+## PointGuard权限助手身份取证窗口
+
+`driver-permission-identity-window.patch`在现有身份补丁之后应用。仅macOS独立PointGuard助手成功写出权限报告后保留10秒存活窗口，供可信监督从进程表读取完整路径、唯一结果文件参数和PID；原报告不改，正式/Local不等待，不增加工具请求。启动回调曾在实机返回PID=-1，不能代替独立身份。Rust1.97.1/SDK15.5构建及305项CLI测试通过；新独立VM包的007实测PID与报告匹配，但两项权限false，业务仍被拒绝。10秒不保证调度，未观察到身份仍须拒绝；外层必须清理并恢复服务，不得复活旧任务。
+
 ## Driver焦点诊断与精确key窗口保护候选
 
 PointGuard身份补丁`driver-pointguard-identity.patch`应与命中保护补丁一起应用于固定0.34.1源码。精确识别包目录/可执行名，分离CLI、bundle、state/home命名空间，权限助手从当前包路径启动；不借用正式/Local身份。两项单元测试及三个真实临时路径的无GUI身份探针通过；不等于VM权限或业务验收。

@@ -29,11 +29,14 @@ class DiagnosticAdmissionTests(unittest.TestCase):
     def test_old_diagnostic_identity_is_not_current_candidate(self):
         self.assertEqual(DIAGNOSTIC_BUNDLE, 'com.trycua.driver.pointguard')
         self.assertEqual(DIAGNOSTIC_EXECUTABLE,
-            '/Users/mvpagent/CUAgentDriverDiagnostic-67d334cd04207faff101955e0b2b1b5fd1cc4f25251d9a0a75a4708f063b6beb/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
+            '/Users/mvpagent/CUAgentDriverDiagnostic-b4bc8ca2962687387b178fb98833dea0f81e0a7ca86152238333feb290bbde9e/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
         self.assertEqual(DIAGNOSTIC_SHA256,
-            'ce14200a07e0c80d73230ff599d69310864911eb2e79c51303e4941c5d8e179c')
+            '81d219ae81deb214d2b85dda567a2b2c6d962dd1b9afc80154bcb25c597a40ad')
         same_bundle_old_path = copy.deepcopy(self.report)
         same_bundle_old_path['source']['executable'] = '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
+            require_direct_capture_ready(same_bundle_old_path, expected_pid=42)
+        same_bundle_old_path['source']['executable'] = '/Users/mvpagent/CUAgentDriverDiagnostic-67d334cd04207faff101955e0b2b1b5fd1cc4f25251d9a0a75a4708f063b6beb/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
             require_direct_capture_ready(same_bundle_old_path, expected_pid=42)
         old = copy.deepcopy(self.report)

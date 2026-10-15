@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：VM验证否定回调路线，助手有界存活取证通过
+
+- 005部署arm64原生启动器后，OS回调实际返回PID=-1、空bundle/路径，UNKNOWN拒绝；Worker54434恢复。006在新助手保留10秒后仍返回相同空身份，Worker54799恢复。两轮不重放、不把回调到达当成功；Swift启动器及6项仅覆盖输入拒绝的测试已从当前代码撤回，Git历史和私有原回执保留。
+- 按方案新增`driver-permission-identity-window.patch`：只有PointGuard权限助手在原结果写完后保留10秒，正式/Local不延迟，不新增权限请求、daemon或模型动作。Rust1.97.1/SDK15.5完整构建通过，CLI单元305/305；补丁反向应用检查通过。最初patch行数与构建cwd错误已修正，不计作成功。
+- 新arm64源产物b4bc8ca…独立静态打包，签名后摘要81d219ae…；原Driver4140字节及进程保持，准入路径/摘要更新，准入与原生反例当时共13项、69subtests通过。新包不是对旧包覆盖。
+- 007沿原open启动入口，独立ps捕获完整新路径及唯一result-file对应PID23440，原报告source.pid一致，解决本次短命进程身份漏采。原报告AX=false、ScreenRecording=false、blocked_by_screen_recording；旧verified_at不算本次ready，门禁正确拒绝。精确停止23440、撤销临时权限、恢复Worker54832，现场ps及DSH running=[]确认。没有新业务daemon或模型输入/保存，P7仍未完成。
+
 ## 2026-10-15：原生助手启动回调取证候选
 
 - 先更新P7方案，再新增`tools/mac_vm/permission_helper_launcher.swift`。使用本机SDK的NSWorkspace启动回调返回独立PID、bundle和可执行路径，不使用助手自报PID；固定当前诊断App摘要和唯一参数，禁止运行实例替代，60秒超时返回UNKNOWN、不重试。成功只表示LAUNCHED，外层仍负责互斥、原结果核对、权限/截图准入及清理。
