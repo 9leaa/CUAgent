@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-15：WindowServer独立只读探针与离线回归
+
+- 在已提交5c1c9fc方案后新增backend/windowserver_probe.py和test_windowserver_probe.py；不修改Driver或点击放行逻辑。动态加载固定SkyLight路径，声明32位身份/状态及16字节CGPoint，固定一次无过滤查询，不跳过遮挡窗口。所有匹配结果明确diagnosticOnly，不能当作动作许可。
+- 原生读取限定在子进程，父进程3秒超时由subprocess.run终止/回收子进程，返回UNKNOWN且不自动重试。缺符号/查询错误/无身份返回不可用；子进程崩溃、异常JSON、错绑定、矛盾匹配返回UNKNOWN。输出不含窗口正文/名称，尚不接入正式模型工具。
+- 指定backend虚拟环境运行unittest backend.test_windowserver_probe backend.test_diagnostic_admission backend.test_diagnostic_desktop_review -q：25项通过，其中探针13项。覆盖错误、不同PID/窗口、ABI声明及真实休眠子进程超时；ABI声明测试不是原生接口兼容证明。未运行宿主原生查询、未部署VM、未增加权限、未派发DSH或重放018。
+- 下一步在隔离VM取得实时截图/窗口身份后做只读探针和完整遮挡矩阵，再按方案决定接线。当前只完成探针代码与离线验证，P7实际输入/保存/重开读回及验收仍未完成。
+
 ## 2026-10-15：018后续窗口归属方案
 
 - 核对当前foreground_point.rs及全局HID路径：父链依赖命中元素提供AXWindow/AXParent，018首节点两者均缺失；继续增加爬升深度不能解决这个样本。未修改生产代码、未启动新模型任务。
