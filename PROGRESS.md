@@ -1,5 +1,11 @@
 # CUAgent 实际进度
 
+## 2026-10-17：019/020准入失败及时间修正
+
+- 既有DSH_HOME启动后idle RPC正常，之前401不再阻塞。019助手及daemon权限、截图通过，但App启动后复核超过30秒，promptAttempted=false、rawCalls=0，业务UNVERIFIED。020同版guest重复部署被拒，随后独立读回37项源码摘要一致后复用；权限通过，但跨机时间比较拒绝，未派发模型。
+- 现场宿主03:00:56.220至56.611期间VM读数03:00:54。修正方案先写入visual-click设计，准入改为在VM助手前后区间核对verified_at，宿主仍限制整轮300秒；另在App就绪后重采派发截图，不延长30秒。12项回归通过，覆盖跨机偏移及缺字段、逆序、过期拒绝。
+- 两次均撤销候选AX/录屏权限、恢复原Driver与Worker；019确认profile恢复、guest退出0。失败原证据保留，修正版实机待测，P7未完成。
+
 ## 2026-10-17：截图点击移除AX点命中强依赖
 
 - 用户要求走截图路线，先提交方案4139c4b；不再以补齐Calc AXSheet/父链为本路径前置任务。新增driver-visual-point.patch，应用在既有focus补丁之后；真实ForegroundHid调用转到visual_point，旧AX点解析保留为历史回归但不再被该点击路径调用。
