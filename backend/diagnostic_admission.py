@@ -105,8 +105,14 @@ def require_current_capture_admission(receipt, daemon_report, *, run_id, session
     require_direct_capture_admission(setup, daemon_report,
                                     setup_pid=receipt.get('setupPid'), daemon_pid=daemon_pid)
     verified = timestamp(setup['direct_capture_verification']['verified_at'])
+    # VM and host wall clocks are independent. The supervisor brackets the
+    # live helper on the VM; host time still bounds the entire lifecycle.
+    guest_started = timestamp(receipt.get('guestCaptureStartedAt'))
+    guest_checked = timestamp(receipt.get('guestCaptureCheckedAt'))
+    require(guest_started <= guest_checked)
+    require((guest_checked - guest_started) <= (checked - started))
     # Upstream serializes whole seconds: allow only that rounding difference.
-    require(started.replace(microsecond=0) <= verified <= checked)
+    require(guest_started.replace(microsecond=0) <= verified <= guest_checked)
 
 
 def require_business_capture_admission(receipt, daemon_report, *, desktop_review,

@@ -21,7 +21,9 @@ class DesktopReviewTests(unittest.TestCase):
                           source='permissions_grant', verified_at='2026-10-13T06:00:01Z'))
         self.receipt = dict(runId='run-012', sessionId='session-012', setupPid=42,
                             daemonPid=99, sha256=DIAGNOSTIC_SHA256, setupReport=report,
-                            startedAt='2026-10-13T06:00:00Z', checkedAt='2026-10-13T06:00:02Z')
+                            startedAt='2026-10-13T06:00:00Z', checkedAt='2026-10-13T06:00:02Z',
+                            guestCaptureStartedAt='2026-10-13T06:00:00Z',
+                            guestCaptureCheckedAt='2026-10-13T06:00:02Z')
         self.daemon = copy.deepcopy(report)
         self.daemon['source']['pid'] = 99
         self.daemon.update(direct_capture_status='not_checked', screen_recording_capturable=None)

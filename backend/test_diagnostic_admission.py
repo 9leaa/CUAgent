@@ -125,13 +125,20 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         receipt = dict(runId='run-008', sessionId='session-008', setupPid=42,
                        daemonPid=99, sha256=DIAGNOSTIC_SHA256, setupReport=self.report,
                        startedAt='2026-10-13T04:00:00.100000Z',
-                       checkedAt='2026-10-13T04:00:02Z')
+                       checkedAt='2026-10-13T04:00:02Z',
+                       guestCaptureStartedAt='2026-10-13T04:00:00.100000Z',
+                       guestCaptureCheckedAt='2026-10-13T04:00:01Z')
         now = datetime(2026, 10, 13, 4, 0, 3, tzinfo=timezone.utc)
         args = dict(run_id='run-008', session_id='session-008', daemon_pid=99,
                     executable_sha256=DIAGNOSTIC_SHA256, now=now)
         before = copy.deepcopy(receipt)
         self.assertIsNone(require_current_capture_admission(receipt, daemon, **args))
         self.assertEqual(receipt, before)
+        # Same live VM interval remains valid with a different host clock.
+        shifted = {**receipt, 'startedAt': '2026-10-13T05:00:00.100000Z',
+                   'checkedAt': '2026-10-13T05:00:02Z'}
+        self.assertIsNone(require_current_capture_admission(shifted, daemon,
+            **{**args, 'now': now + timedelta(hours=1)}))
         old_sha = '01c3db9176267741a1608c971f2233e0371611d13f2346fecbf97c648f2d2c16'
         old_017_sha = '1c3315747d6775c8e3a396c1adf3f3d62481ddd2351ed9de9293c3bb59ef00de'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_CURRENT_CAPTURE_UNCONFIRMED'):
@@ -155,7 +162,11 @@ class DiagnosticAdmissionTests(unittest.TestCase):
             ('runId', 'run-007'), ('sessionId', 'session-007'), ('sha256', 'bad'),
             ('setupPid', True), ('daemonPid', True), ('daemonPid', 100),
             ('startedAt', '2026-10-13T03:00:00Z'),
-            ('startedAt', '2026-10-13T04:00:01Z'),
+            ('startedAt', '2026-10-13T04:00:01.500000Z'),
+            ('guestCaptureStartedAt', '2026-10-13T04:00:01Z'),
+            ('guestCaptureCheckedAt', '2026-10-13T03:59:59Z'),
+            ('guestCaptureCheckedAt', '2026-10-13T04:01:00Z'),
+            ('guestCaptureStartedAt', 'invalid'),
             ('checkedAt', '2026-10-13T04:00:04Z'),
             ('checkedAt', '2026-10-13T03:59:59Z'),
             ('checkedAt', 'invalid'), ('startedAt', '2026-10-13T04:00:00'),
