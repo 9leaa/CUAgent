@@ -4,7 +4,7 @@
 
 `native_point_probe.m`是专用只读诊断候选，不是模型工具或正式点击策略。参数为`--validate x y pid window`（仅检查参数，不读取桌面）或`--observe x y pid window`（仅隔离VirtualMac普通mvpagent、已解锁图形会话及原共享锁内执行）。不主动申请权限；AX未信任明确记录未执行，不伪造命中。联合身份匹配不等于窗口内容坐标安全，更不是输入已投递。三秒SIGALRM退出124输出UNKNOWN，外层部署监督还须硬超时和退出核验；原生阻塞超时未实测。
 
-VM目标编译必须显式架构：`xcrun clang -arch arm64 -mmacosx-version-min=15.0 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk -fobjc-arc -Wall -Wextra -Werror -framework Foundation -framework ApplicationServices tools/mac_vm/native_point_probe.m -o .runtime/native-point-probe-local`。默认编译曾生成x86_64，不能用宿主编译通过代替VM兼容性。回归：`python -m unittest tools.mac_vm.tests.test_native_point_probe`。5项测试包含生产超时处理器真实信号退出，不进入宿主桌面查询。专用arm64包已签名部署，VM零桌面参数验证、锁屏拒绝及未授权AX报告通过；联合AX实测仍待当前专用身份临时权限，不能借旧Driver/PointGuard权限记录。
+VM目标编译必须显式架构：`xcrun clang -arch arm64 -mmacosx-version-min=15.0 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk -fobjc-arc -Wall -Wextra -Werror -framework Foundation -framework ApplicationServices tools/mac_vm/native_point_probe.m -o .runtime/native-point-probe-local`。默认编译曾生成x86_64，不能用宿主编译通过代替VM兼容性。回归：`python -m unittest tools.mac_vm.tests.test_native_point_probe`。5项测试包含生产超时处理器真实信号退出，不进入宿主桌面查询。专用arm64包已签名部署，VM零桌面参数验证、锁屏拒绝及未授权AX报告通过；2026-10-17已完成10场景联合查询，详见../../docs/stages/p7-point-validation-20261017.md；最终权限已撤销。重新登记精确App后才取得可信AX，不能借旧Driver/PointGuard权限记录。边缘存在双匹配反例、Sheet角色待确认，不能当生产点击许可。
 
 P6证据核验已区分“结果写入依据”和之后的只读观察：final_state须为write_result前紧邻且30秒内的Save后观察，后续观察仍核对原图片/状态哈希及正文/窗口身份，只允许观察与读回。188项执行层测试、原失败字节离线复核通过；旧任务不改成功，尚未部署新guest或完成真实新版回归。
 
