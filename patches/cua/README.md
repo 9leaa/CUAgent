@@ -1,5 +1,13 @@
 # Cua / Lume 隔离补丁
 
+## macOS 附属窗口发现候选
+
+`driver-accessory-discovery.patch` 基于0.34.1固定上游`0c69d9a2c8abbb5051a2df4a23f0fa166d5385dc`源码，叠加现有Driver补丁；MIT来源不变。真实VM的Calc Save面板是同PID的layer8/window85，默认list_windows只列layer0而漏掉它；显式get_window_state可正常读取该面板截图和控件。此证据来自开发侧打开/取消面板，未执行模型保存。
+
+新增`include_accessory_windows:true`必须绑定正PID，返回该进程当前可见的各层窗口，不依赖AX reachability过滤；缺失Space信息保持null。默认行为保持原样。发现不等于授权，调用方仍须验证新窗口归属、文档关联、当前截图及遮挡。Linux/Windows明确拒绝该macOS专用模式；两平台拒绝测试已加入但未在相应系统运行。SDK契约同步增加可选字段，旧请求省略字段不变。
+
+固定Rust1.97.1/SDK15.5下3项聚焦测试、62项契约测试、486项macOS模块测试通过（6项忽略）；删除PID过滤的反向测试失败，恢复源码后回归通过。完整`cargo build --locked -j 2 -p cua-driver`通过。补丁尚未部署或接入Calc保存状态机，不能作为最终保存/重开或跨应用通过证据。既有常量命名、重复rpath警告仍在。
+
 ## 截图坐标路径（2026-10-17，macOS候选）
 
 `driver-visual-point.patch`在现有`driver-focus-diagnostic.patch`之后应用于同一0.34.1基点及MIT许可；保留其它身份/权限补丁。它将foreground像素click接到新visual_point模块，不再调用AX点/父链；模型截图坐标仍走原缩放转换，保存映射几何用于激活后复核。系统窗口SPI首命中同PID/window、实时几何/可见性和4逻辑像素内缩同时通过才一次派发。无AX错误回退分支，无穿透遮挡查询。窗口级激活和AX元素路径不变；不声明全平台或全链路无AX。

@@ -1,0 +1,286 @@
+diff --git a/libs/cua-driver/rust/crates/cua-driver-contract/src/windows.rs b/libs/cua-driver/rust/crates/cua-driver-contract/src/windows.rs
+index ee76c55..177ea5f 100644
+--- a/libs/cua-driver/rust/crates/cua-driver-contract/src/windows.rs
++++ b/libs/cua-driver/rust/crates/cua-driver-contract/src/windows.rs
+@@ -48,6 +48,10 @@ pub struct ListWindowsInput {
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     #[schemars(schema_with = "bool_schema")]
+     pub on_screen_only: Option<bool>,
++    /// macOS-only: discover visible accessory layers for an explicit PID.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    #[schemars(schema_with = "bool_schema")]
++    pub include_accessory_windows: Option<bool>,
+ }
+ 
+ impl ToolInput for ListWindowsInput {
+@@ -57,6 +61,11 @@ impl ToolInput for ListWindowsInput {
+         if self.pid == Some(0) {
+             return Err("window discovery requires a positive process ID".into());
+         }
++        if self.include_accessory_windows == Some(true)
++            && !self.pid.is_some_and(|pid| pid > 0 && pid <= i32::MAX as u32)
++        {
++            return Err("accessory discovery requires an explicit positive macOS PID".into());
++        }
+         Ok(())
+     }
+ }
+@@ -471,3 +480,25 @@ mod tests {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod accessory_discovery_tests {
++    use super::*;
++    use serde_json::json;
++
++    #[test]
++    fn accessory_discovery_requires_explicit_bounded_pid() {
++        for value in [json!({"include_accessory_windows":true}), json!({"include_accessory_windows":true,"pid":2147483648u32})] {
++            let input: ListWindowsInput = serde_json::from_value(value).unwrap();
++            assert_eq!(input.validate().unwrap_err(), "accessory discovery requires an explicit positive macOS PID");
++        }
++        let good: ListWindowsInput = serde_json::from_value(json!({"include_accessory_windows":true,"pid":426})).unwrap();
++        good.validate().unwrap();
++        let old: ListWindowsInput = serde_json::from_value(json!({})).unwrap();
++        old.validate().unwrap();
++        assert_eq!(serde_json::to_value(old).unwrap(), json!({}));
++        for bad in [json!({"include_accessory_windows":"true","pid":426}), json!({"include_accessory_windows":true,"pid":-1})] {
++            assert!(serde_json::from_value::<ListWindowsInput>(bad).is_err());
++        }
++    }
++}
+diff --git a/libs/cua-driver/rust/crates/cua-driver-e2e/tests/cross_platform_behavior_test.rs b/libs/cua-driver/rust/crates/cua-driver-e2e/tests/cross_platform_behavior_test.rs
+index ccadcd5..75410f7 100644
+--- a/libs/cua-driver/rust/crates/cua-driver-e2e/tests/cross_platform_behavior_test.rs
++++ b/libs/cua-driver/rust/crates/cua-driver-e2e/tests/cross_platform_behavior_test.rs
+@@ -977,6 +977,7 @@ fn run_typed_sdk_native_window(fixture: &mut Fixture) -> Observation {
+         );
+         let windows = sdk
+             .list_windows(ListWindowsInput {
++                include_accessory_windows: None,
+                 pid: None,
+                 on_screen_only: None,
+             })
+diff --git a/libs/cua-driver/rust/crates/cua-driver-sdk/src/tests/native_windows.rs b/libs/cua-driver/rust/crates/cua-driver-sdk/src/tests/native_windows.rs
+index c7c2eeb..b71dd96 100644
+--- a/libs/cua-driver/rust/crates/cua-driver-sdk/src/tests/native_windows.rs
++++ b/libs/cua-driver/rust/crates/cua-driver-sdk/src/tests/native_windows.rs
+@@ -227,6 +227,7 @@ async fn typed_discovery_requests_use_the_existing_daemon_transport() {
+     let driver = CuaDriver::connect(Some(socket)).unwrap();
+     assert!(driver
+         .list_windows(ListWindowsInput {
++                include_accessory_windows: None,
+             pid: Some(42),
+             on_screen_only: Some(true)
+         })
+diff --git a/libs/cua-driver/rust/crates/platform-linux/src/tools/impl_.rs b/libs/cua-driver/rust/crates/platform-linux/src/tools/impl_.rs
+index 1417e42..71e2f4f 100644
+--- a/libs/cua-driver/rust/crates/platform-linux/src/tools/impl_.rs
++++ b/libs/cua-driver/rust/crates/platform-linux/src/tools/impl_.rs
+@@ -549,6 +549,7 @@ impl Tool for ListWindowsTool {
+                 integer z_index; if every value is null, use an explicit fallback instead of \
+                 relying on array order.".into(),
+             input_schema: json!({"type":"object","properties":{
++                "include_accessory_windows":{"type":"boolean","description":"macOS-only; true is unsupported on this platform."},
+                 "pid":{"type":"integer","description":"Only list windows owned by this process ID."},
+                 "on_screen_only":{"type":"boolean","description":"When true, filter to visible windows only. Default false."}
+             },"additionalProperties":false}),
+@@ -557,6 +558,9 @@ impl Tool for ListWindowsTool {
+     }
+ 
+     async fn invoke(&self, args: Value) -> ToolResult {
++        if args.get("include_accessory_windows").and_then(Value::as_bool) == Some(true) {
++            return ToolResult::error("accessory window discovery is supported only on macOS");
++        }
+         use cua_driver_core::tool_args::ArgsExt;
+         let filter_pid = args.opt_u64("pid").map(|v| v as u32);
+         let on_screen_only = args.bool_or("on_screen_only", false);
+@@ -14570,3 +14574,17 @@ mod cursor_hook_emission_tests {
+         assert!(seen[1].pressed);
+     }
+ }
++
++#[cfg(test)]
++mod accessory_discovery_unsupported_tests {
++    use super::*;
++    #[tokio::test]
++    async fn accessory_discovery_reports_platform_limitation() {
++        let result = ListWindowsTool.invoke(serde_json::json!({"pid":426,"include_accessory_windows":true})).await;
++        assert_eq!(result.is_error, Some(true));
++        match &result.content[0] {
++            cua_driver_core::protocol::Content::Text { text, .. } => assert_eq!(text, "accessory window discovery is supported only on macOS"),
++            _ => panic!("expected explicit platform error"),
++        }
++    }
++}
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/list_windows.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/list_windows.rs
+index 2c34614..05b81d5 100644
+--- a/libs/cua-driver/rust/crates/platform-macos/src/tools/list_windows.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/list_windows.rs
+@@ -13,7 +13,11 @@ fn def() -> &'static ToolDef {
+     DEF.get_or_init(|| ToolDef {
+         name: "list_windows".into(),
+         description: "List all layer-0 top-level windows currently known to WindowServer. \
+-            Includes off-screen windows (minimized, on another Space, hidden-launched). \
++            Opt in with include_accessory_windows:true and a positive pid to discover \
++            visible windows on every layer for that process, including native Save panels. \
++            This mode does not require AX reachability; Space metadata may be null. \
++            Discovery is not input authorization; observe and verify each exact window. \
++            Default mode includes off-screen windows (minimized, on another Space, hidden-launched). \
+             Use this to find a window_id before calling get_window_state. \
+             AppKit-internal helper windows (off screen, untitled, in no Space, and absent \
+             from the app's AXWindows) are omitted: no tool can read, move, or focus them.\n\n\
+@@ -33,6 +37,10 @@ fn def() -> &'static ToolDef {
+                     "type": "integer",
+                     "description": "Optional pid filter. When set, only this pid's windows are returned."
+                 },
++                "include_accessory_windows": {
++                    "type": "boolean",
++                    "description": "macOS-only, default false. Requires pid; includes visible accessory layers, with no AX reachability filter."
++                },
+                 "on_screen_only": {
+                     "type": "boolean",
+                     "description": "When true, drop windows not on the current Space. Default false."
+@@ -58,7 +66,16 @@ impl Tool for ListWindowsTool {
+         let pid_filter: Option<i32> = args.opt_i64("pid").map(|v| v as i32);
+         let on_screen_only = args.bool_or("on_screen_only", false);
+ 
+-        let enumeration = if on_screen_only {
++        use cua_driver_contract::ToolInput;
++        let input = match serde_json::from_value::<cua_driver_contract::ListWindowsInput>(args.clone()) {
++            Ok(input) => input,
++            Err(error) => return ToolResult::error(format!("invalid window discovery input: {error}")),
++        };
++        if let Err(error) = input.validate() { return ToolResult::error(error); }
++        let accessory = input.include_accessory_windows == Some(true);
++        let enumeration = if accessory {
++            crate::windows::visible_accessory_windows_for_pid(input.pid.expect("validated PID") as i32)
++        } else if on_screen_only {
+             crate::windows::visible_windows_with_space_snapshot()
+         } else {
+             crate::windows::all_windows_with_space_snapshot()
+@@ -69,7 +86,9 @@ impl Tool for ListWindowsTool {
+         if let Some(pid) = pid_filter {
+             windows.retain(|w| w.pid == pid);
+         }
+-        crate::windows::retain_ax_reachable(&mut windows, current_space_id);
++        if !accessory {
++            crate::windows::retain_ax_reachable(&mut windows, current_space_id);
++        }
+ 
+         let windows_json: Vec<Value> = windows.iter().map(window_record_json).collect();
+ 
+@@ -107,6 +126,17 @@ pub(super) fn window_record_json(w: &crate::windows::WindowInfo) -> Value {
+ mod tests {
+     use super::*;
+ 
++    #[tokio::test]
++    async fn accessory_discovery_refuses_missing_pid_before_native_queries() {
++        let result = ListWindowsTool.invoke(serde_json::json!({"include_accessory_windows":true})).await;
++        assert_eq!(result.is_error, Some(true));
++        match &result.content[0] {
++            cua_driver_core::protocol::Content::Text { text, .. } => assert_eq!(text, "accessory discovery requires an explicit positive macOS PID"),
++            _ => panic!("expected exact error text"),
++        }
++        assert_eq!(def().input_schema["properties"]["include_accessory_windows"]["type"], "boolean");
++    }
++
+     #[test]
+     fn window_record_includes_observed_z_index() {
+         let window = crate::windows::WindowInfo {
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/windows.rs b/libs/cua-driver/rust/crates/platform-macos/src/windows.rs
+index 9acee4f..ea8a7c2 100644
+--- a/libs/cua-driver/rust/crates/platform-macos/src/windows.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/windows.rs
+@@ -88,7 +88,7 @@ pub(crate) fn visible_windows_with_space_snapshot() -> WindowEnumeration {
+ /// Enumerate windows on every CGWindow layer, including the accessory layers
+ /// (`layer != 0`) that [`all_windows`] hides.
+ ///
+-/// Only used to answer "does this CGWindowID exist, and who owns it?" — the
++/// Identity lookup answers "does this CGWindowID exist, and who owns it?" — the
+ /// question `list_windows` must NOT answer, because surfacing tooltips,
+ /// popovers, the Dock and every NSMenu window would swamp callers. Keeping the
+ /// layer filter on enumeration and off identity lookup is what lets
+@@ -98,6 +98,21 @@ fn all_windows_any_layer() -> Vec<WindowInfo> {
+     enumerate_windows(kCGWindowListExcludeDesktopElements, LayerFilter::AnyLayer).windows
+ }
+ 
++/// Opt-in discovery only; no AX reachability or input authorization inferred.
++/// Space metadata is unknown for this all-layer enumeration.
++pub(crate) fn visible_accessory_windows_for_pid(pid: i32) -> WindowEnumeration {
++    let mut result = enumerate_windows(
++        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
++        LayerFilter::AnyLayer,
++    );
++    retain_visible_pid(&mut result.windows, pid);
++    result
++}
++
++fn retain_visible_pid(windows: &mut Vec<WindowInfo>, pid: i32) {
++    windows.retain(|window| window.pid == pid && window.is_on_screen);
++}
++
+ /// Which CGWindow layers an enumeration admits.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ enum LayerFilter {
+@@ -553,6 +568,18 @@ mod tests {
+             )));
+     }
+ 
++    #[test]
++    fn accessory_discovery_keeps_visible_panels_without_crossing_pid() {
++        let mut panel = window(85, 426, "LibreOffice");
++        panel.layer = 8;
++        let mut hidden = panel.clone(); hidden.window_id = 86; hidden.is_on_screen = false;
++        let mut other = panel.clone(); other.window_id = 87; other.pid = 999;
++        let mut windows = vec![window(53, 426, "LibreOffice"), panel, hidden, other];
++        retain_visible_pid(&mut windows, 426);
++        assert_eq!(windows.iter().map(|w| (w.window_id, w.layer)).collect::<Vec<_>>(), vec![(53, 0), (85, 8)]);
++        assert!(windows.iter().all(|w| w.current_space_id.is_none()));
++    }
++
+     fn window(window_id: u32, pid: i32, app_name: &str) -> WindowInfo {
+         WindowInfo {
+             window_id,
+diff --git a/libs/cua-driver/rust/crates/platform-windows/src/tools/impl_.rs b/libs/cua-driver/rust/crates/platform-windows/src/tools/impl_.rs
+index 54e58a7..3203f90 100644
+--- a/libs/cua-driver/rust/crates/platform-windows/src/tools/impl_.rs
++++ b/libs/cua-driver/rust/crates/platform-windows/src/tools/impl_.rs
+@@ -937,6 +937,7 @@ impl Tool for ListWindowsTool {
+                 omitted on Windows; current_space_id is null.\n\n\
+                 Inputs: pid (optional pid filter), on_screen_only (bool, default false).".into(),
+             input_schema: json!({"type":"object","properties":{
++                "include_accessory_windows":{"type":"boolean","description":"macOS-only; true is unsupported on this platform."},
+                 "pid":{"type":"integer","description":"Optional pid filter. When set, only this pid's windows are returned."},
+                 "on_screen_only":{"type":"boolean","description":"When true, drop windows that aren't currently on-screen. Default false."}
+             },"additionalProperties":false}),
+@@ -945,6 +946,9 @@ impl Tool for ListWindowsTool {
+     }
+ 
+     async fn invoke(&self, args: Value) -> ToolResult {
++        if args.get("include_accessory_windows").and_then(Value::as_bool) == Some(true) {
++            return ToolResult::error("accessory window discovery is supported only on macOS");
++        }
+         use cua_driver_core::tool_args::ArgsExt;
+         let filter_pid = args.opt_u64("pid").map(|v| v as u32);
+         let on_screen_only = args.bool_or("on_screen_only", false);
+@@ -10327,3 +10331,17 @@ mod display_only_tests;
+ 
+ #[cfg(test)]
+ mod value_write_readback_tests;
++
++#[cfg(test)]
++mod accessory_discovery_unsupported_tests {
++    use super::*;
++    #[tokio::test]
++    async fn accessory_discovery_reports_platform_limitation() {
++        let result = ListWindowsTool.invoke(serde_json::json!({"pid":426,"include_accessory_windows":true})).await;
++        assert_eq!(result.is_error, Some(true));
++        match &result.content[0] {
++            cua_driver_core::protocol::Content::Text { text, .. } => assert_eq!(text, "accessory window discovery is supported only on macOS"),
++            _ => panic!("expected explicit platform error"),
++        }
++    }
++}
