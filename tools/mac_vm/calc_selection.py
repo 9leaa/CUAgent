@@ -140,26 +140,30 @@ class CalcSelectionTask(Task):
             try:
                 self.observed_at = time.monotonic()
                 plan_cell_target(state, **self._context(), grid=self.grid)
-                encoded = state.get('screenshot_png_b64')
-                if not isinstance(encoded, str) or len(encoded) > 12*1024*1024:
-                    raise ValueError('bounded inline PNG required')
-                png = base64.b64decode(encoded, validate=True)
-                if (len(png) < 33 or len(png) > 8*1024*1024
-                        or png[:16] != b'\x89PNG\r\n\x1a\n\0\0\0\rIHDR'
-                        or struct.unpack('>II', png[16:24]) != (state['screenshot_width'],state['screenshot_height'])
-                        or struct.unpack('>I', png[29:33])[0] != zlib.crc32(png[12:29])):
-                    raise ValueError('PNG header and screenshot dimensions must match')
-                raw = json.dumps(state, ensure_ascii=False).encode()
-                _save(self.directory / ('state-%02d.json' % self.used), raw)
-                _save(self.directory / ('state-%02d.png' % self.used), png)
-                self.record(dict(event='selection_observation', snapshot_id=state['snapshot_id'],
-                                 used=self.used, stateSha256=hashlib.sha256(raw).hexdigest(),
-                                 pngSha256=hashlib.sha256(png).hexdigest()))
-                self.snapshot = state
-                return dict(state=state, png=encoded, used=self.used)
+                return self._retain_observation(state)
             except Exception:
                 self.stop()
                 raise
+
+    def _retain_observation(self, state):
+        """Persist a separately validated window observation on the original ledger."""
+        encoded = state.get('screenshot_png_b64')
+        if not isinstance(encoded, str) or len(encoded) > 12*1024*1024:
+            raise ValueError('bounded inline PNG required')
+        png = base64.b64decode(encoded, validate=True)
+        if (len(png) < 33 or len(png) > 8*1024*1024
+                or png[:16] != b'\x89PNG\r\n\x1a\n\0\0\0\rIHDR'
+                or struct.unpack('>II', png[16:24]) != (state['screenshot_width'],state['screenshot_height'])
+                or struct.unpack('>I', png[29:33])[0] != zlib.crc32(png[12:29])):
+            raise ValueError('PNG header and screenshot dimensions must match')
+        raw = json.dumps(state, ensure_ascii=False).encode()
+        _save(self.directory / ('state-%02d.json' % self.used), raw)
+        _save(self.directory / ('state-%02d.png' % self.used), png)
+        self.record(dict(event='selection_observation', snapshot_id=state['snapshot_id'],
+                         used=self.used, stateSha256=hashlib.sha256(raw).hexdigest(),
+                         pngSha256=hashlib.sha256(png).hexdigest()))
+        self.snapshot = state
+        return dict(state=state, png=encoded, used=self.used)
 
     def select(self, *, point=None):
         with self.lock:

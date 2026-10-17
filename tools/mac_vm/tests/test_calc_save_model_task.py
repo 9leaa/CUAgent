@@ -58,10 +58,10 @@ def test_commit_confirm_then_save_over_http(adapter, service, point):
     code, opened = service('open_save_dialog', args)
     assert code == 200 and opened['protocol'] == 'calc-save-v1'
     assert opened['status'] == 'SAVE_DIALOG_ATTEMPT_OBSERVED' and not opened['saved']
-    assert task.used == 5 and len(calls) == 5
-    if point:assert calls[3][1]['delivery_mode']=='foreground' and 'element_token' not in calls[3][1]
+    assert task.used == 7 and len(calls) == 7
+    if point:assert calls[4][1]['delivery_mode']=='foreground' and 'element_token' not in calls[4][1]
     assert service('open_save_dialog', dict(snapshot_id=opened['state']['snapshot_id']))[0] == 409
-    assert len(calls) == 5 and task.stopped.is_set()
+    assert len(calls) == 7 and task.stopped.is_set()
 
 
 @pytest.mark.parametrize('fault', ['path', 'target', 'snapshot', 'session', 'run', 'raw', 'phase'])

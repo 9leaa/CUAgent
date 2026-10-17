@@ -37,11 +37,14 @@ class DiagnosticAdmissionTests(unittest.TestCase):
         previous['source']['executable'] = '/Users/mvpagent/CUAgentDriverDiagnostic-8330e0eef3cb3fefb551674dfbd01a6fe92eccce6f8066ffcdb1e7191d4fb610/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
             require_direct_capture_ready(previous, expected_pid=42)
+        previous['source']['executable'] = '/Users/mvpagent/CUAgentDriverDiagnostic-e4c312cc74f23058e0cf89c7c1ac1decbbab83934661601aa32847da10e81aef/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
+        with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):
+            require_direct_capture_ready(previous, expected_pid=42)
         self.assertEqual(DIAGNOSTIC_BUNDLE, 'com.trycua.driver.pointguard')
         self.assertEqual(DIAGNOSTIC_EXECUTABLE,
-            '/Users/mvpagent/CUAgentDriverDiagnostic-e4c312cc74f23058e0cf89c7c1ac1decbbab83934661601aa32847da10e81aef/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
+            '/Users/mvpagent/CUAgentDriverDiagnostic-c1c1c8126c049ce655472853412aabc3ba9de7b54f85d36e5dcd427df9f21fe1/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard')
         self.assertEqual(DIAGNOSTIC_SHA256,
-            '8a3aa74805cb35c527f4e338d5ee42291695f09152758fab48464aa1f7d9af64')
+            'e478893159c0bdb7603d4843b03dde35eeed0c34e28b628263cb166492afe3c9')
         same_bundle_old_path = copy.deepcopy(self.report)
         same_bundle_old_path['source']['executable'] = '/Users/mvpagent/Applications/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
         with self.assertRaisesRegex(ValueError, 'DIAGNOSTIC_DIRECT_CAPTURE_UNCONFIRMED'):

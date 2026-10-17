@@ -37,16 +37,24 @@ def save_task(tmp_path):
     run='calc-select-11111111-2222-3333-4444-555555555555'
     control=root/'lease.json';lease=dict(version=1,runId=run,owner='worker',epoch=1,stopped=False,expiresAt=120000)
     control.write_text(json.dumps(lease));control.chmod(0o600)
-    state,args=snapshot_fixture();serial=[0];calls=[];failure=[None]
+    state,args=snapshot_fixture();serial=[0];calls=[];failure=[None];panel_opened=[False]
     def chunk(k,d):return struct.pack('>I',len(d))+k+d+struct.pack('>I',zlib.crc32(k+d))
     png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',800,600,8,0,0,0,0))+chunk(b'IDAT',zlib.compress(b'\0'*(801*600)))+chunk(b'IEND',b'')
     state['screenshot_png_b64']=base64.b64encode(png).decode()
     def transport(tool,payload):
         calls.append((tool,copy.deepcopy(payload)))
         if tool=='click' and failure[0]=='timeout':raise TimeoutError('unknown')
+        if tool=='click' and (payload.get('element_token','').endswith(':4') or (payload.get('x'),payload.get('y'))==(140,50)):
+            panel_opened[0]=True
+        if tool=='list_windows':
+            doc=dict(pid=10,window_id=20,title='Untitled 1',is_on_screen=True,bounds=copy.deepcopy(state['window_bounds']))
+            panel=dict(doc,window_id=85,title='Save',layer=8,bounds=copy.deepcopy(doc['bounds']))
+            return dict(windows=[doc,panel] if panel_opened[0] else [doc])
         if tool=='get_window_state':
             serial[0]+=1;s=copy.deepcopy(state);s['snapshot_id']=f's{serial[0]:08x}'
             for e in s['elements']:e['element_token']=s['snapshot_id']+':'+str(e['element_index'])
+            if payload['window_id']==85:
+                s.update(window_id=85,window_title='Save',elements=[])
             return s
         return {'ok':True}
     checker=lambda destination:_inspect_unused_path(root/'test.ods')
@@ -63,26 +71,26 @@ def save_task(tmp_path):
 def test_open_save_once_and_observe_is_not_saved(save_task):
     t,calls,*_=save_task
     r=t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
-    assert [x[0] for x in calls]==['get_window_state','click','get_window_state']
-    assert calls[1][1]==dict(pid=10,window_id=20,session=t.run_id,element_token='s00000001:4')
+    assert [x[0] for x in calls]==['get_window_state','list_windows','click','list_windows','get_window_state']
+    assert calls[2][1]==dict(pid=10,window_id=20,session=t.run_id,element_token='s00000001:4')
     assert r['status']=='SAVE_DIALOG_ATTEMPT_OBSERVED' and not r['saved'] and t.phase=='AWAITING_SAVE_DIALOG'
     with pytest.raises(StopRun):t.open_save(snapshot_id=r['state']['snapshot_id'],name_box_index=2)
-    assert t.used==3 and len(calls)==3
+    assert t.used==5 and len(calls)==5
 
 
 def test_save_entry_budget_boundary(save_task):
     t,calls,*_=save_task
-    t.used=16
+    t.used=14
     result=t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
-    assert t.used==18 and len(calls)==3 and not result['saved']
+    assert t.used==18 and len(calls)==5 and not result['saved']
 
 
 def test_model_point_sends_one_foreground_click(save_task):
     t,calls,*_=save_task
     snapshot=t.snapshot['snapshot_id']
     t.open_save(snapshot_id=snapshot,name_box_index=2,point=dict(snapshot_id=snapshot,x=140,y=50))
-    assert calls[1][1]==dict(pid=10,window_id=20,session=t.run_id,x=140,y=50,delivery_mode='foreground')
-    assert len(calls)==3 and t.used==3
+    assert calls[2][1]==dict(pid=10,window_id=20,session=t.run_id,x=140,y=50,delivery_mode='foreground')
+    assert len(calls)==5 and t.used==5
 
 
 def test_existing_save_intent_prevents_dispatch(save_task):
@@ -100,7 +108,7 @@ def test_save_failure_never_retries(save_task,monkeypatch,fault):
     t,calls,control,lease,root,failure=save_task;snapshot=t.snapshot['snapshot_id']
     if fault=='exists':(root/'test.ods').write_bytes(b'original')
     elif fault=='parent':t.destination_identity={'inode':0}
-    elif fault=='budget':t.used=17
+    elif fault=='budget':t.used=15
     elif fault=='stopped':t.stop()
     elif fault=='unknown':t.uncertain=True
     elif fault=='lease':control.write_text(json.dumps(dict(lease,stopped=True)))
@@ -115,7 +123,78 @@ def test_save_failure_never_retries(save_task,monkeypatch,fault):
         monkeypatch.setattr(t,'record',failed)
     elif fault=='timeout':failure[0]='timeout'
     with pytest.raises((ValueError,StopRun,OSError,TimeoutError)):t.open_save(snapshot_id=snapshot,name_box_index=2)
-    assert t.stopped.is_set() and len(calls)==(2 if fault=='timeout' else 1)
+    assert t.stopped.is_set() and len(calls)==(3 if fault=='timeout' else 1)
     if fault=='timeout':assert t.uncertain
     with pytest.raises(StopRun):t.open_save(snapshot_id=snapshot,name_box_index=2)
-    assert len(calls)==(2 if fault=='timeout' else 1)
+    assert len(calls)==(3 if fault=='timeout' else 1)
+
+
+@pytest.mark.parametrize('fault',['missing','multiple','foreign','old','outside','moved','wrong_snapshot','wrong_geometry','invalid_png'])
+def test_panel_discovery_failure_never_dispatches_panel_input(save_task,monkeypatch,fault):
+    t,calls,*_=save_task
+    original=t.transport
+    def transport(tool,args):
+        result=original(tool,args)
+        if tool=='list_windows':
+            after=any(name=='click' for name,_ in calls)
+            if fault=='old' and not after:
+                result['windows'].append(dict(result['windows'][0],window_id=85,title='Save'))
+            if after:
+                if fault=='missing':result['windows']=result['windows'][:1]
+                elif fault=='multiple':result['windows'].append(dict(result['windows'][1],window_id=86))
+                elif fault=='foreign':result['windows'][1]['pid']=11
+                elif fault=='outside':result['windows'][1]['bounds']['x']+=1000
+                elif fault=='moved':result['windows'][0]['bounds']['x']+=1
+        if tool=='get_window_state' and args['window_id']==85:
+            if fault=='wrong_snapshot':result['window_id']=20
+            elif fault=='wrong_geometry':result['window_bounds']['x']+=1
+            elif fault=='invalid_png':result['screenshot_png_b64']='bad'
+        return result
+    monkeypatch.setattr(t,'transport',transport)
+    with pytest.raises(ValueError):t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
+    assert t.stopped.is_set()
+    clicks=[args for name,args in calls if name=='click']
+    assert len(clicks)==(0 if fault=='old' else 1)
+    assert all(args['window_id']==20 for args in clicks)
+    assert not any(name=='type_text' for name,_ in calls)
+
+
+def test_panel_observation_is_separate_no_ax_or_input_authority(save_task):
+    t,calls,*_=save_task
+    result=t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
+    assert result['state']['window_id']==85 and result['state']['elements']==[]
+    assert t.window==20 and t.panel_window==85
+    assert calls[-1][1]==dict(pid=10,window_id=85,session=t.run_id)
+    result=t.observe()
+    assert result['state']['window_id']==85 and t.used==7
+    for tool,args in [('get_window_state',dict(pid=10,window_id=85,session=t.run_id)),
+                      ('click',dict(pid=10,window_id=85,session=t.run_id,x=20,y=20)),
+                      ('list_windows',dict(pid=11,include_accessory_windows=True))]:
+        with pytest.raises(StopRun):t.raw(tool,args)
+    assert len(calls)==7
+    t.stop()
+    with pytest.raises(StopRun):t.observe()
+    assert len(calls)==7
+
+
+def test_changed_document_baseline_blocks_save_click(save_task,monkeypatch):
+    t,calls,*_=save_task;original=t.transport
+    def transport(tool,args):
+        result=original(tool,args)
+        if tool=='list_windows':result['windows'][0]['bounds']['x']+=1
+        return result
+    monkeypatch.setattr(t,'transport',transport)
+    with pytest.raises(ValueError,match='document changed before save click'):
+        t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
+    assert not any(name=='click' for name,_ in calls)
+
+
+def test_unsupported_discovery_never_clicks(save_task,monkeypatch):
+    t,calls,*_=save_task;original=t.transport
+    def transport(tool,args):
+        result=original(tool,args)
+        return {'ok':True} if tool=='list_windows' else result
+    monkeypatch.setattr(t,'transport',transport)
+    with pytest.raises(ValueError,match='bounded window inventory required'):
+        t.open_save(snapshot_id=t.snapshot['snapshot_id'],name_box_index=2)
+    assert t.stopped.is_set() and not any(name=='click' for name,_ in calls)
