@@ -98,3 +98,9 @@ python3 tools/mac_vm/preflight.py --storage /absolute/path/to/vm-storage --vm ma
 普通账户图形登录后启动Driver daemon，再验证权限、新截图、应用信息与隔离。恢复基线不会自动安装Harness或配置模型。
 
 历史M1为17次调用、AX408、独立smoke通过；本轮只重跑7项mock，没有新的VM验收。九组计算器、结果文件及异常要求见 [新计划C0](../../Harness_Development_Plan.md)。UFO固定参考与旧阶段迁移见 [MIGRATION](../../MIGRATION.md)，不依赖可能已不可达的旧Git历史才能理解规范。
+
+## 离线截图文字验证
+
+`native_image_text.m`只读取已有图片，返回Apple Vision文字、置信度、左上角像素框和原图摘要。没有截图/AX/输入/网络API，不接收期望文字。`sh tools/mac_vm/build-image-text.sh .runtime/native-image-text-arm64`使用固定arm64/SDK15.5构建并临时签名；构建不部署、不启动、不改权限。`image_text_verify.py`要求可信执行器指定绝对路径和二进制摘要，使用私有PNG、10秒超时；`verify_region_text`核对原图/尺寸、区域内唯一高置信度精确文字，拒绝跨区域文本。报告不是动作许可；调用方不能将模型提供的报告当可信识别结果。
+
+8项离线验证测试：`PYTHONPATH=tools/mac_vm python -m unittest tools.mac_vm.tests.test_image_text_verify`。2026-10-17已在宿主和VM读取026原始state-03.png，区域[0,190,320,270]识别A2，期望B2拒绝；0桌面动作。VM arm64二进制SHA256为5a24d206e34b5b80f920ffd94f35aba9a78ddf9b6da145bf7e3decb3a5204698，模块摘要82c737fa857f694f81fc22fffb188ca4b97b222c0b595e856895d4dfaed812d2，私有回执.runtime/image-text-vm-receipt.json。尚未接入任务状态机/固定部署白名单，不计模型输入或保存验收。
