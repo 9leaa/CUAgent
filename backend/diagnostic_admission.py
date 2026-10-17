@@ -3,8 +3,8 @@ from datetime import datetime
 import hashlib
 
 DIAGNOSTIC_BUNDLE = 'com.trycua.driver.pointguard'
-DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/CUAgentDriverDiagnostic-8330e0eef3cb3fefb551674dfbd01a6fe92eccce6f8066ffcdb1e7191d4fb610/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
-DIAGNOSTIC_SHA256 = '12cf062a32d81b14877afa493e805b4ab24f7bac168e292971a50ab0d1659330'
+DIAGNOSTIC_EXECUTABLE = '/Users/mvpagent/CUAgentDriverDiagnostic-e4c312cc74f23058e0cf89c7c1ac1decbbab83934661601aa32847da10e81aef/CuaDriverPointGuard.app/Contents/MacOS/cua-driver-pointguard'
+DIAGNOSTIC_SHA256 = '8a3aa74805cb35c527f4e338d5ee42291695f09152758fab48464aa1f7d9af64'
 
 
 def require_direct_capture_ready(report, *, expected_pid):

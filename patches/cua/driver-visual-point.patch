@@ -1,0 +1,390 @@
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
+--- a/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/input/mod.rs
+@@ -9,7 +9,9 @@
+ //!    the activity-monitor tickle required for live-input detection.
+ 
+ pub mod ax_actions;
++#[allow(dead_code)] // Historical AX route retained for regression evidence.
+ pub(crate) mod foreground_point;
++pub(crate) mod visual_point;
+ pub mod interactive;
+ pub mod keyboard;
+ pub mod mouse;
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
+--- a/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
++++ b/libs/cua-driver/rust/crates/platform-macos/src/tools/click.rs
+@@ -965,7 +965,7 @@
+             // win_local_x/y: window-local logical-pixel coords used when the
+             // Chromium recipe falls back to public PID posting. Its SkyLight
+             // route uses the translated screen coordinates instead.
+-            let (screen_x, screen_y, win_local_x, win_local_y) = if let Some(wid) = window_id {
++            let (screen_x, screen_y, win_local_x, win_local_y, mapped_bounds) = if let Some(wid) = window_id {
+                 match super::px_frame::resolve_or_refuse(wid).await {
+                     Ok(frame) => {
+                         let (sx, sy, lx, ly) = frame.to_screen(cx, cy);
+@@ -988,13 +988,13 @@
+                                 frame.bounds.width, frame.bounds.height
+                             ));
+                         }
+-                        (sx, sy, lx, ly)
++                        (sx, sy, lx, ly, Some(frame.bounds.clone()))
+                     }
+                     Err(refusal) => return refusal,
+                 }
+             } else {
+                 // No window_id → treat x,y as screen coordinates (legacy behaviour).
+-                (cx, cy, cx, cy)
++                (cx, cy, cx, cy, None)
+             };
+ 
+             // ── Exact-target background gate (macOS background input v1) ──
+@@ -1220,8 +1220,9 @@
+                                 // point and post at the HID tap. The pointer stays
+                                 // at the target, as on Windows and X11, so apps that
+                                 // read the pointer when handling the event see it.
+-                                return crate::input::foreground_point::with_exact_point_target(
++                                return crate::input::visual_point::with_visual_point_target(
+                                     pid, window_id.expect("foreground HID requires exact window"), screen_x, screen_y,
++                                    mapped_bounds.as_ref().expect("foreground HID requires mapped window"),
+                                     || crate::input::mouse::click_at_xy_desktop_with_modifiers(
+                                     screen_x,
+                                     screen_y,
+diff --git a/libs/cua-driver/rust/crates/platform-macos/src/input/visual_point.rs b/libs/cua-driver/rust/crates/platform-macos/src/input/visual_point.rs
+new file mode 100644
+--- /dev/null
++++ b/libs/cua-driver/rust/crates/platform-macos/src/input/visual_point.rs
+@@ -0,0 +1,333 @@
++//! Screenshot-directed input. No AX point query or control ancestry dependency.
++//! Private SPI ABI reference: yabai dd845723416f5fe92af49fad5ebab00369e07edd.
++use crate::windows::{WindowBounds, WindowInfo};
++use std::time::{Duration, Instant};
++
++#[repr(C)]
++#[derive(Default)]
++struct Point {
++    x: f64,
++    y: f64,
++}
++
++struct Library(*mut libc::c_void);
++impl Drop for Library {
++    fn drop(&mut self) {
++        unsafe {
++            libc::dlclose(self.0);
++        }
++    }
++}
++
++fn window_at_point(x: f64, y: f64) -> anyhow::Result<(i32, u32)> {
++    unsafe {
++        let raw = libc::dlopen(
++            c"/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight".as_ptr(),
++            libc::RTLD_LOCAL | libc::RTLD_NOW,
++        );
++        anyhow::ensure!(!raw.is_null(), "visual point SPI unavailable");
++        let library = Library(raw);
++        let main = libc::dlsym(library.0, c"SLSMainConnectionID".as_ptr());
++        let find = libc::dlsym(library.0, c"SLSFindWindowAndOwner".as_ptr());
++        let owner = libc::dlsym(library.0, c"SLSConnectionGetPID".as_ptr());
++        anyhow::ensure!(
++            !main.is_null() && !find.is_null() && !owner.is_null(),
++            "visual point symbol unavailable"
++        );
++        let main: unsafe extern "C" fn() -> i32 = std::mem::transmute(main);
++        let find: unsafe extern "C" fn(
++            i32,
++            i32,
++            i32,
++            i32,
++            *mut Point,
++            *mut Point,
++            *mut u32,
++            *mut i32,
++        ) -> i32 = std::mem::transmute(find);
++        let owner: unsafe extern "C" fn(i32, *mut i32) -> i32 = std::mem::transmute(owner);
++        let connection = main();
++        anyhow::ensure!(connection > 0, "visual point connection unavailable");
++        let mut screen = Point { x, y };
++        let mut local = Point::default();
++        let mut wid = 0;
++        let mut cid = 0;
++        // Exactly one unfiltered query. Never search through an overlay.
++        let status = find(
++            connection,
++            0,
++            1,
++            0,
++            &mut screen,
++            &mut local,
++            &mut wid,
++            &mut cid,
++        );
++        anyhow::ensure!(
++            status == 0 && wid > 0 && cid > 0,
++            "visual point find failed: {status}"
++        );
++        let mut pid = 0;
++        let status = owner(cid, &mut pid);
++        anyhow::ensure!(
++            status == 0 && pid > 0,
++            "visual point owner failed: {status}"
++        );
++        Ok((pid, wid))
++    }
++}
++
++fn valid_bounds(b: &WindowBounds) -> bool {
++    [b.x, b.y, b.width, b.height].iter().all(|v| v.is_finite()) && b.width > 8.0 && b.height > 8.0
++}
++fn same_bounds(a: &WindowBounds, b: &WindowBounds) -> bool {
++    a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height
++}
++fn deliver(
++    pid: i32,
++    wid: u32,
++    x: f64,
++    y: f64,
++    mapped: &WindowBounds,
++    current: impl FnOnce() -> Option<WindowInfo>,
++    query: impl FnOnce() -> anyhow::Result<(i32, u32)>,
++    expired: impl Fn() -> bool,
++    action: impl FnOnce() -> anyhow::Result<()>,
++) -> anyhow::Result<()> {
++    anyhow::ensure!(
++        pid > 0 && wid > 0 && x.is_finite() && y.is_finite() && valid_bounds(mapped),
++        "invalid visual target"
++    );
++    anyhow::ensure!(!expired(), "visual preflight timeout");
++    let current = current().ok_or_else(|| anyhow::anyhow!("visual target disappeared"))?;
++    anyhow::ensure!(
++        current.pid == pid && current.window_id == wid && current.is_on_screen,
++        "visual window identity unavailable"
++    );
++    anyhow::ensure!(
++        valid_bounds(&current.bounds) && same_bounds(mapped, &current.bounds),
++        "visual window geometry changed"
++    );
++    let lx = x - current.bounds.x;
++    let ly = y - current.bounds.y;
++    anyhow::ensure!(
++        lx > 4.0 && ly > 4.0 && lx < current.bounds.width - 4.0 && ly < current.bounds.height - 4.0,
++        "visual point outside inset window"
++    );
++    anyhow::ensure!(!expired(), "visual preflight timeout");
++    anyhow::ensure!(
++        query()? == (pid, wid),
++        "visual point is occluded or belongs to another window"
++    );
++    anyhow::ensure!(!expired(), "visual preflight timeout");
++    action() // One attempt; never infer effect or retry on error.
++}
++
++pub(crate) fn with_visual_point_target(
++    pid: i32,
++    wid: u32,
++    x: f64,
++    y: f64,
++    mapped: &WindowBounds,
++    action: impl FnOnce() -> anyhow::Result<()>,
++) -> anyhow::Result<()> {
++    let started = Instant::now();
++    deliver(
++        pid,
++        wid,
++        x,
++        y,
++        mapped,
++        || crate::windows::window_info_by_id(wid),
++        || {
++            let hit = window_at_point(x, y);
++            super::skylight::focus_diagnostic(
++                "visual_point_preflight",
++                pid,
++                wid,
++                serde_json::json!({"x":x,"y":y,"hit":hit.as_ref().ok(),"ax_point_required":false,
++                "query_error":hit.as_ref().err().map(|e|e.to_string())}),
++            );
++            hit
++        },
++        || started.elapsed() >= Duration::from_secs(2),
++        action,
++    )
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::cell::Cell;
++    fn bounds() -> WindowBounds {
++        WindowBounds {
++            x: 96.,
++            y: 61.,
++            width: 768.,
++            height: 541.,
++        }
++    }
++    fn window() -> WindowInfo {
++        WindowInfo {
++            pid: 468,
++            window_id: 123,
++            app_name: String::new(),
++            title: String::new(),
++            bounds: bounds(),
++            layer: 0,
++            z_index: 0,
++            is_on_screen: true,
++            current_space_id: None,
++            on_current_space: None,
++            space_ids: None,
++        }
++    }
++    #[test]
++    fn screenshot_click_needs_no_ax_and_dispatches_once() {
++        let calls = Cell::new(0);
++        deliver(
++            468,
++            123,
++            360.,
++            176.5,
++            &bounds(),
++            || Some(window()),
++            || Ok((468, 123)),
++            || false,
++            || {
++                calls.set(calls.get() + 1);
++                Ok(())
++            },
++        )
++        .unwrap();
++        assert_eq!(calls.get(), 1);
++    }
++    #[test]
++    fn overlays_and_query_errors_never_dispatch() {
++        for hit in [
++            Ok((4486, 358)),
++            Ok((468, 999)),
++            Ok((468, 1050)),
++            Ok((546, 1058)),
++            Err(anyhow::anyhow!("symbol unavailable")),
++            Err(anyhow::anyhow!("find failed")),
++        ] {
++            assert!(deliver(
++                468,
++                123,
++                360.,
++                176.5,
++                &bounds(),
++                || Some(window()),
++                || hit,
++                || false,
++                || panic!("input")
++            )
++            .is_err());
++        }
++    }
++    #[test]
++    fn outside_edges_and_invalid_points_do_not_query() {
++        for (x, y) in [
++            (95., 300.),
++            (97., 300.),
++            (100., 300.),
++            (860., 300.),
++            (360., 65.),
++            (360., 598.),
++            (f64::NAN, 100.),
++            (100., f64::INFINITY),
++        ] {
++            let error = deliver(
++                468,
++                123,
++                x,
++                y,
++                &bounds(),
++                || Some(window()),
++                || panic!("query"),
++                || false,
++                || panic!("input"),
++            )
++            .unwrap_err();
++            assert_eq!(
++                error.to_string(),
++                if x.is_finite() && y.is_finite() {
++                    "visual point outside inset window"
++                } else {
++                    "invalid visual target"
++                }
++            );
++        }
++    }
++    #[test]
++    fn stale_missing_and_foreign_window_do_not_query() {
++        let mut moved = window();
++        moved.bounds.x += 1.;
++        let mut resized = window();
++        resized.bounds.width += 1.;
++        let mut foreign = window();
++        foreign.pid = 99;
++        let mut hidden = window();
++        hidden.is_on_screen = false;
++        let mut sibling = window();
++        sibling.window_id = 124;
++        for w in [
++            None,
++            Some(moved),
++            Some(resized),
++            Some(foreign),
++            Some(hidden),
++            Some(sibling),
++        ] {
++            assert!(deliver(
++                468,
++                123,
++                360.,
++                176.5,
++                &bounds(),
++                || w,
++                || panic!("query"),
++                || false,
++                || panic!("input")
++            )
++            .is_err());
++        }
++    }
++    #[test]
++    fn timeout_after_query_refuses_and_action_error_is_not_retried() {
++        let expired = Cell::new(false);
++        assert!(deliver(
++            468,
++            123,
++            360.,
++            176.5,
++            &bounds(),
++            || Some(window()),
++            || {
++                expired.set(true);
++                Ok((468, 123))
++            },
++            || expired.get(),
++            || panic!("input")
++        )
++        .is_err());
++        let calls = Cell::new(0);
++        assert!(deliver(
++            468,
++            123,
++            360.,
++            176.5,
++            &bounds(),
++            || Some(window()),
++            || Ok((468, 123)),
++            || false,
++            || {
++                calls.set(calls.get() + 1);
++                anyhow::bail!("delivery unknown")
++            }
++        )
++        .is_err());
++        assert_eq!(calls.get(), 1);
++    }
++}
