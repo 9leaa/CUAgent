@@ -101,7 +101,7 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
                     before=self.snapshot['snapshot_id']
                     self.record(dict(event='current_selection_check',snapshot_id=before,used=self.used))
                     result=self.observe()
-                    confirmation=confirm_selected_cell(self.snapshot,**self._context(),
+                    confirmation=self._confirm_selection(self.snapshot,**self._context(),
                         previous_snapshot_id=before,name_box_index=self._name_box())
                     self.record(dict(event='selection_confirmed',route='already-selected',result=confirmation,used=self.used))
                     self.before_click=before  # Prior observation, no click on this route.

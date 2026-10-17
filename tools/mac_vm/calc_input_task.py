@@ -93,7 +93,7 @@ class CalcInputTask(CalcSelectionTask):
                 self.environment();self.lease.check();self.identity(self.pid)
                 if self.used>22:
                     raise StopRun('BLOCKED','Reserve activation, focus, input and commit observations')
-                confirm_selected_cell(self.snapshot,**self._context(),
+                self._confirm_selection(self.snapshot,**self._context(),
                     previous_snapshot_id=self.before_click,name_box_index=name_box_index)
                 intent=dict(snapshot_id=snapshot_id,pid=self.pid,window_id=self.window,
                             used=self.used,persistentForeground=True)
@@ -108,7 +108,7 @@ class CalcInputTask(CalcSelectionTask):
                     self.record(dict(event='window_activation_unverified',used=self.used))
                     raise
                 result=self.observe()
-                confirm_selected_cell(self.snapshot,**self._context(),
+                self._confirm_selection(self.snapshot,**self._context(),
                     previous_snapshot_id=snapshot_id,name_box_index=resolve_name_box())
                 self.record(dict(event='window_activation_observed',proof=proof,used=self.used))
                 self.phase='CONFIRMED'
@@ -130,6 +130,7 @@ class CalcInputTask(CalcSelectionTask):
                     raise StopRun('BLOCKED','Reserve focus, input and commit observations')
                 plan=plan_formula_focus(self.snapshot,point=point,**self._context(),grid=self.grid,
                     previous_snapshot_id=self.before_click,name_box_index=name_box_index,
+                    selection_check=self._confirm_selection,
                     approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region)
                 _save(self.directory/'input-focus-attempt.json',json.dumps(plan,ensure_ascii=False).encode())
@@ -139,7 +140,7 @@ class CalcInputTask(CalcSelectionTask):
                     **plan['target'],delivery_mode='foreground'))
                 result=self.observe()
                 context=self._context()
-                confirm_selected_cell(self.snapshot,**context,
+                self._confirm_selection(self.snapshot,**context,
                     previous_snapshot_id=snapshot_id,name_box_index=resolve_name_box())
                 context.pop('cell')
                 evidence=inspect_edit(self.snapshot,**context,approved=True,
@@ -167,6 +168,7 @@ class CalcInputTask(CalcSelectionTask):
                     raise StopRun('BLOCKED','Reserve input and independent post-input observation')
                 plan=plan_cell_input(self.snapshot,**self._context(),grid=self.grid,
                     previous_snapshot_id=self.before_click,name_box_index=name_box_index,
+                    selection_check=self._confirm_selection,
                     approved=True,overwrite_disposable=True,text=text,kind=kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,
                     formula_region=self.formula_region,
@@ -200,7 +202,7 @@ class CalcInputTask(CalcSelectionTask):
                     raise StopRun('BLOCKED','Fresh post-input evidence required')
                 self.environment();self.lease.check();self.identity(self.pid)
                 context=self._context()
-                confirm_selected_cell(self.snapshot,**context,
+                self._confirm_selection(self.snapshot,**context,
                     previous_snapshot_id=self.before_input,name_box_index=name_box_index)
                 context.pop('cell')
                 evidence=inspect_edit(self.snapshot,**context,approved=True,
@@ -233,7 +235,7 @@ class CalcInputTask(CalcSelectionTask):
                 if self.used>28:
                     raise StopRun('BLOCKED','Reserve commit and post-commit observation')
                 context=self._context()
-                confirm_selected_cell(self.snapshot,**context,
+                self._confirm_selection(self.snapshot,**context,
                     previous_snapshot_id=self.before_input,
                     name_box_index=self.confirmed_input['name_box_index'])
                 context.pop('cell')
@@ -269,6 +271,7 @@ class CalcInputTask(CalcSelectionTask):
                 self.environment();self.lease.check();self.identity(self.pid)
                 result=inspect_committed_cell(self.snapshot,**self._context(),grid=self.grid,
                     previous_snapshot_id=self.before_commit,name_box_index=name_box_index,
+                    selection_check=self._confirm_selection,
                     approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region)
                 self.record(dict(event='cell_commit_observed',result=result,used=self.used))

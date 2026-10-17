@@ -107,6 +107,7 @@ class CalcSaveTask(CalcInputTask):
                     raise StopRun('BLOCKED','Destination parent changed')
                 plan=plan_open_save(self.snapshot,**self._context(),grid=self.grid,
                     previous_snapshot_id=self.before_commit,name_box_index=name_box_index,
+                    selection_check=self._confirm_selection,
                     approved=True,overwrite_disposable=True,text=self.input_text,kind=self.input_kind,
                     approved_text=self.input_text,approved_kind=self.input_kind,formula_region=self.formula_region,
                     run_id=self.run_id,destination=self.destination,save_approved=True,toolbar_region=self.toolbar_region,point=point)

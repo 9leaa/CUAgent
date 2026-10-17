@@ -197,13 +197,16 @@ class CalcSelectionTask(Task):
                 self.stop()
                 raise
 
+    def _confirm_selection(self, state, **context):
+        return confirm_selected_cell(state, **context)
+
     def confirm(self, *, name_box_index):
         with self.lock:
             if self.phase != 'AWAITING_CONFIRMATION' or self.stopped.is_set() or self.uncertain:
                 raise StopRun('BLOCKED', 'Post-click confirmation unavailable')
             try:
                 self.lease.check()
-                result = confirm_selected_cell(self.snapshot, **self._context(),
+                result = self._confirm_selection(self.snapshot, **self._context(),
                     previous_snapshot_id=self.before_click, name_box_index=name_box_index)
                 self.record(dict(event='selection_confirmed', result=result, used=self.used))
                 self.phase = 'CONFIRMED'

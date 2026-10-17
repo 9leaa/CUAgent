@@ -42,7 +42,7 @@
                 After SELECTION_OBSERVED inspect the formula editor in the current original image.
                 If vm_calc_activate is explicitly available, call it once after selection with the current snapshot_id before focus. Inspect its new WINDOW_ACTIVATION_OBSERVED image. Activation is not editor focus; never retry failed or uncertain activation.
                 Choose an interior x,y and call vm_calc_focus once with that snapshot; never guess old coordinates.
-                Click inside the visible existing text itself: the AX editor frame may cover only the text, not the entire white formula bar. Do not choose its empty middle or right side.
+                If text is visible, click inside that text itself: AX bounds may cover only the text. If the formula editor is visibly empty, choose a point near its inner left edge. Never reuse old coordinates.
                 Only INPUT_FOCUS_OBSERVED permits inputting the approved literal once with its new snapshot.
                 After INPUT_OBSERVED commit once. Failed focus or input must stop, not retry.
                 Only CELL_COMMIT_OBSERVED permits vm_calc_open_save with the current snapshot.

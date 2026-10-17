@@ -28,7 +28,8 @@ class CalcGuestRuntime:
             raise ValueError('original canonical run required')
         LeaseGate.private(self.directory.stat(), directory=True)
         if (type(loopback_test) is not bool or not loopback_test and task_factory is not CalcModelTask
-                or not isinstance(selection,dict) or set(selection) not in (
+                or not isinstance(selection,dict) or type(selection.get('visual_selection',False)) is not bool
+                or set(selection)-{'visual_selection'} not in (
                 {'pid','window_id','title','cell','grid','session_id','name_box_grid'},
                 {'pid','window_id','title','cell','grid','session_id','name_box_grid','edit_cancel'})):
             raise ValueError('trusted Calc selection required')

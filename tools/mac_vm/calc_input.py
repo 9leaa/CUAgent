@@ -28,7 +28,7 @@ def validate_cell_payload(text, kind):
 def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
                     previous_snapshot_id, name_box_index, grid,
                     approved, overwrite_disposable, text, kind, approved_text, approved_kind,
-                    formula_region=None, focused_edit=None):
+                    formula_region=None, focused_edit=None, selection_check=confirm_selected_cell):
     """Caller owns approval, name-box identity, region, and prior snapshot.
 
     Absence of AX value is NOT emptiness. Explicit disposable overwrite approval
@@ -42,7 +42,7 @@ def plan_cell_input(state, *, cell, pid, window_id, title, observed_at, now,
         raise ValueError('payload differs from trusted input binding')
     context=dict(pid=pid,window_id=window_id,title=title,observed_at=observed_at,now=now)
     width,height,scale,bounds=_state(state,**context)
-    confirm_selected_cell(state,cell=cell,previous_snapshot_id=previous_snapshot_id,
+    selection_check(state,cell=cell,previous_snapshot_id=previous_snapshot_id,
                           name_box_index=name_box_index,**context)
     if (not isinstance(grid,(list,tuple)) or len(grid)!=4 or not all(_number(v) for v in grid)
             or not 0<=grid[0]<grid[2]<=width or not 0<=grid[1]<grid[3]<=height):
@@ -110,8 +110,8 @@ def plan_formula_focus(state, *, point, **context):
         raise ValueError('current finite screenshot point required')
     editor=next(e for e in state['elements'] if e.get('element_token')==plan['target']['element_token'])
     value=editor.get('value')
-    if not isinstance(value,str) or not value or len(value.encode())>256:
-        raise ValueError('bounded existing editor text required for focus verification')
+    if not isinstance(value,str) or len(value.encode())>256:
+        raise ValueError('explicit bounded editor value required for focus verification')
     f=editor['frame'];b=state['window_bounds'];scale=state['screenshot_scale']
     x=(f['x']-b['x'])*scale;y=(f['y']-b['y'])*scale
     if not x<point['x']<x+f['w']*scale or not y<point['y']<y+f['h']*scale:

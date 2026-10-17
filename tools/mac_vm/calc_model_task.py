@@ -4,7 +4,7 @@ import re
 
 from c0_bridge import Task
 from calc_selection import CalcSelectionTask, _save
-from calc_targeting import _number, _in_window, _elements
+from calc_targeting import _number, _in_window, _elements, _state, confirm_selected_cell
 from calc_edit import plan_edit_cancel
 
 PROTOCOL = 'calc-selection-v1'
@@ -13,7 +13,7 @@ PROTOCOL = 'calc-selection-v1'
 class CalcModelTask(CalcSelectionTask):
     protocol = PROTOCOL
     stop_after_selection = True
-    def __init__(self, *args, session_id, name_box_grid, edit_cancel=None, **kwargs):
+    def __init__(self, *args, session_id, name_box_grid, edit_cancel=None, visual_selection=False, **kwargs):
         if not isinstance(session_id,str) or not re.fullmatch(r'session-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',session_id):
             raise ValueError('trusted official session required')
         if (not isinstance(name_box_grid,(tuple,list)) or len(name_box_grid)!=4
@@ -26,6 +26,10 @@ class CalcModelTask(CalcSelectionTask):
                     or not edit_cancel['expected_text'] or len(edit_cancel['expected_text'].encode())>256):
                 raise ValueError('explicit disposable edit binding required')
             edit_cancel=json.loads(json.dumps(edit_cancel,allow_nan=False))
+        if type(visual_selection) is not bool:
+            raise ValueError('explicit visual selection flag required')
+        self.visual_selection=visual_selection
+        self._visual_cache={}
         self.edit_cancel=edit_cancel
         self._edit_cancel_attempted=False
         self.session_id,self.name_box_grid=session_id,tuple(name_box_grid)
@@ -34,6 +38,7 @@ class CalcModelTask(CalcSelectionTask):
             path=self.directory/'model-binding.json'
             binding=dict(protocol=self.protocol,sessionId=session_id,nameBoxGrid=list(name_box_grid))
             if edit_cancel is not None:binding['editCancel']=edit_cancel
+            if visual_selection:binding['visualSelection']=True
             if path.exists() or path.is_symlink():
                 if path.is_symlink() or json.loads(path.read_bytes())!=binding:
                     raise ValueError('model binding changed')
@@ -97,8 +102,24 @@ class CalcModelTask(CalcSelectionTask):
             w=frame['w']*scale;h=frame['h']*scale
             if w>0 and h>0 and left<=x and top<=y and x+w<=right and y+h<=bottom:
                 matches.append(element['element_index'])
+        if not matches and self.visual_selection and state.get('elements_complete') is False:
+            return None
         if len(matches)!=1: raise ValueError('name box is missing or ambiguous')
         return matches[0]
+
+    def _confirm_selection(self, state, **context):
+        try:
+            return confirm_selected_cell(state, **context)
+        except ValueError:
+            if not self.visual_selection:
+                raise
+        from visual_selection import confirm_visual_selection
+        proof=confirm_visual_selection(state,region=self.name_box_grid,cache=self._visual_cache,**context)
+        # OCR time cannot extend snapshot freshness or the original lease.
+        self.lease.check()
+        _state(state,**{k:v for k,v in self._context().items() if k!='cell'})
+        self.record(dict(event='visual_selection_observed',result=proof,used=self.used))
+        return proof
 
     def select_cell(self,args):
         with self.lock:

@@ -10,7 +10,7 @@ def inspect_edit(state, *, pid, window_id, title, observed_at, now,
                      approved, expected_text, controls_region, editor_regions):
     width,height,scale,bounds=_state(state,pid=pid,window_id=window_id,
                                    title=title,observed_at=observed_at,now=now)
-    if approved is not True or not isinstance(expected_text,str) or not expected_text or len(expected_text.encode())>256:
+    if approved is not True or not isinstance(expected_text,str) or len(expected_text.encode())>256:
         raise ValueError('explicit disposable test text approval required')
     if not isinstance(editor_regions,(list,tuple)) or len(editor_regions)!=2:
         raise ValueError('two reviewed independent editor regions required')

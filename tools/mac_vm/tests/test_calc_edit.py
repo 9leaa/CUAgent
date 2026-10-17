@@ -51,3 +51,13 @@ def test_refuse_uncertain_or_unapproved_cancellation(fault):
     elif fault=='no_press':s['elements'][1]['actions']=[]
     elif fault=='extra_editor':s['elements'].append(dict(s['elements'][3],element_index=8,element_token='s00000001:8'))
     with pytest.raises(ValueError):plan_edit_cancel(s,**a)
+
+
+def test_empty_edit_requires_two_explicit_empty_values():
+    from calc_edit import inspect_edit
+    s,a=fixture();a['expected_text']=''
+    editors=[e for e in s['elements'] if e.get('role')=='AXTextArea']
+    for e in editors:e['value']=''
+    assert inspect_edit(s,**a)['editors']
+    del editors[0]['value']
+    with pytest.raises(ValueError):inspect_edit(s,**a)

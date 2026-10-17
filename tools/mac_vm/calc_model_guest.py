@@ -116,6 +116,7 @@ def main(argv=None):
     for name in ('grid', 'name-box-grid'):
         parser.add_argument('--'+name, required=True, type=float, nargs=4)
     parser.add_argument('--approve-selection', action='store_true')
+    parser.add_argument('--visual-selection', action='store_true', help='Use fixed offline screenshot recognizer for truncated name-box evidence')
     parser.add_argument('--diagnostic-driver', action='store_true',
                         help='Use the fixed independently deployed diagnostic CLI, original daemon only')
     parser.add_argument('--approve-input',action='store_true')
@@ -186,6 +187,7 @@ def main(argv=None):
         task = factory(directory, lease=controller.gate, pid=args.pid,
             window_id=args.window, title=args.title, cell=args.cell, grid=args.grid,
             session_id=args.session, name_box_grid=args.name_box_grid, approved=True,
+            visual_selection=args.visual_selection,
             **edit_binding(args),**(inputs or {}),**(saves or {}))
         server = tools_server(task, model_token, control_token=control_token)
         server.daemon_threads = False
@@ -225,6 +227,7 @@ def controlled(directory, controller, model_token, control_token, args):
         raise ValueError('controlled launch requires an unused original lease')
     selection = dict(pid=args.pid,window_id=args.window,title=args.title,cell=args.cell,
                      grid=args.grid,session_id=args.session,name_box_grid=args.name_box_grid,**edit_binding(args))
+    if getattr(args,'visual_selection',False):selection['visual_selection']=True
     _save(directory/'calc-control-intent.json',json.dumps(dict(runId=args.run,
           sessionId=args.session,selection=selection,inputBinding=inputs,saveBinding=saves,
           diagnosticDriver=diagnostic_cli_binding() if getattr(args,'diagnostic_driver',False) else None)).encode())

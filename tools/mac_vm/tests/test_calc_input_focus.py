@@ -144,3 +144,11 @@ def test_focus_proof_cannot_bypass_pending_edit_verification(fault):
     if fault=='changed':a['focused_edit']['expected_text']='wrong'
     if fault=='no_formula':a.pop('formula_region')
     with pytest.raises(ValueError):plan_cell_input(s,**a)
+
+
+def test_explicit_empty_formula_value_can_be_focused():
+    s,a=fixture();a['formula_region']=[200,40,700,90]
+    s['elements'].append(dict(element_index=4,parent_index=0,role='AXTextArea',enabled=True,
+        value='',element_token='s00000002:4',frame=dict(x=220,y=75,w=40,h=12)))
+    result=plan_formula_focus(s,point=dict(snapshot_id=s['snapshot_id'],x=250,y=60),**a)
+    assert result['previousText']=='' and not result['inputPermitted']
