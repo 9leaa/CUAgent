@@ -23,11 +23,11 @@ def test_save_plan_is_not_save_or_path_admission():
 
 
 @pytest.mark.parametrize('fault',[None,'old','outside','edge','nan','partial','extra'])
-def test_model_save_point_must_match_current_control(fault):
+def test_model_save_point_must_match_current_reviewed_region(fault):
     s,a=setup();point=dict(snapshot_id=s['snapshot_id'],x=140,y=50)
     if fault=='old':point['snapshot_id']='old'
     elif fault=='outside':point['x']=400
-    elif fault=='edge':point['x']=120
+    elif fault=='edge':point['x']=100
     elif fault=='nan':point['x']=float('nan')
     elif fault=='partial':del point['y']
     elif fault=='extra':point['element_token']='s00000002:4'
@@ -59,3 +59,26 @@ def test_save_rejects_uncertain_or_unapproved_target(fault):
     elif fault=='region':a['toolbar_region']=[0,0,900,700]
     elif fault=='old':a['now']=131
     with pytest.raises(ValueError):plan_open_save(s,**a)
+
+
+@pytest.mark.parametrize('fault',['missing','stale_token','wrong_role'])
+def test_screenshot_save_does_not_require_ax_save_control(fault):
+    s,a=setup()
+    if fault=='missing':s['elements'].pop()
+    elif fault=='stale_token':s['elements'][-1]['element_token']='old:4'
+    else:s['elements'][-1]['role']='AXUnknown'
+    result=plan_open_save(s,point=dict(snapshot_id=s['snapshot_id'],x=140,y=50),**a)
+    assert result['route']=='screenshot' and not result['saved']
+    assert result['requiresPostActionObservation']
+
+
+@pytest.mark.parametrize('fault',['approval','path','value','dialog','stale'])
+def test_screenshot_route_preserves_task_guards(fault):
+    s,a=setup()
+    if fault=='approval':a['save_approved']=False
+    elif fault=='path':a['destination']='/tmp/other.ods'
+    elif fault=='value':s['elements'][1]['value']='wrong'
+    elif fault=='dialog':s['elements'].append(dict(element_index=5,parent_index=0,role='AXSheet'))
+    else:a['now']=131
+    with pytest.raises(ValueError):
+        plan_open_save(s,point=dict(snapshot_id=s['snapshot_id'],x=140,y=50),**a)

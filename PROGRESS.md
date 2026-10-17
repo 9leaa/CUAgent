@@ -1,5 +1,12 @@
 # CUAgent 实际进度
 
+## 2026-10-17：完整闭环方案、保存截图路径及ODS读回模块
+
+- 全目标保持截图操作闭环、最终保存/重开/读回、减少AX依赖和跨软件验证；方案见p7-visual-workflow-closure.md。当前Git基于654a048，实查DSH running为空、Worker49315在运行。全屏观察显示KUB2，与上轮A2编辑态不同，询问接管后等待回答；未启动新模型、未修改VM权限或桌面。
+- 保存入口有坐标时校验当前snapshot、有限数及审阅toolbar区域内部，不再先要求AX Save按钮；无坐标的AX路径保持唯一控件/token检查。提交内容核对、已知对话框拒绝、原Driver遮挡检查及单次后观察不变。不是全链路去AX，也不授予最终写盘权限。
+- calc_workbook_verify新增有界ZIP/XML及只读文件验证，检查Sheet1/A2精确文字、拒绝公式、重复ZIP条目、超限解压、DTD/实体、文件链接和父目录身份变化。返回明确guiExecutionVerified=false/reopenedVerified=false；尚未接入真实GUI最终保存，不可单独作为业务成功证据。
+- 89项保存策略/执行/模型/guest及ODS测试通过；其中ODS14项使用实际临时ZIP/XML/文件系统，其余为模拟执行。真实VM新一轮与跨应用验收均未完成。
+
 ## 2026-10-17：021截图点击生效，修复跨快照名称框索引
 
 - 用户确认A2未提交的44为手动编辑并允许取消；Escape后恢复probe，再建立独立021。冻结aecb1c4，37项guest源码，官方Flash/off，30raw上限。助手实际截图及新时钟准入通过，App就绪后另采派发前截图，正式模型已运行。

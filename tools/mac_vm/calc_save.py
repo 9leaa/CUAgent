@@ -28,27 +28,27 @@ def plan_open_save(state, *, run_id, destination, save_approved, toolbar_region,
     if any(e.get('role') in ('AXSheet','AXDialog') and _in_window(e,indexed,context['title'])
            for e in indexed.values()):
         raise ValueError('unexpected existing dialog')
-    found=[]
-    for e in indexed.values():
-        if e.get('role')!='AXMenuButton' or e.get('label')!='Save' or not _in_window(e,indexed,context['title']):continue
-        if e.get('enabled') is not True or 'AXPress' not in e.get('actions',[]):continue
-        f=e.get('frame',{})
-        if not isinstance(f,dict) or not all(_number(f.get(k)) for k in ('x','y','w','h')) or f['w']<=0 or f['h']<=0:continue
-        x=(f['x']-bounds['x'])*scale;y=(f['y']-bounds['y'])*scale
-        if r[0]<=x and r[1]<=y and x+f['w']*scale<=r[2] and y+f['h']*scale<=r[3]:found.append(e)
-    if len(found)!=1:raise ValueError('unique grounded Save toolbar control required')
-    e=found[0]
-    if e.get('element_token')!=state['snapshot_id']+':'+str(e['element_index']):
-        raise ValueError('fresh Save token required')
-    target=dict(element_token=e['element_token']);route='ax'
     if point is not None:
         if (not isinstance(point,dict) or set(point)!={'snapshot_id','x','y'}
                 or point['snapshot_id']!=state['snapshot_id'] or not all(_number(point[k]) for k in ('x','y'))):
             raise ValueError('same-snapshot finite model Save point required')
-        f=e['frame'];left=(f['x']-bounds['x'])*scale;top=(f['y']-bounds['y'])*scale
-        if not left<point['x']<left+f['w']*scale or not top<point['y']<top+f['h']*scale:
-            raise ValueError('Save point outside grounded control')
+        if not r[0]<point['x']<r[2] or not r[1]<point['y']<r[3]:
+            raise ValueError('Save point outside reviewed toolbar region')
         target=dict(x=point['x'],y=point['y']);route='screenshot'
+    else:
+        found=[]
+        for e in indexed.values():
+            if e.get('role')!='AXMenuButton' or e.get('label')!='Save' or not _in_window(e,indexed,context['title']):continue
+            if e.get('enabled') is not True or 'AXPress' not in e.get('actions',[]):continue
+            f=e.get('frame',{})
+            if not isinstance(f,dict) or not all(_number(f.get(k)) for k in ('x','y','w','h')) or f['w']<=0 or f['h']<=0:continue
+            x=(f['x']-bounds['x'])*scale;y=(f['y']-bounds['y'])*scale
+            if r[0]<=x and r[1]<=y and x+f['w']*scale<=r[2] and y+f['h']*scale<=r[3]:found.append(e)
+        if len(found)!=1:raise ValueError('unique grounded Save toolbar control required')
+        e=found[0]
+        if e.get('element_token')!=state['snapshot_id']+':'+str(e['element_index']):
+            raise ValueError('fresh Save token required')
+        target=dict(element_token=e['element_token']);route='ax'
     return dict(status='SAVE_DIALOG_OPEN_PLANNED',snapshot_id=state['snapshot_id'],
         target=target,route=route,destination=destination,
         commitEvidence=proof,requiresPostActionObservation=True,
