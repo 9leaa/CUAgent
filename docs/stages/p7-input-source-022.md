@@ -15,3 +15,13 @@
 ## 授权重启恢复
 
 2026-10-17 16:02起按用户明确授权重启测试VM并放弃未保存表格；Lume旧进程26293退出，新进程59132，VNC改为57595。登录后处理旧配置锁和两条Untitled 1恢复记录，取消恢复保存并新建空白Calc。WindowServer新PID163，采样CPU4%后降至0%；画面时钟刷新到01:06。未复现连续4，但没有证明历史输入根因已修复。原Driver790的AX/录屏权限保持，独立只读检查2raw/0动作成功，新Calc PID426、A2空白；正式模型复验尚未启动，须重新绑定新窗口及截图几何。
+
+## 重启后023准备阶段再次出现异常
+
+2026-10-17 16:10至16:12，新候选冻结a00dc1c，39份VM部署文件独立摘要核对通过；只读确认Calc426/window53、A2空白，新任务完成prepare且leaseGranted=false。尚未启动PointGuard、权限助手、业务guest或模型。
+
+通过屏幕共享在VM系统设置搜索框输入Accessibility，截图先显示accessibility；随后点击搜索结果，再观察显示accessibility44。本次没有请求输入数字4，无法仅凭此时序判定具体事件源。说明该现象重启后仍可出现，且不限于Calc；不能将它归因于023模型或候选Driver。原Driver790仍在运行，不能因此排除所有其他输入通道。
+
+中止监督程序等待的probe步骤，未创建create-request/run-attempt；finally完成恢复，原Driver790权限保持，Worker新PID59818。独立SSH采样08:12:21Z：WindowServer163 CPU3%，未见候选Driver/业务guest；屏幕共享画面时间从01:11更新到01:12。本次并未同时复现上次高CPU和画面停滞，不能把两种症状直接视为同一根因。后续只读截图及一次点击设置空白区没有继续增加4，不证明故障消除。
+
+私有证据位于.runtime/input-source-023.jpg、input-source-023.json、diagnostic-business-023及calc-dsh-save-023。023保持UNVERIFIED，不重放此业务候选。下一步需隔离屏幕共享输入、输入助手及VM虚拟键盘通道，取得动作与字符变化的对应证据，再继续新的正式回归。完整保存/重开和跨软件验收仍未完成。
