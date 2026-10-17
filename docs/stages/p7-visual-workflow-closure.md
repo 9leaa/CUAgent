@@ -44,3 +44,15 @@
 代码复核另发现保存接线跨层遗漏：VM保存入口已经变为基线清单、点击、面板发现、面板截图共4raw，但适配器仍按2raw验收且提示16raw入口。修正适配层及提示为4raw、入口used<=14，并以真实调用数量的模拟响应覆盖成功和错误计数、入口预算边界。此修复不等于实机保存通过。
 
 024清理中SSH子进程10秒等待未结束，保留guestExit=null原回执。独立检查guest PID1555不存在、8766/49197无监听、官方会话终结且profile恢复后，才停止候选1506、撤销临时权限并恢复原Driver1663及Worker72291。未复跑024，原始失败和截图保留。观察模式期间未见多余4；根因仍未证明。
+
+## 025/026实机反馈与下一步方案
+
+025在派发确认前等待，未创建模型会话、0raw。只读进程检查确认runner及两个SSH子进程共享终端stdin；定向中断runner后，回溯停于确认行读取，清理guestExit=0、无待完成调用、profile恢复。竞争读取是有证据支持的解释，未跟踪到具体消费确认字节的PID。私有026启动器将guest和tunnel两个Popen的stdin设为DEVNULL；不改生产desktop_tunnel（其已隔离stdin）。026确认一次即成功派发。
+
+026复用aba83db部署前逐文件核对39份文件及manifest；重复安装因目标已存在被拒绝，未覆盖已有部署。正式会话session-94ae145a-a76d-44d2-9803-f6ce2bd6d3bb使用Flash/off，屏幕共享切至观察模式。原始轨迹为get_window_state→click→get_window_state，共3raw、一次点击、零type/commit/save。点击为当前截图(130,346)，投递至屏幕点(161,234)，原文档426/53不变。
+
+点击后s00000003的AX返回319元素、timeout_ms=1000、walk_elapsed_ms=1000、nodes_pending=16、truncation_reason=timeout。名称框318为A2，AXTextArea子控件未返回。以原始state-03.json离线调用_name_box及confirm_selected_cell，精确复现name box child mismatch or ambiguous；截图也显示A2高亮。此次没有跨快照索引复用，没有文字输入；选择效果目视可见，但独立执行门禁未通过。官方终态为UNKNOWN通用错误，不能将其写成业务成功。
+
+证据目录：.runtime/calc-dsh-save-026/calc-select-b32d210c-397c-48dd-aae0-45591d65a7da，包括independent-guest/trace.jsonl、state-03.json/png、confirmation-replay.json、official-terminal.json、cleanup-receipt.json。026清理正常：guestExit=0、pendingCalls=0、lease撤销、原profile恢复；监督程序停止候选2061并恢复原Driver2164/Worker74114。
+
+下一步技术方案（尚未实现）：将“选中目标”的语义验证与整棵AX树是否及时遍历分离。先提供有界的局部控件观察或截图区域验证接口，以新截图/窗口身份/目标区域为输入，独立核对名称框及选中区域；保留原PID/window、遮挡、新鲜度和一次动作门禁。AX可作为证据来源，但子控件缺失应进入明确的待视觉验证状态，而不是继续扩大整树超时或复用旧编号。视觉验证证据必须绑定原截图摘要和可信期望，不能只接受执行模型自称成功。补充缺失子控件、错误单元格、遮挡、旧截图及跨软件控件的回归后，再做新的VM闭环。此前“DFS先遍历大量网格导致控制区靠后”有源码和本轮顺序支持，但局部观察的具体实现仍需评审与验证。
