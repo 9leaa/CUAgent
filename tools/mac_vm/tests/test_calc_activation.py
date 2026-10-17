@@ -42,7 +42,7 @@ def bind(setup,value=None,error=None):
 
 
 def activate(t):
-    return t.activate_window_once(snapshot_id=t.snapshot['snapshot_id'] if t.snapshot else '',name_box_index=2)
+    return t.activate_window_once(snapshot_id=t.snapshot['snapshot_id'] if t.snapshot else '',name_box_index=2,resolve_name_box=lambda: 2)
 
 
 def test_single_explicit_action_original_budget_and_new_observation(activation_setup):

@@ -1,5 +1,13 @@
 # CUAgent 实际进度
 
+## 2026-10-17：021截图点击生效，修复跨快照名称框索引
+
+- 用户确认A2未提交的44为手动编辑并允许取消；Escape后恢复probe，再建立独立021。冻结aecb1c4，37项guest源码，官方Flash/off，30raw上限。助手实际截图及新时钟准入通过，App就绪后另采派发前截图，正式模型已运行。
+- 6raw包含4次观察、一次精确窗口激活及一次前台截图坐标点击。点(530,228)映射桌面(361,175)，Driver返回HID派发；state-06显示公式栏光标和Cancel/Accept，独立编辑区域检查通过。不能仅凭派发返回认定输入成功。
+- 离线用原始state-04/state-06复现：旧名称框322在新快照报selected cell mismatch or missing，新快照重新定位323则SELECTION_OBSERVED。修复activate_window_once/focus_input_once在后观察调用可信名称框解析器；模型参数不增加权限。75项聚焦/激活/模型/保存适配回归通过，包含重编号成功和名称框缺失拒绝。另97项输入执行/HTTP/guest回归通过，合计172项。真实VM修正版尚未运行。
+- 原会话UNKNOWN后停止，rawCalls=6/pendingCalls=0，未输入、提交或打开保存面板。当前原协议仅验保存入口，未包含最终填写/写盘，不能称完整保存流程通过。原021不重放。
+- 清理首次guestExit为空，监督器拒绝自动恢复；后独立进程清单确认原run进程已退出，保留原回执并追加late-guest-exit-confirmation。确认DSH空闲、数据库无活动/占用且P5暂停后，停止候选44459、撤销AX/录屏权限、恢复原Driver44637和Worker49315。profile已恢复。恢复脚本首次文本缩进错误在远端解析阶段失败，无恢复副作用；修正后恢复成功。原证据位于私有calc-dsh-save-021与diagnostic-business-021。
+
 ## 2026-10-17：019/020准入失败及时间修正
 
 - 既有DSH_HOME启动后idle RPC正常，之前401不再阻塞。019助手及daemon权限、截图通过，但App启动后复核超过30秒，promptAttempted=false、rawCalls=0，业务UNVERIFIED。020同版guest重复部署被拒，随后独立读回37项源码摘要一致后复用；权限通过，但跨机时间比较拒绝，未派发模型。

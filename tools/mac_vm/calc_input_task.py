@@ -82,7 +82,7 @@ class CalcInputTask(CalcSelectionTask):
             raise StopRun('BLOCKED','Only original exact-window activation allowed')
         return super().validate_raw(tool,args)
 
-    def activate_window_once(self, *, snapshot_id, name_box_index):
+    def activate_window_once(self, *, snapshot_id, name_box_index, resolve_name_box):
         """Explicit foreground change, never an automatic click fallback."""
         with self.lock:
             try:
@@ -109,7 +109,7 @@ class CalcInputTask(CalcSelectionTask):
                     raise
                 result=self.observe()
                 confirm_selected_cell(self.snapshot,**self._context(),
-                    previous_snapshot_id=snapshot_id,name_box_index=name_box_index)
+                    previous_snapshot_id=snapshot_id,name_box_index=resolve_name_box())
                 self.record(dict(event='window_activation_observed',proof=proof,used=self.used))
                 self.phase='CONFIRMED'
                 return dict(result,**proof,inputPermitted=False,commitPermitted=False)
@@ -117,7 +117,7 @@ class CalcInputTask(CalcSelectionTask):
                 self.stop()
                 raise
 
-    def focus_input_once(self, *, snapshot_id, name_box_index, point, controls_region, editor_regions):
+    def focus_input_once(self, *, snapshot_id, name_box_index, point, controls_region, editor_regions, resolve_name_box):
         """Trusted adapter regions; one screenshot click and independent edit check."""
         with self.lock:
             try:
@@ -140,7 +140,7 @@ class CalcInputTask(CalcSelectionTask):
                 result=self.observe()
                 context=self._context()
                 confirm_selected_cell(self.snapshot,**context,
-                    previous_snapshot_id=snapshot_id,name_box_index=name_box_index)
+                    previous_snapshot_id=snapshot_id,name_box_index=resolve_name_box())
                 context.pop('cell')
                 evidence=inspect_edit(self.snapshot,**context,approved=True,
                     expected_text=plan['previousText'],controls_region=controls_region,editor_regions=editor_regions)

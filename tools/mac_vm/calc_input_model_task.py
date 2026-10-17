@@ -45,7 +45,7 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
                 if not isinstance(args,dict) or set(args)!={'snapshot_id'}:
                     raise ValueError('only current activation snapshot allowed')
                 result=self.activate_window_once(snapshot_id=args['snapshot_id'],
-                    name_box_index=self._name_box())
+                    name_box_index=self._name_box(),resolve_name_box=self._name_box)
                 confirmation=dict(status='WINDOW_ACTIVATION_OBSERVED',cell=self.cell,
                     snapshot_id=result['state']['snapshot_id'],inputEffectVerified=False,
                     inputPermitted=False,commitPermitted=False)
@@ -60,7 +60,7 @@ class CalcInputModelTask(CalcModelTask, CalcInputTask):
                 if not isinstance(args,dict) or set(args)!={'snapshot_id','x','y'}:
                     raise ValueError('only current snapshot and focus point allowed')
                 result=self.focus_input_once(snapshot_id=args['snapshot_id'],point=args,
-                    name_box_index=self._name_box(),**self.input_regions)
+                    name_box_index=self._name_box(),resolve_name_box=self._name_box,**self.input_regions)
                 confirmation=dict(status='INPUT_FOCUS_OBSERVED',cell=self.cell,
                     snapshot_id=result['state']['snapshot_id'],inputEffectVerified=False,
                     inputPermitted=False,commitPermitted=False)

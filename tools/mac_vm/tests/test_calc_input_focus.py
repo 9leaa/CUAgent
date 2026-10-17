@@ -17,7 +17,7 @@ def test_foreground_cli_error_keeps_cause_original_budget_and_stops(formula_setu
         value='a',frame=dict(x=300,y=65,w=10,h=12)))
     selected(t)
     snapshot=t.snapshot['snapshot_id'];_,regions=edit_fixture()
-    args=dict(snapshot_id=snapshot,name_box_index=2,point=dict(snapshot_id=snapshot,x=410,y=40),
+    args=dict(snapshot_id=snapshot,name_box_index=2,resolve_name_box=lambda: 2,point=dict(snapshot_id=snapshot,x=410,y=40),
         controls_region=regions['controls_region'],editor_regions=[regions['editor_regions'][0],[350,20,700,70]])
     attempted=[]
     detail='click failed: foreground HID delivery: exact target window did not become focused'
@@ -63,7 +63,7 @@ def test_focus_plan_requires_bound_editor_and_current_interior_point(fault):
         assert not result['inputPermitted']
 
 
-@pytest.mark.parametrize('fault',[None,'unchanged','changed','timeout','stopped','budget','same_snapshot'])
+@pytest.mark.parametrize('fault',[None,'reindexed','missing_name_box','unchanged','changed','timeout','stopped','budget','same_snapshot'])
 def test_focus_once_requires_independent_edit_evidence(formula_setup,monkeypatch,fault):
     t,calls,s,*_=formula_setup
     s['elements'].append(dict(element_index=20,parent_index=0,role='AXTextArea',enabled=True,
@@ -85,14 +85,29 @@ def test_focus_once_requires_independent_edit_evidence(formula_setup,monkeypatch
                 if fault=='changed' and e['role']=='AXTextArea':e['value']='other'
                 e['element_token']=result['snapshot_id']+':'+str(e['element_index'])
                 result['elements'].append(e)
+            if fault in ('reindexed','missing_name_box'):
+                for e in result['elements']:
+                    if e['element_index']==2:
+                        e['element_index']=22
+                        e['element_token']=result['snapshot_id']+':22'
+                    if e.get('parent_index')==2:e['parent_index']=22
+                if fault=='missing_name_box':
+                    result['elements']=[e for e in result['elements'] if e['element_index']!=22]
             if fault=='same_snapshot':result['snapshot_id']=before
         return result
     monkeypatch.setattr(t,'transport',transport)
-    args=dict(snapshot_id=before,name_box_index=2,point=dict(snapshot_id=before,x=410,y=40),
+    args=dict(snapshot_id=before,name_box_index=2,resolve_name_box=lambda: 2,point=dict(snapshot_id=before,x=410,y=40),
         controls_region=regions['controls_region'],editor_regions=[regions['editor_regions'][0],[350,20,700,70]])
+    def resolve_current():
+        assert t.snapshot['snapshot_id']!=before
+        matches=[e['element_index'] for e in t.snapshot['elements'] if e.get('role')=='AXComboBox']
+        if len(matches)!=1:raise ValueError('name box missing or ambiguous')
+        return matches[0]
+    args['resolve_name_box']=resolve_current
+    current_box=22 if fault=='reindexed' else 2
     if fault=='stopped':t.stop()
     if fault=='budget':t.used=25
-    if fault:
+    if fault not in (None,'reindexed'):
         with pytest.raises(Exception):t.focus_input_once(**args)
         assert t.stopped.is_set()
     else:
@@ -101,8 +116,8 @@ def test_focus_once_requires_independent_edit_evidence(formula_setup,monkeypatch
         assert not result['inputEffectVerified'] and not result['inputPermitted']
         assert calls[3]==('click',dict(pid=10,window_id=20,session='input',x=410,y=40,delivery_mode='foreground'))
         focused_snapshot=t.snapshot['snapshot_id']
-        result=t.input_once(snapshot_id=focused_snapshot,name_box_index=2,text='AbZ中文',kind='text')
-        confirmation=t.confirm_input(snapshot_id=result['state']['snapshot_id'],name_box_index=2,
+        result=t.input_once(snapshot_id=focused_snapshot,name_box_index=current_box,text='AbZ中文',kind='text')
+        confirmation=t.confirm_input(snapshot_id=result['state']['snapshot_id'],name_box_index=current_box,
             controls_region=args['controls_region'],editor_regions=args['editor_regions'])
         assert confirmation['status']=='INPUT_OBSERVED' and t.used==7
         assert [tool for tool,_ in calls][-4:]==['click','get_window_state','type_text','get_window_state']
