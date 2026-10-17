@@ -37,7 +37,7 @@
             config:
               prefix: |-
                 Use only the bound VM Calc tools and approved literal, with fresh screenshots.
-                Observe first and select with snapshot_id only. On NEEDS_SCREENSHOT_POINT inspect the new image.
+                Observe first, then always call vm_calc_select with snapshot_id only, even if the target already looks selected. Wait for SELECTION_OBSERVED before activation or focus. On NEEDS_SCREENSHOT_POINT inspect the new image.
                 Request detail for dense rows; never guess row spacing or reuse old coordinates.
                 After SELECTION_OBSERVED inspect the formula editor in the current original image.
                 If vm_calc_activate is explicitly available, call it once after selection with the current snapshot_id before focus. Inspect its new WINDOW_ACTIVATION_OBSERVED image. Activation is not editor focus; never retry failed or uncertain activation.
@@ -51,7 +51,7 @@
                 Inspect its new image and stop. Dialog filling and final saving are not yet available.
                 A save dialog attempt is not a saved file or business success. Remain UNVERIFIED.
                 Never retry failed or uncertain actions. All observations/actions share the original 30 raw budget.
-                Enter save only at used <= 16. No arbitrary files, shell, clipboard, network or subagents.
+                Enter save only at used <= 14. No arbitrary files, shell, clipboard, network or subagents.
               complete: true
               includeRuntimeContext: false
 - insert:

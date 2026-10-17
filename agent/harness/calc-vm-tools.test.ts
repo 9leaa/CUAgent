@@ -61,7 +61,7 @@ async function inputFixture(t:any, saveMode=false, activation=false) {
   f.control.reply=(body:any,{common,state,png}:any,value:any)=>{
     if(body.op==='input_cell')return {...common,used:5,status:'INPUT_OBSERVED',state:state('s00000003'),png:png.toString('base64'),
       confirmation:{status:'INPUT_OBSERVED',cell:'A2',snapshot_id:'s00000003',text:'AbZ中文',kind:'text',inputEffectVerified:true,storageTypeVerified:false,commitPermitted:false}}
-    if(body.op==='open_save_dialog')return {...common,used:9,status:'SAVE_DIALOG_ATTEMPT_OBSERVED',state:state('s00000005'),png:png.toString('base64'),saved:false,savePermitted:false}
+    if(body.op==='open_save_dialog')return {...common,used:11,status:'SAVE_DIALOG_ATTEMPT_OBSERVED',state:state('s00000005'),png:png.toString('base64'),saved:false,savePermitted:false}
     if(body.op==='commit_cell' && saveMode)return {...common,used:7,status:'CELL_COMMIT_OBSERVED',state:state('s00000004'),png:png.toString('base64'),
       commitEffectVerified:true,saved:false,confirmation:{status:'CELL_COMMIT_OBSERVED',cell:'A2',snapshot_id:'s00000004',
         text:'AbZ中文',kind:'text',commitEffectVerified:true,saved:false,storageTypeVerified:false}}
@@ -174,7 +174,7 @@ for (const fault of [null,'nan','partial','extra','proof','accounting','stale','
   await f.tool('vm_calc_input').execute({snapshot_id:'s00000003',text:'AbZ中文',kind:'text'},f.exec)
   await f.tool('vm_calc_commit').execute({snapshot_id:'s00000004'},f.exec)
   const opened=await f.tool('vm_calc_open_save').execute({snapshot_id:'s00000005',x:20,y:30},f.exec)
-  assert.equal(JSON.parse(opened.result).used,11)
+  assert.equal(JSON.parse(opened.result).used,13)
   assert.equal(JSON.parse(opened.result).businessStatus,'UNVERIFIED')
 })
 
@@ -212,7 +212,7 @@ for(const fault of ['early','path','old','commit_proof','saved_claim','accountin
   if(fault==='nan')Object.assign(args,{x:NaN,y:20})
   if(fault==='partial')args.x=20
   if(fault==='saved_claim')f.control.corrupt=(v:any)=>({...v,saved:true})
-  if(fault==='accounting')f.control.corrupt=(v:any)=>({...v,used:8})
+  if(fault==='accounting')f.control.corrupt=(v:any)=>({...v,used:9})
   if(fault==='image')f.control.corrupt=(v:any)=>({...v,state:{...v.state,snapshot_id:'s00000004'}})
   await assert.rejects(()=>f.tool('vm_calc_open_save').execute(args,f.exec))
   assert.equal(f.calls.at(-1).op,'stop')
@@ -491,4 +491,32 @@ test('model request requires the current returned screenshot and exact Flash/off
   const options={...f.route,tools:f.registered,messages:[{content:f.tool('vm_calc_observe').output.render({},value)}]}
   for(const change of [{messages:[]},{reasoningEffort:'high'},{tools:[...f.registered,{name:'shell'}]},{model:'other'}])
     await assert.rejects(async()=>{for await(const _ of stream({...options,...change},async function*(){})){} })
+})
+
+test('initial observation directs already-highlighted targets through independent selection',async t=>{
+  const f=fixture(t,{protocol:'calc-save-v1',approvedText:'AbZ中文',approvedKind:'text',activationApproved:true});f.init()
+  const observed=JSON.parse((await f.tool('vm_calc_observe').execute({},f.exec)).result)
+  assert.deepEqual(observed.nextAction.arguments,{snapshot_id:observed.snapshot_id})
+  assert.equal(observed.nextAction.tool,'vm_calc_select')
+  await assert.rejects(()=>f.tool('vm_calc_activate').execute({snapshot_id:observed.snapshot_id},f.exec))
+  assert.equal(f.calls.filter(c=>c.op==='activate_window').length,0)
+})
+
+for(const used of [14,15,16])test(`save discovery reserve at ${used} raw`,async t=>{
+  const f=await inputFixture(t,true)
+  const previous=f.control.reply
+  f.control.reply=(body:any,helpers:any,value:any)=>{
+    const result=previous(body,helpers,value)
+    if(body.op==='observe')return {...result,used:used-4,state:helpers.state('s00000009')}
+    if(body.op==='input_cell')result.used=used-2
+    if(body.op==='commit_cell')result.used=used
+    if(body.op==='open_save_dialog')result.used=used+4
+    return result
+  }
+  await f.tool('vm_calc_observe').execute({},f.exec)
+  await f.tool('vm_calc_input').execute({snapshot_id:'s00000009',text:'AbZ中文',kind:'text'},f.exec)
+  await f.tool('vm_calc_commit').execute({snapshot_id:'s00000003'},f.exec)
+  const run=()=>f.tool('vm_calc_open_save').execute({snapshot_id:'s00000004',x:20,y:30},f.exec)
+  if(used===14)assert.equal(JSON.parse((await run()).result).used,18)
+  else {await assert.rejects(run);assert.equal(f.calls.filter(c=>c.op==='open_save_dialog').length,0)}
 })
